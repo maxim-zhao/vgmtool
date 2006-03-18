@@ -1,0 +1,21 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VGMTool", "vgmtool.vcproj", "{1024C82F-B72B-4637-B0DA-42986DC2F2CA}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Release = Release
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{1024C82F-B72B-4637-B0DA-42986DC2F2CA}.Debug.ActiveCfg = Debug|Win32
+		{1024C82F-B72B-4637-B0DA-42986DC2F2CA}.Debug.Build.0 = Debug|Win32
+		{1024C82F-B72B-4637-B0DA-42986DC2F2CA}.Release.ActiveCfg = Release|Win32
+		{1024C82F-B72B-4637-B0DA-42986DC2F2CA}.Release.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal
