@@ -3,10 +3,10 @@
 #ifndef CONVERT_H
 #define CONVERT_H
 
-#include <windows.h>
+#include <Windows.h>
 
 enum ConvertFileType { ftGYM, ftSSL, ftCYM };
 
-BOOL ConverttoVGM(char *filename,int FileType);
+BOOL ConverttoVGM(char* filename, int FileType);
 
 #endif

@@ -53,7 +53,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>comctl32.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>comctl32.lib;uxtheme.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -72,19 +72,19 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>comctl32.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>comctl32.lib;uxtheme.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="convert.c" />
-    <ClCompile Include="gd3.c" />
-    <ClCompile Include="gui.c" />
-    <ClCompile Include="optimise.c" />
-    <ClCompile Include="trim.c" />
-    <ClCompile Include="utils.c" />
-    <ClCompile Include="vgm.c" />
-    <ClCompile Include="vgmtool.c" />
-    <ClCompile Include="writetotext.c" />
+    <ClCompile Include="convert.cpp" />
+    <ClCompile Include="gd3.cpp" />
+    <ClCompile Include="gui.cpp" />
+    <ClCompile Include="optimise.cpp" />
+    <ClCompile Include="trim.cpp" />
+    <ClCompile Include="utils.cpp" />
+    <ClCompile Include="vgm.cpp" />
+    <ClCompile Include="vgmtool.cpp" />
+    <ClCompile Include="writetotext.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="convert.h" />

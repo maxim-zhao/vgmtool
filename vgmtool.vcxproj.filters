@@ -15,31 +15,31 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="convert.c">
+    <ClCompile Include="convert.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="gd3.c">
+    <ClCompile Include="gd3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="gui.c">
+    <ClCompile Include="gui.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vgmtool.c">
+    <ClCompile Include="vgmtool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vgm.c">
+    <ClCompile Include="vgm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="utils.c">
+    <ClCompile Include="utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="trim.c">
+    <ClCompile Include="trim.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="optimise.c">
+    <ClCompile Include="optimise.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="writetotext.c">
+    <ClCompile Include="writetotext.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

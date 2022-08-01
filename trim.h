@@ -1,10 +1,10 @@
 #ifndef TRIM_H
 #define TRIM_H
 
-#include <windows.h>
+#include <Windows.h>
 
-void LogTrim(char *VGMFile,int start,int loop,int end);
+void LogTrim(char* VGMFile, int start, int loop, int end);
 
-BOOL NewTrim(char *filename,const long int start, const long int loop, const long int end);
+BOOL NewTrim(char* filename, long int start, long int loop, long int end);
 
 #endif

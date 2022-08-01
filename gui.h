@@ -4,16 +4,16 @@
 #ifndef GUI_H
 #define GUI_H
 
-#include <windows.h>
+#include <Windows.h>
 
-void ShowMessage(char *format,...);
-void ShowError(char *format,...);
-int  ShowQuestion(char *format,...);
+void ShowMessage(const char* format, ...);
+void ShowError(const char* format, ...);
+int ShowQuestion(const char* format, ...);
 
-void ShowStatus(char *format,...);
+void ShowStatus(const char* format, ...);
 
-void AddConvertText(char *format,...);
+void AddConvertText(const char* format, ...);
 
-BOOL GetInt(HWND hDlg,int item,int *result);
+BOOL GetInt(HWND hDlg, int item, int* result);
 
 #endif
