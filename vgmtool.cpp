@@ -5,7 +5,7 @@
 #include <cstring>
 
 #include <CommCtrl.h>
-#include <uxtheme.h>
+#include <Uxtheme.h>
 #include <zlib.h>
 
 #include "resource.h"
@@ -1931,16 +1931,14 @@ void make_tabbed_dialogue()
     newTab.iImage = 5;
     TabCtrl_InsertItem(tabCtrlWnd, 5, &newTab);
 
+    // We need to locate all the child tabs aligned to the tab control.
+    // So first we get the area of the tab control...
     RECT tabDisplayRect;
     GetWindowRect(tabCtrlWnd, &tabDisplayRect);
-    // And the main window
-    RECT tabRect;
-    GetWindowRect(hWndMain, &tabRect);
-    // Offset the tab rect relative to the window
-    OffsetRect(&tabDisplayRect, -tabRect.left - GetSystemMetrics(SM_CXDLGFRAME),
-        -tabRect.top - GetSystemMetrics(SM_CYDLGFRAME) - GetSystemMetrics(SM_CYCAPTION));
-    // TODO: this is buggy
+    // And adjust it to the "display area"
     TabCtrl_AdjustRect(tabCtrlWnd, FALSE, &tabDisplayRect);
+    // Then make it relative to the main window
+    MapWindowPoints(HWND_DESKTOP, hWndMain, (LPPOINT)&tabDisplayRect, 2);
 
     // Create child windows
     TabChildWnds[0] = CreateDialog(HInst, (LPCTSTR) DlgVGMHeader, hWndMain, DialogProc);
@@ -1951,11 +1949,11 @@ void make_tabbed_dialogue()
     TabChildWnds[5] = CreateDialog(HInst, (LPCTSTR) DlgMisc, hWndMain, DialogProc);
 
     // Put them in the right place, and hide them
-    for (auto& TabChildWnd : TabChildWnds)
+    for (const auto& tabChildWnd : TabChildWnds)
     {
-        EnableThemeDialogTexture(TabChildWnd, ETDT_USETABTEXTURE);
+        EnableThemeDialogTexture(tabChildWnd, ETDT_ENABLETAB);
 
-        SetWindowPos(TabChildWnd,HWND_TOP, tabDisplayRect.left, tabDisplayRect.top,
+        SetWindowPos(tabChildWnd,HWND_TOP, tabDisplayRect.left, tabDisplayRect.top,
             tabDisplayRect.right - tabDisplayRect.left, tabDisplayRect.bottom - tabDisplayRect.top,
             SWP_HIDEWINDOW);
     }
