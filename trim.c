@@ -13,17 +13,14 @@
 // in a file called "editpoints.txt" in the VGM's directory
 //----------------------------------------------------------------------------------------------
 void LogTrim(char *VGMFile,int start,int loop,int end) {
-  FILE *f;
-  char *fn;
-
-  if(!strrchr(VGMFile,'\\')) return;
+	if(!strrchr(VGMFile,'\\')) return;
 
   // make filename to log to
-  fn=malloc(strlen(VGMFile)+20);
+  char* fn = malloc(strlen(VGMFile) + 20);
   strcpy(fn,VGMFile);
   strcpy(strrchr(fn,'\\')+1,"editpoints.txt");
 
-  f=fopen(fn,"a"); // open file for append
+  FILE* f = fopen(fn, "a"); // open file for append
 
   if (!f) ShowError("Error opening editpoints.txt");
   else fprintf(f,"Filename: %s\n"

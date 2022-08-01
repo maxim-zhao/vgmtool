@@ -20,21 +20,17 @@ BOOL FileExists(char *filename) {
 }
 
 BOOL FileExistsQuiet(char *filename) {
-  FILE *f;
-  BOOL result;
-  if(!filename) return FALSE;
-  f=fopen(filename,"rb");
-  result=(f!=NULL);
+	if(!filename) return FALSE;
+  FILE* f = fopen(filename, "rb");
+  BOOL result = (f != NULL);
   if (f) fclose(f);
   return result;
 }
 
 // returns the size of the file in bytes
 unsigned long int FileSize(char *filename) {
-  HANDLE *f;
-  unsigned long int s;
-  f=CreateFile(filename,GENERIC_READ,FILE_SHARE_READ,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
-  s=GetFileSize(f,NULL);
+	HANDLE* f = CreateFile(filename,GENERIC_READ,FILE_SHARE_READ, 0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+  unsigned long int s = GetFileSize(f,NULL);
   CloseHandle(f);
   return s;
 }
@@ -44,11 +40,10 @@ unsigned long int FileSize(char *filename) {
 // it will probably choke with weird parameters, real writable filenames should be OK
 char *MakeTempFilename(char *src) {
   int i=0;
-  char *p,*dest;
-  
-  dest=malloc(strlen(src)+4); // just in case it has no extension, some extra space
+
+  char* dest = malloc(strlen(src) + 4); // just in case it has no extension, some extra space
   strcpy(dest,src);
-  p=strrchr(dest,'\\');
+  char* p = strrchr(dest, '\\');
   p++;
   do sprintf(p,"%d.tmp",i++);
   while (FileExistsQuiet(dest)); // keep trying integers until one doesn't exist
@@ -62,12 +57,10 @@ char *MakeTempFilename(char *src) {
 // Helper routine - "filename.ext","suffix" becomes "filename (suffix).ext"
 //----------------------------------------------------------------------------------------------
 char *MakeSuffixedFilename(char *src,char *suffix) {
-  char *p,*dest;
-
-  dest=malloc(strlen(src)+strlen(suffix)+10); // 10 is more than I need to be safe
+	char* dest = malloc(strlen(src) + strlen(suffix) + 10); // 10 is more than I need to be safe
 
   strcpy(dest,src);
-  p=strrchr(strrchr(dest,'\\'),'.'); // find last dot after last slash
+  char* p = strrchr(strrchr(dest, '\\'), '.'); // find last dot after last slash
   if(!p) p=dest+strlen(dest); // if no extension, add to the end of the file instead
   sprintf(p," (%s)%s",suffix,src+(p-dest));
 
@@ -80,10 +73,7 @@ char *MakeSuffixedFilename(char *src,char *suffix) {
 // compresses the file with GZip compression
 // to a temp file, then overwrites the original file with the temp
 BOOL Compress(char *filename) {
-  gzFile in,*out;
-  char *outfilename;
-  char *copybuffer;
-  int AmtRead;
+	int AmtRead;
 
   if (!FileExists(filename)) return FALSE;
 
@@ -102,12 +92,12 @@ BOOL Compress(char *filename) {
     return FALSE;
   }
 
-  outfilename=MakeTempFilename(filename);
+  char* outfilename = MakeTempFilename(filename);
 
-  out=gzopen(outfilename,"wb9");
-  in=gzopen(filename,"rb");
+  gzFile* out = gzopen(outfilename, "wb9");
+  gzFile in = gzopen(filename, "rb");
 
-  copybuffer=malloc(BUFFER_SIZE);
+  char* copybuffer = malloc(BUFFER_SIZE);
 
   do {
     AmtRead=gzread(in,copybuffer,BUFFER_SIZE);
@@ -136,25 +126,21 @@ BOOL Compress(char *filename) {
 // decompress the file
 // to a temp file, then overwrites the original file with the temp file
 BOOL Decompress(char *filename) {
-  FILE *out;
-  gzFile in;
-  char *outfilename;
-  char *copybuffer;
-  int AmtRead,x;
+	int x;
 
   if (!FileExists(filename)) return FALSE;
 
   ShowStatus("Decompressing...");
 
-  outfilename=MakeTempFilename(filename);
+  char* outfilename = MakeTempFilename(filename);
 
-  out=fopen(outfilename,"wb");
-  in=gzopen(filename,"rb");
+  FILE* out = fopen(outfilename, "wb");
+  gzFile in = gzopen(filename, "rb");
 
-  copybuffer=malloc(BUFFER_SIZE);
+  char* copybuffer = malloc(BUFFER_SIZE);
 
   do {
-    AmtRead=gzread(in,copybuffer,BUFFER_SIZE);
+    int AmtRead = gzread(in, copybuffer,BUFFER_SIZE);
     if((x=fwrite(copybuffer,1,AmtRead,out))!=AmtRead) {
       // Error copying file
       ShowError("Error copying data to temporary file %s!",outfilename);
@@ -179,10 +165,8 @@ BOOL Decompress(char *filename) {
 
 // Assumes filename has space at the end for the extension, if needed
 void ChangeExt(char *filename,char *ext) {
-  char *p,*q;
-
-  p=strrchr(filename,'\\');
-  q=strchr(p,'.');
+	char* p = strrchr(filename, '\\');
+  char* q = strchr(p, '.');
   if(q==NULL) q=p+strlen(p); // if no ext, point to end of string
 
   strcpy(q,".");
@@ -193,17 +177,13 @@ void ChangeExt(char *filename,char *ext) {
 #define GZMagic2 0x8b
 // Changes the file's extension to vgm or vgz depending on whether it's compressed
 BOOL FixExt(char *filename) {
-  char *newfilename;
-  FILE *f;
-  int IsCompressed=0;
+	if (!FileExists(filename)) return FALSE;
 
-  if (!FileExists(filename)) return FALSE;
-
-  f=fopen(filename,"rb");
-  IsCompressed=((fgetc(f)==GZMagic1) && (fgetc(f)==GZMagic2));
+  FILE* f = fopen(filename, "rb");
+  int IsCompressed = ((fgetc(f) == GZMagic1) && (fgetc(f) == GZMagic2));
   fclose(f);
 
-  newfilename=malloc(strlen(filename)+10); // plenty of space, can't hurt
+  char* newfilename = malloc(strlen(filename) + 10); // plenty of space, can't hurt
 
   strcpy(newfilename,filename);
 

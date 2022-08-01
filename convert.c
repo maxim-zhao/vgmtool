@@ -24,8 +24,7 @@ void SpreadDAC(gzFile in,gzFile out) {
   // the first 0x2a DAC data address byte.
 
   int addr,data;
-  int i,NumDACValues=1,InFileDataStart=gztell(in);
-  long WaitLength;
+  int NumDACValues=1,InFileDataStart=gztell(in);
 
   // 1. Count how many DAC values there are
   do {
@@ -49,7 +48,7 @@ void SpreadDAC(gzFile in,gzFile out) {
   gzseek(in,InFileDataStart-2,SEEK_SET);
 
   // 3. Read data again, this time outputting it with wait commands between
-  i=0;
+  int i = 0;
   do {
     data=gzgetc(in);  // GYM data type byte
     if ((data==0)||(data==EOF)) break;
@@ -64,7 +63,7 @@ void SpreadDAC(gzFile in,gzFile out) {
       if (addr==0x2a) {
         // Got to DAC data so let's pause
         // Calculate pause length
-        WaitLength=(LEN60TH*(i+1)/NumDACValues)-(LEN60TH*i/NumDACValues);
+        long WaitLength = (LEN60TH * (i + 1) / NumDACValues) - (LEN60TH * i / NumDACValues);
         // Write pause
         WritePause(out,WaitLength);
         // Increment counter
@@ -96,26 +95,23 @@ void SpreadDAC(gzFile in,gzFile out) {
 }
 
 BOOL ConverttoVGM(char *filename,int FileType) {
-  gzFile in,out;
-  char *Outfilename;
-  struct TVGMHeader VGMHeader;
-  char b1,YM2413Address=(char)0xff,*p1,*p2;
-  long int Length=0,LoopLength=0,LoopOffset=0;
+	struct TVGMHeader VGMHeader;
+  char b1,YM2413Address=(char)0xff;
 
   if (!FileExists(filename)) return FALSE;
 
   // Make output filename filename.gym.vgz
-  Outfilename=malloc(strlen(filename)+10);
+  char* Outfilename = malloc(strlen(filename) + 10);
   strcpy(Outfilename,filename);
   strcat(Outfilename,".vgz");
 
-  p1=strrchr(filename,'\\')+1;
-  p2=strrchr(Outfilename,'\\')+1;
+  char* p1 = strrchr(filename, '\\') + 1;
+  char* p2 = strrchr(Outfilename, '\\') + 1;
   ShowStatus("Converting \"%s\" to VGM format...",p1);
 
   // Open files
-  in=gzopen(filename,"rb");
-  out=gzopen(Outfilename,"wb0");
+  gzFile in = gzopen(filename, "rb");
+  gzFile out = gzopen(Outfilename, "wb0");
 
   gzseek(out,VGM_DATA_OFFSET,SEEK_SET);
 

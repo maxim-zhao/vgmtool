@@ -58,12 +58,11 @@ void ShowStatus(char *format,...) {
 void AddConvertText(char *format,...) {
   va_list args;
   char buffer[1024];
-  int length;
   va_start(args, format); // varargs start after format
   _vsnprintf(buffer,1024,format,args);
   va_end(args); // clean things up before leaving
 
-  length=SendDlgItemMessage(ConvertWnd,edtConvertResults,WM_GETTEXTLENGTH,0,0);  // Get length
+  int length = SendDlgItemMessage(ConvertWnd,edtConvertResults,WM_GETTEXTLENGTH, 0, 0);  // Get length
   SendDlgItemMessage(ConvertWnd,edtConvertResults,EM_SETSEL,length,length);  // move caret to end of text
   SendDlgItemMessage(ConvertWnd,edtConvertResults,EM_REPLACESEL,FALSE,(LPARAM)buffer); // insert text there
 }
@@ -71,8 +70,7 @@ void AddConvertText(char *format,...) {
 BOOL GetInt(HWND hDlg,int item,int *result) {
   BOOL b;
   char c[3];
-  int i;
-  i=GetDlgItemInt(hDlg,item,&b,FALSE);
+  int i = GetDlgItemInt(hDlg, item, &b,FALSE);
   if(b || i) {
     // b==TRUE -> no errors
     // b==FALSE but i!=0 -> there were errors, but it managed to convert an integer

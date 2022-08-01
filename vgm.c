@@ -139,19 +139,17 @@ void WritePause(gzFile out,long int pauselength) {
 // doesn't check anything (like the GD3 offset, EOF offset).
 //----------------------------------------------------------------------------------------------
 void WriteVGMHeader(char *filename,struct TVGMHeader VGMHeader) {
-  gzFile in,*out;
-  char *outfilename;
-  char copybuffer[BUFFER_SIZE];
+	char copybuffer[BUFFER_SIZE];
   int AmtRead;
 
   if (!FileExists(filename)) return;
 
   ShowStatus("Updating VGM header...");
 
-  outfilename=MakeTempFilename(filename);
+  char* outfilename = MakeTempFilename(filename);
 
-  in=gzopen(filename,"rb");
-  out=gzopen(outfilename,"wb0");
+  gzFile in = gzopen(filename, "rb");
+  gzFile* out = gzopen(outfilename, "wb0");
 
   gzwrite(out,&VGMHeader,sizeof(VGMHeader));
   gzseek(in,sizeof(VGMHeader),SEEK_SET);
@@ -258,8 +256,7 @@ void GetUsedChips(gzFile in,BOOL *UsesPSG,BOOL *UsesYM2413,BOOL *UsesYM2612,BOOL
 // TODO: rewrite as a CheckHeader() function to check everything at once
 //----------------------------------------------------------------------------------------------
 void CheckLengths(char *filename,BOOL ShowResults) {
-  gzFile in;
-  long int SampleCount=0,LoopSampleCount=-1;
+	long int SampleCount=0,LoopSampleCount=-1;
   struct TVGMHeader VGMHeader;
   int b0,b1,b2;
 
@@ -267,7 +264,7 @@ void CheckLengths(char *filename,BOOL ShowResults) {
 
   ShowStatus("Counting samples...");
 
-  in=gzopen(filename,"rb");
+  gzFile in = gzopen(filename, "rb");
 
   // Read header
   gzread(in,&VGMHeader,sizeof(VGMHeader));
@@ -369,15 +366,14 @@ void CheckLengths(char *filename,BOOL ShowResults) {
 // Go through file, if I find a 1/50th or a 1/60th then I'll assume that's correct
 //----------------------------------------------------------------------------------------------
 int DetectRate(char *filename) {
-  gzFile in;
-  struct TVGMHeader VGMHeader;
-  int b0,b1,b2,Speed;
+	struct TVGMHeader VGMHeader;
+  int b0,b1,b2;
 
   if (!FileExists(filename)) return 0;
 
   ShowStatus("Detecting VGM recording rate...");
 
-  in=gzopen(filename,"rb");
+  gzFile in = gzopen(filename, "rb");
 
   // Read header
   if(!ReadVGMHeader(in,&VGMHeader,FALSE)) {
@@ -388,7 +384,7 @@ int DetectRate(char *filename) {
 
   gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
 
-  Speed=0;
+  int Speed = 0;
   do {
     b0=gzgetc(in);
     switch (b0) {
@@ -464,8 +460,7 @@ BOOL ReadVGMHeader(gzFile f,struct TVGMHeader *header,BOOL quiet) {
 // expecting that this and the chip/channel stripper
 // ought to be equally capable
 void GetWriteCounts(char *filename,int PSGwrites[NumPSGTypes],int YM2413writes[NumYM2413Types],int YM2612writes[NumYM2612Types],int YM2151writes[NumYM2151Types],int reservedwrites[NumReservedTypes]) {
-  gzFile in;
-  struct TVGMHeader VGMHeader;
+	struct TVGMHeader VGMHeader;
   int b0,b1,b2;
   int i;
   int Channel=0; // for tracking PSG latched register
@@ -479,7 +474,7 @@ void GetWriteCounts(char *filename,int PSGwrites[NumPSGTypes],int YM2413writes[N
 
   if (!filename || !FileExists(filename)) return; // explicitly check for filename==NULL because that signals that we're supposed to return all zero
 
-  in=gzopen(filename,"rb");
+  gzFile in = gzopen(filename, "rb");
   
   // Read header
   if(!ReadVGMHeader(in,&VGMHeader,FALSE)) {
@@ -599,12 +594,10 @@ void GetWriteCounts(char *filename,int PSGwrites[NumPSGTypes],int YM2413writes[N
 // Fills a TSystemState with default values
 //----------------------------------------------------------------------------------------------
 void ResetState(struct TSystemState *State) {
-  int i;
-
-  State->samplecount=0;
+	State->samplecount=0;
 
   State->PSGState.GGStereo=0xff;
-  for (i=0;i<4;i++) {
+  for (int i = 0;i<4;i++) {
     State->PSGState.Registers[2*i]=0;
     State->PSGState.Registers[2*i+1]=0xf;
   }

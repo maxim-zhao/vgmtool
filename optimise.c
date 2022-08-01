@@ -11,16 +11,14 @@
 // Pause optimiser
 //----------------------------------------------------------------------------------------------
 BOOL OptimiseVGMPauses(char *filename) {
-  gzFile in,*out;
-  struct TVGMHeader VGMHeader;
-  char *outfilename,b0,b1,b2;
-  long int OldLoopOffset;
-  int i,PauseLength=0;
+	struct TVGMHeader VGMHeader;
+  char b0,b1,b2;
+	int PauseLength=0;
 
   if (!FileExists(filename)) return FALSE;
 
   // Open input file
-  in=gzopen(filename,"rb");
+  gzFile in = gzopen(filename, "rb");
 
   // Read its VGM header
   if(!ReadVGMHeader(in,&VGMHeader,FALSE)) {
@@ -28,13 +26,13 @@ BOOL OptimiseVGMPauses(char *filename) {
 	return FALSE;
   }
 
-  OldLoopOffset=VGMHeader.LoopOffset+LOOPDELTA;
+  long int OldLoopOffset = VGMHeader.LoopOffset + LOOPDELTA;
 
   // Make the output filename...
-  outfilename=MakeTempFilename(filename);
+  char* outfilename = MakeTempFilename(filename);
   
   // ...open it...
-  out=gzopen(outfilename,"wb0");
+  gzFile out = gzopen(outfilename, "wb0");
 
   // ...skip to the data section...
   gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
@@ -123,7 +121,7 @@ BOOL OptimiseVGMPauses(char *filename) {
     gzseek(in,VGMHeader.GD3Offset+GD3DELTA,SEEK_SET);
     gzread(in,&GD3Header,sizeof(GD3Header));
     gzwrite(out,&GD3Header,sizeof(GD3Header));
-    for (i=0; i<GD3Header.Length; ++i) gzputc(out,gzgetc(in));
+    for (int i = 0; i<GD3Header.Length; ++i) gzputc(out,gzgetc(in));
     VGMHeader.GD3Offset=NewGD3Offset;
   }
   // 3. Fill in VGM header
@@ -150,9 +148,7 @@ BOOL OptimiseVGMPauses(char *filename) {
 // Returns number of offsets removed
 //----------------------------------------------------------------------------------------------
 int RemoveOffset(char *filename) {
-  gzFile in,*out;
-  char *outfilename;
-  struct TVGMHeader VGMHeader;
+	struct TVGMHeader VGMHeader;
   signed int b0,b1,b2;
   BOOL SilencedChannels[3]={FALSE,FALSE,FALSE};
   unsigned short int PSGRegisters[8] = {0,0xf,0,0xf,0,0xf,0,0xf};
@@ -164,7 +160,7 @@ int RemoveOffset(char *filename) {
 
   if (!FileExists(filename)) return 0;
 
-  in=gzopen(filename,"rb");
+  gzFile in = gzopen(filename, "rb");
 
   // Read header
   if(!ReadVGMHeader(in,&VGMHeader,FALSE)) {
@@ -174,9 +170,9 @@ int RemoveOffset(char *filename) {
 
   gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
 
-  outfilename=MakeTempFilename(filename);
+  char* outfilename = MakeTempFilename(filename);
 
-  out=gzopen(outfilename,"wb0");  // No compression, since I'll recompress it later
+  gzFile out = gzopen(outfilename, "wb0");  // No compression, since I'll recompress it later
 
   // copy header... update it later
   gzwrite(out,&VGMHeader,sizeof(VGMHeader));
@@ -325,12 +321,11 @@ int RemoveOffset(char *filename) {
   // Then copy the GD3 over
   if (VGMHeader.GD3Offset) {
     struct TGD3Header GD3Header;
-    int i;
     int NewGD3Offset=gztell(out)-GD3DELTA;
     gzseek(in,VGMHeader.GD3Offset+GD3DELTA,SEEK_SET);
     gzread(in,&GD3Header,sizeof(GD3Header));
     gzwrite(out,&GD3Header,sizeof(GD3Header));
-    for (i=0; i<GD3Header.Length; ++i) {  // Copy strings
+    for (int i = 0; i<GD3Header.Length; ++i) {  // Copy strings
       gzputc(out,gzgetc(in));
     }
     VGMHeader.GD3Offset=NewGD3Offset;
@@ -389,7 +384,7 @@ int RemoveOffset(char *filename) {
 // TODO: optimise 1-byte PSG frequency changes (where the change is only in the high 4 bits)
 // Test: Golvellius - Dina near the start
 BOOL OptimiseVGMData(char *filename) {
-  gzFile in,*out;
+  gzFile in,out;
   struct TVGMHeader VGMHeader;
   struct TSystemState CurrentState;
   struct TSystemState LastWrittenState;
@@ -602,30 +597,24 @@ BOOL OptimiseVGMData(char *filename) {
 
 BOOL RoundToFrameAccurate(char *filename)
 {
-  // Try to find the alignment for pauses
-  // Put frame-sized pauses in there
-  gzFile in,*out;
-  struct TVGMHeader VGMHeader;
-  char *outfilename,b0,b1,b2;
-  long int OldLoopOffset;
-  int i,PauseLength=0,maxcount;
-  int *PausePositions;
-  int numbuckets;
-  int bucketsize = 1; // how many samples per bucket for counting
+	struct TVGMHeader VGMHeader;
+  char b0,b1,b2;
+	int i,PauseLength=0;
+	int bucketsize = 1; // how many samples per bucket for counting
   int framelength;
   char buffer[1024*10],buffer2[64];
 
   if (!FileExists(filename)) return FALSE;
 
   // Open input file
-  in=gzopen(filename,"rb");
+  gzFile in = gzopen(filename, "rb");
 
   // Read its VGM header
   if(!ReadVGMHeader(in,&VGMHeader,FALSE)) {
     gzclose(in);
   }
 
-  OldLoopOffset=VGMHeader.LoopOffset+LOOPDELTA;
+  long int OldLoopOffset = VGMHeader.LoopOffset + LOOPDELTA;
   switch ( VGMHeader.RecordingRate ) {
     case 50:
       framelength = LEN50TH;
@@ -640,13 +629,13 @@ BOOL RoundToFrameAccurate(char *filename)
       break;
   }
 
-  numbuckets = framelength / bucketsize + 1;
+  int numbuckets = framelength / bucketsize + 1;
 
-  PausePositions = malloc(sizeof(int)*numbuckets);
+  int* PausePositions = malloc(sizeof(int) * numbuckets);
   ZeroMemory(PausePositions, sizeof(int)*numbuckets);
 
   // Make the output filename...
-  outfilename=MakeTempFilename(filename);
+  char* outfilename = MakeTempFilename(filename);
   
   // ...open it...
 //  out=gzopen(outfilename,"wb0");
@@ -720,7 +709,7 @@ BOOL RoundToFrameAccurate(char *filename)
 
   // display the array
 
-  maxcount = 0;
+  int maxcount = 0;
   for ( i = 0; i < numbuckets; ++i )
   {
     if ( PausePositions[i] > maxcount )

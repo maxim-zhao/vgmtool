@@ -1,6 +1,6 @@
 #ifndef WRITETOTEXT_H
 #define WRITETOTEXT_H
 
-void WriteToText(char *filename);
+void write_to_text(char *filename);
 
 #endif

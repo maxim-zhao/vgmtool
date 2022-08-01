@@ -8,13 +8,10 @@
 // Remove GD3 from file
 //----------------------------------------------------------------------------------------------
 void RemoveGD3(char *filename) {
-  gzFile in,out;
-  struct TVGMHeader VGMHeader;
-  char *outfilename;
-  long int i;
-  if (!FileExists(filename)) return;
+	struct TVGMHeader VGMHeader;
+	if (!FileExists(filename)) return;
 
-  in=gzopen(filename,"rb");
+  gzFile in = gzopen(filename, "rb");
 
   if(!ReadVGMHeader(in,&VGMHeader,FALSE) || !VGMHeader.GD3Offset) {
     // do nothing if not a VGM file, or file already has no GD3
@@ -26,12 +23,12 @@ void RemoveGD3(char *filename) {
 
   gzrewind(in);
 
-  outfilename=MakeTempFilename(filename);
+  char* outfilename = MakeTempFilename(filename);
 
-  out=gzopen(outfilename,"wb0");
+  gzFile out = gzopen(outfilename, "wb0");
 
   // Copy everything up to the GD3 tag
-  for (i=0;i<VGMHeader.GD3Offset+GD3DELTA;++i) gzputc(out,gzgetc(in));
+  for (long int i = 0;i<VGMHeader.GD3Offset+GD3DELTA;++i) gzputc(out,gzgetc(in));
 
   VGMHeader.GD3Offset=0;
   VGMHeader.EoFOffset=gztell(out)-EOFDELTA;  // Update EoF offset in header
