@@ -37,7 +37,7 @@ char *FreqToNote(char *buf,double freq) {
 // YM2413 needs checking
 // TODO: display GD3 too - maybe use UTF-8?
 void WriteToText(char *filename) {
-  gzFile *in;
+  gzFile in;
   FILE *out;
   long int SampleCount=0;
   struct TVGMHeader VGMHeader;
@@ -130,7 +130,7 @@ void WriteToText(char *filename) {
   );
 
   for (i=0;i<3;++i) {
-    strcat(NoiseTypes[i],itoa(VGMHeader.PSGClock/32/(16<<i),tempstr,10));
+    strcat(NoiseTypes[i],_itoa(VGMHeader.PSGClock/32/(16<<i),tempstr,10));
     strcat(NoiseTypes[i],"Hz)");
   }
 
@@ -311,14 +311,14 @@ void WriteToText(char *filename) {
           break;
         case 0x24:  // Timer A MSB
           YM2612TimerA=(YM2612TimerA&0x3)|(b2<<2);
-          fprintf(out,"Timer A MSBs: length %d = %d µs\n",YM2612TimerA,18*(1024-YM2612TimerA));
+          fprintf(out,"Timer A MSBs: length %d = %d ï¿½s\n",YM2612TimerA,18*(1024-YM2612TimerA));
           break;
         case 0x25:  // Timer A LSB
           YM2612TimerA=(YM2612TimerA&0x3fc)|(b2&0x3);
-          fprintf(out,"Timer A LSBs: length %d = %d µs\n",YM2612TimerA,18*(1024-YM2612TimerA));
+          fprintf(out,"Timer A LSBs: length %d = %d ï¿½s\n",YM2612TimerA,18*(1024-YM2612TimerA));
           break;
         case 0x26:  // Timer B
-          fprintf(out,"Timer B: length %d = %d µs\n",b2,288*(256-b2));
+          fprintf(out,"Timer B: length %d = %d ï¿½s\n",b2,288*(256-b2));
           break;
         case 0x27:  // Timer control/ch 3 mode
           fprintf(out,"Timer control/ch 3 mode: ");

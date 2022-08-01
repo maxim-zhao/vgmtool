@@ -137,7 +137,7 @@ int
   KeysPressed=0;
   NoiseChanged=0;
 
-void WriteVGMInfo(gzFile *out,long *pauselength, struct TPSGState *PSGState, unsigned char YM2413Regs[YM2413NumRegs]) {
+void WriteVGMInfo(gzFile out,long *pauselength, struct TPSGState *PSGState, unsigned char YM2413Regs[YM2413NumRegs]) {
   int i;
   if (!*pauselength) return;  // If pause=zero do nothing so only the last write to each register before a pause is written
   // Write PSG stuff
@@ -256,7 +256,7 @@ void WriteVGMInfo(gzFile *out,long *pauselength, struct TPSGState *PSGState, uns
   return;
 }
 
-void WriteYM2413State(gzFile *out, char YM2413Regs[YM2413NumRegs], int IsStart) {
+void WriteYM2413State(gzFile out, char YM2413Regs[YM2413NumRegs], int IsStart) {
   int i;
 
   for (i=0;i<YM2413NumRegs;++i) if (YM2413StateRegWriteFlags[i]) {
@@ -294,7 +294,7 @@ void WriteYM2413State(gzFile *out, char YM2413Regs[YM2413NumRegs], int IsStart) 
 */
 }
 
-void WritePSGState(gzFile *out, struct TPSGState PSGState) {
+void WritePSGState(gzFile out, struct TPSGState PSGState) {
   int i;
   // GG stereo
   gzputc(out,VGM_GGST);
@@ -337,7 +337,7 @@ void CheckWriteCounts(char *filename);
 // the last write (at the last pause, or state write), and stores the
 // current state for comparison next time.
 void Trim(char *filename,int start,int loop,int end,BOOL OverWrite,BOOL PromptToPlay) {
-  gzFile *in,*out;
+  gzFile in,*out;
   struct TVGMHeader VGMHeader;
   char *Outfilename;
   char *p;
@@ -676,7 +676,7 @@ void Trim(char *filename,int start,int loop,int end,BOOL OverWrite,BOOL PromptTo
 }
 
 void Optimize(char *filename) {
-  gzFile *in;
+  gzFile in;
   struct TVGMHeader VGMHeader;
   long FileSizeBefore,FileSizeAfter;
   int NumOffsetsRemoved=0;
@@ -776,7 +776,7 @@ void CheckWriteCounts(char *filename) {
 
 // Load a file - check it's valid, load displayed info
 void LoadFile(char *filename) {
-  gzFile *in;
+  gzFile in;
   char buffer[64];
   int Mins,Secs;
   struct TGD3Header GD3Header;
@@ -908,7 +908,7 @@ void UpdateHeader() {
   char buffer[64];
   BOOL b=FALSE;
   int i,j;
-  gzFile *in;
+  gzFile in;
   struct TVGMHeader VGMHeader;
 
   if (!FileExists(Currentfilename)) return;
@@ -947,7 +947,7 @@ void ClearGD3Strings(){
 
 void UpdateGD3() {
   wchar *GD3string=GD3Strings;  // pointer to parse GD3Strings
-  gzFile *in,*out;
+  gzFile in,*out;
   struct TVGMHeader VGMHeader;
   struct TGD3Header GD3Header;
   char *Outfilename;
@@ -1069,7 +1069,7 @@ void UpdateGD3() {
 
 // Remove data for checked boxes
 void Strip(char *filename,char *Outfilename) {
-  gzFile *in,*out;
+  gzFile in,*out;
   struct TVGMHeader VGMHeader;
   signed int b0,b1,b2;
   int i;
@@ -1263,7 +1263,7 @@ void Strip(char *filename,char *Outfilename) {
 void StripChecked (char *filename) {
   char Tmpfilename[MAX_PATH+10],Outfilename[MAX_PATH+10],*p;
   struct TVGMHeader VGMHeader;
-  gzFile *in;
+  gzFile in;
 
   if (!FileExists(filename)) return;
 
@@ -1338,7 +1338,7 @@ void ChangeCheckBoxes(int mode) {
 /*
 // Go through file, convert 50<->60Hz
 void ConvertRate(char *filename) {
-  gzFile *in,*out;
+  gzFile in,*out;
   struct TVGMHeader VGMHeader;
   char *Outfilename;
   char *p;
@@ -1535,7 +1535,7 @@ void PasteUnicode() {
       int i=0;
       while ((int)(*wp)) {
         if ((int)(*wp)<128) {
-          strcat(textbuffer,&(char)(*wp));
+          strcat(textbuffer,(char*)*wp); // Nasty hack!
         } else {
           sprintf(textbuffer,"%s&#x%04x;",textbuffer,(int)(*wp));
         }
@@ -1601,9 +1601,9 @@ void ConvertDroppedFiles(HDROP HDrop) {
     p=strrchr(DroppedFilename,'.');
 
 	if(p) {
-      if      ((strcmpi(p,".gym")==0)&&ConverttoVGM(DroppedFilename,ftGYM)) NumConverted++;
-      else if ((strcmpi(p,".ssl")==0)&&ConverttoVGM(DroppedFilename,ftSSL)) NumConverted++;
-      else if ((strcmpi(p,".cym")==0)&&ConverttoVGM(DroppedFilename,ftCYM)) NumConverted++;
+      if      ((_strcmpi(p,".gym")==0)&&ConverttoVGM(DroppedFilename,ftGYM)) NumConverted++;
+      else if ((_strcmpi(p,".ssl")==0)&&ConverttoVGM(DroppedFilename,ftSSL)) NumConverted++;
+      else if ((_strcmpi(p,".cym")==0)&&ConverttoVGM(DroppedFilename,ftCYM)) NumConverted++;
       else {
         p=strrchr(DroppedFilename,'\\')+1;
         AddConvertText("Unknown extension: \"%s\"\r\n",p);
@@ -1706,7 +1706,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
   case WM_INITDIALOG:  // Initialise dialogue
     if (hWndMain!=NULL) return FALSE;  // nothing for child windows
     hWndMain=hWnd;  // remember our window handle
-    SetClassLong(hWndMain,GCL_HICON,(LONG)LoadIcon(HInst,MAKEINTRESOURCE(MAINICON)));  // Give it the icon
+    //SetClassLong(hWndMain,GCL_HICON,(LONG)LoadIcon(HInst,MAKEINTRESOURCE(MAINICON)));  // Give it the icon
     SetDlgItemText(hWndMain,edtFileName,"Drop a file onto the window to load");
     SetWindowText(hWndMain,ProgName);
     MakeTabbedDialogue();

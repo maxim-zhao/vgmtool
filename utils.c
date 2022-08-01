@@ -80,7 +80,7 @@ char *MakeSuffixedFilename(char *src,char *suffix) {
 // compresses the file with GZip compression
 // to a temp file, then overwrites the original file with the temp
 BOOL Compress(char *filename) {
-  gzFile *in,*out;
+  gzFile in,*out;
   char *outfilename;
   char *copybuffer;
   int AmtRead;
@@ -126,7 +126,7 @@ BOOL Compress(char *filename) {
   gzclose(in);
   gzclose(out);
 
-  ReplaceFile(filename,outfilename);
+  MyReplaceFile(filename,outfilename);
 
   free(outfilename);
   ShowStatus("Compression complete");
@@ -137,7 +137,7 @@ BOOL Compress(char *filename) {
 // to a temp file, then overwrites the original file with the temp file
 BOOL Decompress(char *filename) {
   FILE *out;
-  gzFile *in;
+  gzFile in;
   char *outfilename;
   char *copybuffer;
   int AmtRead,x;
@@ -170,7 +170,7 @@ BOOL Decompress(char *filename) {
   gzclose(in);
   fclose(out);
 
-  ReplaceFile(filename,outfilename);
+  MyReplaceFile(filename,outfilename);
 
   free(outfilename);
   ShowStatus("Decompression complete");
@@ -211,7 +211,7 @@ BOOL FixExt(char *filename) {
   else ChangeExt(newfilename,"vgm");
 
   if (strcmp(newfilename,filename)!=0) {
-    ReplaceFile(newfilename,filename); // replaces any existing file with the new name, with the existing file
+    MyReplaceFile(newfilename,filename); // replaces any existing file with the new name, with the existing file
     strcpy(filename,newfilename);
   }
 
@@ -220,7 +220,7 @@ BOOL FixExt(char *filename) {
 }
 
 // Delete filetoreplace, rename with with its name
-void ReplaceFile(char *filetoreplace,char *with) {
+void MyReplaceFile(char *filetoreplace,char *with) {
   if ( strcmp(filetoreplace, with) == 0 )
     return;
   if ( FileExistsQuiet( filetoreplace ) )

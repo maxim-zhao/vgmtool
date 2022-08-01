@@ -8,7 +8,7 @@
 // Remove GD3 from file
 //----------------------------------------------------------------------------------------------
 void RemoveGD3(char *filename) {
-  gzFile *in,*out;
+  gzFile in,out;
   struct TVGMHeader VGMHeader;
   char *outfilename;
   long int i;
@@ -41,7 +41,7 @@ void RemoveGD3(char *filename) {
 
   WriteVGMHeader(outfilename,VGMHeader);  // Write changed header
 
-  ReplaceFile(filename,outfilename);
+  MyReplaceFile(filename,outfilename);
 
   free(outfilename);
 

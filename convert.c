@@ -96,7 +96,7 @@ void SpreadDAC(gzFile in,gzFile out) {
 }
 
 BOOL ConverttoVGM(char *filename,int FileType) {
-  gzFile *in,*out;
+  gzFile in,out;
   char *Outfilename;
   struct TVGMHeader VGMHeader;
   char b1,YM2413Address=(char)0xff,*p1,*p2;

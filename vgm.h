@@ -138,17 +138,17 @@ extern const int YM2612ValidBits[YM2612NumRegs];
 
 // functions
 
-void WritePause(gzFile *out,long int pauselength);
+void WritePause(gzFile out,long int pauselength);
 
 void WriteVGMHeader(char *filename,struct TVGMHeader VGMHeader);
 
-void GetUsedChips(gzFile *in,BOOL *UsesPSG,BOOL *UsesYM2413,BOOL *UsesYM2612,BOOL *UsesYM2151,BOOL *UsesReserved);
+void GetUsedChips(gzFile in,BOOL *UsesPSG,BOOL *UsesYM2413,BOOL *UsesYM2612,BOOL *UsesYM2151,BOOL *UsesReserved);
 
 void CheckLengths(char *filename,BOOL ShowResults);
 
 int DetectRate(char *filename);
 
-BOOL ReadVGMHeader(gzFile *f,struct TVGMHeader *header,BOOL quiet);
+BOOL ReadVGMHeader(gzFile f,struct TVGMHeader *header,BOOL quiet);
 
 void GetWriteCounts(char *filename,int PSGwrites[NumPSGTypes],int YM2413writes[NumYM2413Types],int YM2612writes[NumYM2612Types],int YM2151writes[NumYM2151Types],int reservedwrites[NumReservedTypes]);
 
@@ -157,6 +157,6 @@ void ResetState(struct TSystemState *State);
 
 void WriteToState(struct TSystemState *state,int b0,int b1,int b2);
 
-void WriteStateToFile(gzFile *out,struct TSystemState *State,BOOL WriteKeys);
+void WriteStateToFile(gzFile out,struct TSystemState *State,BOOL WriteKeys);
 
 #endif

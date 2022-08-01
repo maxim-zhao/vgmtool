@@ -96,7 +96,7 @@ const int YM2612ValidBits[YM2612NumRegs]={
 // Writes a pause command to the file
 // Modifies the length parameter to zero when done
 //----------------------------------------------------------------------------------------------
-void WritePause(gzFile *out,long int pauselength) {
+void WritePause(gzFile out,long int pauselength) {
   if (pauselength==0) return;  // If zero do nothing
   while (pauselength>0xffff) {  // If over 0xffff, write 0xffffs
     gzputc(out,VGM_PAUSE_WORD);
@@ -139,7 +139,7 @@ void WritePause(gzFile *out,long int pauselength) {
 // doesn't check anything (like the GD3 offset, EOF offset).
 //----------------------------------------------------------------------------------------------
 void WriteVGMHeader(char *filename,struct TVGMHeader VGMHeader) {
-  gzFile *in,*out;
+  gzFile in,*out;
   char *outfilename;
   char copybuffer[BUFFER_SIZE];
   int AmtRead;
@@ -171,7 +171,7 @@ void WriteVGMHeader(char *filename,struct TVGMHeader VGMHeader) {
   gzclose(in);
   gzclose(out);
 
-  ReplaceFile(filename,outfilename);
+  MyReplaceFile(filename,outfilename);
 
   free(outfilename);
 
@@ -182,7 +182,7 @@ void WriteVGMHeader(char *filename,struct TVGMHeader VGMHeader) {
 // Parse *in for chip data, setting BOOLs accordingly
 // *in is an open gzFile
 //----------------------------------------------------------------------------------------------
-void GetUsedChips(gzFile *in,BOOL *UsesPSG,BOOL *UsesYM2413,BOOL *UsesYM2612,BOOL *UsesYM2151,BOOL *UsesReserved) {
+void GetUsedChips(gzFile in,BOOL *UsesPSG,BOOL *UsesYM2413,BOOL *UsesYM2612,BOOL *UsesYM2151,BOOL *UsesReserved) {
   char b0;
 
   if (UsesPSG) *UsesPSG=FALSE;
@@ -258,7 +258,7 @@ void GetUsedChips(gzFile *in,BOOL *UsesPSG,BOOL *UsesYM2413,BOOL *UsesYM2612,BOO
 // TODO: rewrite as a CheckHeader() function to check everything at once
 //----------------------------------------------------------------------------------------------
 void CheckLengths(char *filename,BOOL ShowResults) {
-  gzFile *in;
+  gzFile in;
   long int SampleCount=0,LoopSampleCount=-1;
   struct TVGMHeader VGMHeader;
   int b0,b1,b2;
@@ -369,7 +369,7 @@ void CheckLengths(char *filename,BOOL ShowResults) {
 // Go through file, if I find a 1/50th or a 1/60th then I'll assume that's correct
 //----------------------------------------------------------------------------------------------
 int DetectRate(char *filename) {
-  gzFile *in;
+  gzFile in;
   struct TVGMHeader VGMHeader;
   int b0,b1,b2,Speed;
 
@@ -451,7 +451,7 @@ int DetectRate(char *filename) {
 // Reads in header from file
 // Shows an error if it's not a VGM file && !quiet
 // returns success/failure
-BOOL ReadVGMHeader(gzFile *f,struct TVGMHeader *header,BOOL quiet) {
+BOOL ReadVGMHeader(gzFile f,struct TVGMHeader *header,BOOL quiet) {
   gzread(f,header,sizeof(struct TVGMHeader));
   if (header->VGMIdent!=VGMIDENT) {  // no VGM marker
     ShowError("File is not a VGM file! (no \"Vgm \")");
@@ -464,7 +464,7 @@ BOOL ReadVGMHeader(gzFile *f,struct TVGMHeader *header,BOOL quiet) {
 // expecting that this and the chip/channel stripper
 // ought to be equally capable
 void GetWriteCounts(char *filename,int PSGwrites[NumPSGTypes],int YM2413writes[NumYM2413Types],int YM2612writes[NumYM2612Types],int YM2151writes[NumYM2151Types],int reservedwrites[NumReservedTypes]) {
-  gzFile *in;
+  gzFile in;
   struct TVGMHeader VGMHeader;
   int b0,b1,b2;
   int i;
@@ -693,7 +693,7 @@ void WriteToState(struct TSystemState *state,int b0,int b1,int b2) {
 //----------------------------------------------------------------------------------------------
 // Writes a TSystemState to *out, with key data if WriteKeys
 //----------------------------------------------------------------------------------------------
-void WriteStateToFile(gzFile *out,struct TSystemState *State,BOOL WriteKeys) {
+void WriteStateToFile(gzFile out,struct TSystemState *State,BOOL WriteKeys) {
   // Write a full system state
   int i;
 

@@ -11,7 +11,7 @@
 // Pause optimiser
 //----------------------------------------------------------------------------------------------
 BOOL OptimiseVGMPauses(char *filename) {
-  gzFile *in,*out;
+  gzFile in,*out;
   struct TVGMHeader VGMHeader;
   char *outfilename,b0,b1,b2;
   long int OldLoopOffset;
@@ -137,7 +137,7 @@ BOOL OptimiseVGMPauses(char *filename) {
   // Clean up
   gzclose(in);
 
-  ReplaceFile(filename,outfilename);
+  MyReplaceFile(filename,outfilename);
 
   free(outfilename);
 
@@ -150,7 +150,7 @@ BOOL OptimiseVGMPauses(char *filename) {
 // Returns number of offsets removed
 //----------------------------------------------------------------------------------------------
 int RemoveOffset(char *filename) {
-  gzFile *in,*out;
+  gzFile in,*out;
   char *outfilename;
   struct TVGMHeader VGMHeader;
   signed int b0,b1,b2;
@@ -345,7 +345,7 @@ int RemoveOffset(char *filename) {
   WriteVGMHeader(outfilename,VGMHeader);
 
   // Overwrite original with the new one
-  ReplaceFile(filename,outfilename);
+  MyReplaceFile(filename,outfilename);
 
   free(outfilename);
 
@@ -389,7 +389,7 @@ int RemoveOffset(char *filename) {
 // TODO: optimise 1-byte PSG frequency changes (where the change is only in the high 4 bits)
 // Test: Golvellius - Dina near the start
 BOOL OptimiseVGMData(char *filename) {
-  gzFile *in,*out;
+  gzFile in,*out;
   struct TVGMHeader VGMHeader;
   struct TSystemState CurrentState;
   struct TSystemState LastWrittenState;
@@ -604,7 +604,7 @@ BOOL RoundToFrameAccurate(char *filename)
 {
   // Try to find the alignment for pauses
   // Put frame-sized pauses in there
-  gzFile *in,*out;
+  gzFile in,*out;
   struct TVGMHeader VGMHeader;
   char *outfilename,b0,b1,b2;
   long int OldLoopOffset;

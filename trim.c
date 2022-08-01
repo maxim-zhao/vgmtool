@@ -47,7 +47,7 @@ void LogTrim(char *VGMFile,int start,int loop,int end) {
 // - Hopefully some clarity
 //----------------------------------------------------------------------------------------------
 BOOL NewTrim(char *filename,const long int start, const long int loop, const long int end) {
-  gzFile *in,*out;
+  gzFile in,out;
   struct TVGMHeader VGMHeader;
   char *outfilename;
   int b0,b1,b2;
