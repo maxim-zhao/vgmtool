@@ -1,0 +1,9 @@
+/.vs/
+*.user
+*.vgm
+*.vgz
+*.exe
+/packages/
+*.zip
+/Debug/
+/Release/
