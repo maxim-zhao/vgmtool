@@ -88,12 +88,16 @@ const int YM2612ValidBits[YM2612NumRegs] = {
     0x3f, 0x3f, 0x3f, 0x00, 0xef, 0xef, 0xef // 0x1bx
 };
 
+bool VGMHeader::is_valid() const
+{
+    return strncmp(VGMIdent, "Vgm ", 4) == 0;
+}
 
 //----------------------------------------------------------------------------------------------
 // Writes a pause command to the file
 // Modifies the length parameter to zero when done
 //----------------------------------------------------------------------------------------------
-void WritePause(gzFile out, long int pauselength)
+void write_pause(gzFile out, long int pauselength)
 {
     if (pauselength == 0) return; // If zero do nothing
     while (pauselength > 0xffff)
@@ -141,7 +145,7 @@ void WritePause(gzFile out, long int pauselength)
 // Assumes you are writing the original header with minor modifications, so it
 // doesn't check anything (like the GD3 offset, EOF offset).
 //----------------------------------------------------------------------------------------------
-void WriteVGMHeader(char* filename, struct TVGMHeader VGMHeader)
+void write_vgm_header(const char* filename, struct VGMHeader VGMHeader)
 {
     char copybuffer[BUFFER_SIZE];
     int AmtRead;
@@ -150,7 +154,7 @@ void WriteVGMHeader(char* filename, struct TVGMHeader VGMHeader)
 
     ShowStatus("Updating VGM header...");
 
-    char* outfilename = MakeTempFilename(filename);
+    char* outfilename = make_temp_filename(filename);
 
     gzFile in = gzopen(filename, "rb");
     gzFile out = gzopen(outfilename, "wb0");
@@ -283,7 +287,7 @@ void GetUsedChips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612, 
 void CheckLengths(char* filename, BOOL ShowResults)
 {
     long int SampleCount = 0, LoopSampleCount = -1;
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     int b0, b1, b2;
 
     if (!FileExists(filename)) return;
@@ -295,7 +299,7 @@ void CheckLengths(char* filename, BOOL ShowResults)
     // Read header
     gzread(in, &VGMHeader, sizeof(VGMHeader));
 
-    if (VGMHeader.VGMIdent != VGMIDENT)
+    if (!VGMHeader.is_valid())
     {
         // no VGM marker
         ShowError("File is not a VGM file! (no \"Vgm \")");
@@ -401,7 +405,7 @@ void CheckLengths(char* filename, BOOL ShowResults)
                 VGMHeader.TotalLength = SampleCount;
                 VGMHeader.LoopLength = LoopSampleCount;
                 if (LoopSampleCount == 0) VGMHeader.LoopOffset = 0;
-                WriteVGMHeader(filename, VGMHeader);
+                write_vgm_header(filename, VGMHeader);
             }
             b0 = EOF;
         }
@@ -416,7 +420,7 @@ void CheckLengths(char* filename, BOOL ShowResults)
 //----------------------------------------------------------------------------------------------
 int DetectRate(char* filename)
 {
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     int b0, b1, b2;
 
     if (!FileExists(filename)) return 0;
@@ -525,10 +529,10 @@ int DetectRate(char* filename)
 // Reads in header from file
 // Shows an error if it's not a VGM file && !quiet
 // returns success/failure
-BOOL ReadVGMHeader(gzFile f, struct TVGMHeader* header, BOOL quiet)
+BOOL ReadVGMHeader(gzFile f, struct VGMHeader* header, BOOL quiet)
 {
-    gzread(f, header, sizeof(struct TVGMHeader));
-    if (header->VGMIdent != VGMIDENT)
+    gzread(f, header, sizeof(struct VGMHeader));
+    if (!header->is_valid())
     {
         // no VGM marker
         ShowError("File is not a VGM file! (no \"Vgm \")");
@@ -544,7 +548,7 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
                     unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],
                     unsigned long reservedwrites[NumReservedTypes])
 {
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     int b0, b1, b2;
     int i;
     int Channel = 0; // for tracking PSG latched register

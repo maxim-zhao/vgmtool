@@ -12,7 +12,7 @@
 //----------------------------------------------------------------------------------------------
 BOOL OptimiseVGMPauses(char* filename)
 {
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     char b0, b1, b2;
     int PauseLength = 0;
 
@@ -31,7 +31,7 @@ BOOL OptimiseVGMPauses(char* filename)
     long int OldLoopOffset = VGMHeader.LoopOffset + LOOPDELTA;
 
     // Make the output filename...
-    char* outfilename = MakeTempFilename(filename);
+    char* outfilename = make_temp_filename(filename);
 
     // ...open it...
     gzFile out = gzopen(outfilename, "wb0");
@@ -48,7 +48,7 @@ BOOL OptimiseVGMPauses(char* filename)
         // Write any remaining pauyse being buffered first, though
         if (gztell(in) == OldLoopOffset)
         {
-            WritePause(out, PauseLength);
+            write_pause(out, PauseLength);
             PauseLength = 0;
             VGMHeader.LoopOffset = gztell(out) - LOOPDELTA;
         }
@@ -58,7 +58,7 @@ BOOL OptimiseVGMPauses(char* filename)
         {
         case VGM_GGST: // GG stereo
         case VGM_PSG: // PSG write
-            WritePause(out, PauseLength);
+            write_pause(out, PauseLength);
             PauseLength = 0;
             b1 = gzgetc(in);
             gzputc(out, b0);
@@ -79,7 +79,7 @@ BOOL OptimiseVGMPauses(char* filename)
         case 0x5d:
         case 0x5e:
         case 0x5f:
-            WritePause(out, PauseLength);
+            write_pause(out, PauseLength);
             PauseLength = 0;
             b1 = gzgetc(in);
             b2 = gzgetc(in);
@@ -121,7 +121,7 @@ BOOL OptimiseVGMPauses(char* filename)
             PauseLength += (b0 & 0xf) + 1;
             break;
         case VGM_END: // End of sound data
-            WritePause(out, PauseLength);
+            write_pause(out, PauseLength);
             PauseLength = 0;
             b0 = EOF; // break out of loop
             break;
@@ -151,7 +151,7 @@ BOOL OptimiseVGMPauses(char* filename)
 
     gzclose(out);
 
-    WriteVGMHeader(outfilename, VGMHeader);
+    write_vgm_header(outfilename, VGMHeader);
 
     // Clean up
     gzclose(in);
@@ -170,7 +170,7 @@ BOOL OptimiseVGMPauses(char* filename)
 //----------------------------------------------------------------------------------------------
 int RemoveOffset(char* filename)
 {
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     signed int b0, b1, b2;
     BOOL SilencedChannels[3] = {FALSE,FALSE,FALSE};
     unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
@@ -193,7 +193,7 @@ int RemoveOffset(char* filename)
 
     gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
 
-    char* outfilename = MakeTempFilename(filename);
+    char* outfilename = make_temp_filename(filename);
 
     gzFile out = gzopen(outfilename, "wb0"); // No compression, since I'll recompress it later
 
@@ -394,7 +394,7 @@ int RemoveOffset(char* filename)
     gzclose(out);
 
     // Amend it with the updated header
-    WriteVGMHeader(outfilename, VGMHeader);
+    write_vgm_header(outfilename, VGMHeader);
 
     // Overwrite original with the new one
     MyReplaceFile(filename, outfilename);
@@ -442,7 +442,7 @@ int RemoveOffset(char* filename)
 // Test: Golvellius - Dina near the start
 BOOL OptimiseVGMData(char *filename) {
   gzFile in,out;
-  struct TVGMHeader VGMHeader;
+  struct VGMHeader VGMHeader;
   struct TSystemState CurrentState;
   struct TSystemState LastWrittenState;
   char *Outfilename;
@@ -653,7 +653,7 @@ BOOL OptimiseVGMData(char *filename) {
 
 BOOL RoundToFrameAccurate(char* filename)
 {
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     char b0, b1, b2;
     int i, PauseLength = 0;
     int bucketsize = 1; // how many samples per bucket for counting
@@ -693,7 +693,7 @@ BOOL RoundToFrameAccurate(char* filename)
     ZeroMemory(PausePositions, sizeof(int)*numbuckets);
 
     // Make the output filename...
-    char* outfilename = MakeTempFilename(filename);
+    char* outfilename = make_temp_filename(filename);
 
     // ...open it...
     //  out=gzopen(outfilename,"wb0");

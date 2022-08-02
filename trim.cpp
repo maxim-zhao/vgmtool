@@ -48,7 +48,7 @@ void LogTrim(char* VGMFile, int start, int loop, int end)
 BOOL NewTrim(char* filename, const long int start, const long int loop, const long int end)
 {
     gzFile in, out;
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     char* outfilename;
     int b0, b1, b2;
     struct TSystemState CurrentState, LoopPointState;
@@ -213,7 +213,7 @@ BOOL NewTrim(char* filename, const long int start, const long int loop, const lo
             // 1. Write state
             WriteStateToFile(out, &CurrentState,TRUE);
             // 2. Write any remaining pause left
-            WritePause(out, CurrentState.samplecount - start);
+            write_pause(out, CurrentState.samplecount - start);
             // 3. Record that it's time to start copying data
             PastStart = TRUE;
         }
@@ -304,11 +304,11 @@ BOOL NewTrim(char* filename, const long int start, const long int loop, const lo
             */
             if (LastPauseLength > (CurrentState.samplecount - start)) LastPauseLength = loop - start;
 
-            WritePause(out, LastPauseLength - (CurrentState.samplecount - loop));
+            write_pause(out, LastPauseLength - (CurrentState.samplecount - loop));
             // 3. Record loop offset
             VGMHeader.LoopOffset = gztell(out) - LOOPDELTA;
             // 4. Write any remaining pause left
-            WritePause(out, CurrentState.samplecount - loop);
+            write_pause(out, CurrentState.samplecount - loop);
             // 5. Record that I've done it
             PastLoop = TRUE;
         }
@@ -352,7 +352,7 @@ BOOL NewTrim(char* filename, const long int start, const long int loop, const lo
             //   <--------------------------->    SampleCount
             //   <------------------>             end
             //             <-------->             end-(SampleCount-LastPauseLength)
-            WritePause(out, end - (CurrentState.samplecount - LastPauseLength));
+            write_pause(out, end - (CurrentState.samplecount - LastPauseLength));
             // 2. Quit (do rest outside loop)
             b0 = EOF;
         }
@@ -389,7 +389,7 @@ BOOL NewTrim(char* filename, const long int start, const long int loop, const lo
     }
 
     gzclose(out);
-    WriteVGMHeader(outfilename, VGMHeader);
+    write_vgm_header(outfilename, VGMHeader);
 
     free(outfilename);
     return TRUE;

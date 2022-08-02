@@ -1,9 +1,8 @@
+#pragma once
 // VGM file format definitions
 // and generic VGM-related functions
 
-#ifndef VGM_H
-#define VGM_H
-
+#include <string>
 #include <Windows.h>
 #include <zlib.h>
 
@@ -22,24 +21,28 @@
 
 #define VGMIDENT 0x206d6756 // "Vgm "
 
-struct TVGMHeader
+struct VGMHeader
 {
-    unsigned long VGMIdent; // "Vgm "
-    unsigned long EoFOffset; // relative offset (from this point, 0x04) of the end of file
-    unsigned long Version; // 0x00000110 for 1.10
-    unsigned long PSGClock; // typically 3579545, 0 for no PSG
-    unsigned long YM2413Clock; // typically 3579545, 0 for no YM2413
-    unsigned long GD3Offset; // relative offset (from this point, 0x14) of the GD3 tag, 0 if not present
-    unsigned long TotalLength; // in samples
-    unsigned long LoopOffset; // relative again (to 0x1c), 0 if no loop
-    unsigned long LoopLength; // in samples, 0 if no loop
-    unsigned long RecordingRate; // in Hz, for speed-changing, 0 for no changing
-    unsigned short PSGWhiteNoiseFeedback;
-    // Feedback pattern for white noise generator; if <=v1.01, substitute default of 0x0009
-    unsigned char PSGShiftRegisterWidth; // Shift register width for noise channel; if <=v1.01, substitute default of 16
-    unsigned char Reserved;
-    unsigned long YM2612Clock; // typically 3579545, 0 for no YM2612
-    unsigned long YM2151Clock; // typically 3579545, 0 for no YM2151
+    char VGMIdent[4]{'V', 'g', 'm', ' '}; // "Vgm "
+    uint32_t EoFOffset{}; // relative offset (from this point, 0x04) of the end of file
+    uint32_t Version{0x0110}; // 0x00000110 for 1.10
+    uint32_t PSGClock{}; // typically 3579545, 0 for no PSG
+    uint32_t YM2413Clock{}; // typically 3579545, 0 for no YM2413
+    uint32_t GD3Offset{}; // relative offset (from this point, 0x14) of the GD3 tag, 0 if not present
+    uint32_t TotalLength{}; // in samples
+    uint32_t LoopOffset{}; // relative again (to 0x1c), 0 if no loop
+    uint32_t LoopLength{}; // in samples, 0 if no loop
+    uint32_t RecordingRate{}; // in Hz, for speed-changing, 0 for no changing
+    uint16_t PSGWhiteNoiseFeedback{0x0009}; // Feedback pattern for white noise generator; if <=v1.01, substitute default of 0x0009
+    uint8_t PSGShiftRegisterWidth{16}; // Shift register width for noise channel; if <=v1.01, substitute default of 16
+    uint8_t Reserved{};
+    uint32_t YM2612Clock{}; // typically 3579545, 0 for no YM2612
+    uint32_t YM2151Clock{}; // typically 3579545, 0 for no YM2151
+
+public:
+    bool is_valid() const;
+
+    VGMHeader() = default;
 };
 
 #define EOFDELTA  0x04
@@ -155,9 +158,9 @@ extern const int YM2612ValidBits[YM2612NumRegs];
 
 // functions
 
-void WritePause(gzFile out, long int pauselength);
+void write_pause(gzFile out, long int pauselength);
 
-void WriteVGMHeader(char* filename, struct TVGMHeader VGMHeader);
+void write_vgm_header(const char* filename, struct VGMHeader VGMHeader);
 
 void GetUsedChips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612, BOOL* UsesYM2151, BOOL* UsesReserved);
 
@@ -165,7 +168,7 @@ void CheckLengths(char* filename, BOOL ShowResults);
 
 int DetectRate(char* filename);
 
-BOOL ReadVGMHeader(gzFile f, struct TVGMHeader* header, BOOL quiet);
+BOOL ReadVGMHeader(gzFile f, struct VGMHeader* header, BOOL quiet);
 
 void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
                     unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],
@@ -177,5 +180,3 @@ void ResetState(struct TSystemState* State);
 void WriteToState(struct TSystemState* state, int b0, int b1, int b2);
 
 void WriteStateToFile(gzFile out, struct TSystemState* State, BOOL WriteKeys);
-
-#endif

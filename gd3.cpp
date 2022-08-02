@@ -9,7 +9,7 @@
 //----------------------------------------------------------------------------------------------
 void RemoveGD3(char* filename)
 {
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     if (!FileExists(filename)) return;
 
     gzFile in = gzopen(filename, "rb");
@@ -25,7 +25,7 @@ void RemoveGD3(char* filename)
 
     gzrewind(in);
 
-    char* outfilename = MakeTempFilename(filename);
+    char* outfilename = make_temp_filename(filename);
 
     gzFile out = gzopen(outfilename, "wb0");
 
@@ -38,7 +38,7 @@ void RemoveGD3(char* filename)
     gzclose(in);
     gzclose(out);
 
-    WriteVGMHeader(outfilename, VGMHeader); // Write changed header
+    write_vgm_header(outfilename, VGMHeader); // Write changed header
 
     MyReplaceFile(filename, outfilename);
 

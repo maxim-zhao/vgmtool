@@ -82,7 +82,7 @@ void write_to_text(char* filename)
     gzFile in = gzopen(filename, "rb");
 
     // Read header
-    struct TVGMHeader vgmHeader;
+    struct VGMHeader vgmHeader;
     if (!ReadVGMHeader(in, &vgmHeader,FALSE))
     {
         gzclose(in);
@@ -115,10 +115,10 @@ void write_to_text(char* filename)
         "Recording rate       %d Hz\n\n"
         "VGM data:\n"
         ,
-        vgmHeader.VGMIdent >> 0 & 0xff,
-        vgmHeader.VGMIdent >> 8 & 0xff,
-        vgmHeader.VGMIdent >> 16 & 0xff,
-        vgmHeader.VGMIdent >> 24 & 0xff,
+        vgmHeader.VGMIdent[0],
+        vgmHeader.VGMIdent[1],
+        vgmHeader.VGMIdent[2],
+        vgmHeader.VGMIdent[3],
         vgmHeader.EoFOffset,
         vgmHeader.EoFOffset + EOFDELTA,
         vgmHeader.Version,

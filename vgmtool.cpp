@@ -31,7 +31,7 @@ HWND hWndMain = nullptr;
 HINSTANCE HInst;
 
 char Currentfilename[10240] = "You didn't load a file yet!";
-struct TVGMHeader CurrentFileVGMHeader;
+struct VGMHeader CurrentFileVGMHeader;
 
 const char* ProgName = "VGMTool 2 release 5";
 
@@ -273,7 +273,7 @@ void WriteVGMInfo(gzFile out, long* pauselength, struct TPSGState* PSGState, uns
     KeysLifted = 0;
     KeysPressed = 0;
     // then pause
-    WritePause(out, *pauselength);
+    write_pause(out, *pauselength);
     *pauselength = 0; // maybe not needed
     // and record what we've done
     LastWrittenPSGState = *PSGState;
@@ -367,7 +367,7 @@ void CheckWriteCounts(char* filename);
 void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL PromptToPlay)
 {
     gzFile in, out;
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     char* Outfilename;
     char* p;
     int b0, b1, b2;
@@ -687,7 +687,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
         {
             // Write remaining delay
             PauseLength -= SampleCount - end;
-            WritePause(out, PauseLength);
+            write_pause(out, PauseLength);
             PauseLength = 0; // maybe not needed
             // End of VGM data
             gzputc(out,VGM_END);
@@ -733,11 +733,11 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     }
 
     // Amend it with the updated header
-    WriteVGMHeader(Outfilename, VGMHeader);
+    write_vgm_header(Outfilename, VGMHeader);
 
     OptimiseVGMPauses(Outfilename);
 
-    Compress(Outfilename);
+    compress(Outfilename);
 
     if (OverWrite == TRUE)
     {
@@ -772,7 +772,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
 
 void Optimize(char* filename)
 {
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     int NumOffsetsRemoved = 0;
 
     gzFile in = gzopen(filename, "rb");
@@ -887,7 +887,7 @@ void LoadFile(char* filename)
     gzFile in = gzopen(filename, "rb");
     gzread(in, &CurrentFileVGMHeader, sizeof(CurrentFileVGMHeader));
 
-    if (CurrentFileVGMHeader.VGMIdent != VGMIDENT)
+    if (!CurrentFileVGMHeader.is_valid())
     {
         // no VGM marker
         ShowError(
@@ -1023,7 +1023,7 @@ void UpdateHeader()
     char buffer[64];
     BOOL b = FALSE;
     int i, j;
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
 
     if (!FileExists(Currentfilename)) return;
 
@@ -1051,7 +1051,7 @@ void UpdateHeader()
         VGMHeader.PSGWhiteNoiseFeedback = i;
     if (GetInt(HeaderWnd,edtPSGSRWidth, &i)) VGMHeader.PSGShiftRegisterWidth = i;
 
-    WriteVGMHeader(Currentfilename, VGMHeader);
+    write_vgm_header(Currentfilename, VGMHeader);
 }
 
 void ClearGD3Strings()
@@ -1063,7 +1063,7 @@ void ClearGD3Strings()
 void UpdateGD3()
 {
     wchar_t* GD3string = GD3Strings; // pointer to parse GD3Strings
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     struct TGD3Header GD3Header;
     long int i;
     wchar_t AllGD3Strings[1024 * NumGD3Strings] = L""; // zeroes the whole buffer
@@ -1182,7 +1182,7 @@ void UpdateGD3()
     gzclose(in);
     gzclose(out);
 
-    WriteVGMHeader(Outfilename, VGMHeader); // Write changed header
+    write_vgm_header(Outfilename, VGMHeader); // Write changed header
 
     DeleteFile(Currentfilename);
     MoveFile(Outfilename, Currentfilename);
@@ -1201,7 +1201,7 @@ void UpdateGD3()
 // Remove data for checked boxes
 void Strip(char* filename, char* Outfilename)
 {
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
     signed int b0, b1, b2;
     int i;
     char LatchedChannel = 0;
@@ -1495,13 +1495,13 @@ void Strip(char* filename, char* Outfilename)
     gzclose(out);
 
     // Amend it with the updated header
-    WriteVGMHeader(Outfilename, VGMHeader);
+    write_vgm_header(Outfilename, VGMHeader);
 }
 
 void StripChecked(char* filename)
 {
     char Tmpfilename[MAX_PATH + 10], Outfilename[MAX_PATH + 10];
-    struct TVGMHeader VGMHeader;
+    struct VGMHeader VGMHeader;
 
     if (!FileExists(filename)) return;
 
@@ -1602,7 +1602,7 @@ void ChangeCheckBoxes(int mode)
 // Go through file, convert 50<->60Hz
 void ConvertRate(char *filename) {
   gzFile in,*out;
-  struct TVGMHeader VGMHeader;
+  struct VGMHeader VGMHeader;
   char *Outfilename;
   char *p;
   int b0,b1,b2;
@@ -1775,7 +1775,7 @@ void ConvertRate(char *filename) {
 
   CountLength(Outfilename,0);  // fix lengths
 
-  Compress(Currentfilename);
+  compress(Currentfilename);
 
   ShowStatus("Rate conversion complete");
 
@@ -1880,9 +1880,9 @@ void ConvertDroppedFiles(HDROP HDrop)
 
         if (p)
         {
-            if ((_strcmpi(p, ".gym") == 0) && ConverttoVGM(DroppedFilename, ftGYM)) NumConverted++;
-            else if ((_strcmpi(p, ".ssl") == 0) && ConverttoVGM(DroppedFilename, ftSSL)) NumConverted++;
-            else if ((_strcmpi(p, ".cym") == 0) && ConverttoVGM(DroppedFilename, ftCYM)) NumConverted++;
+            if ((_strcmpi(p, ".gym") == 0) && convert_to_vgm(DroppedFilename, convert_file_type::gym)) NumConverted++;
+            else if ((_strcmpi(p, ".ssl") == 0) && convert_to_vgm(DroppedFilename, convert_file_type::ssl)) NumConverted++;
+            else if ((_strcmpi(p, ".cym") == 0) && convert_to_vgm(DroppedFilename, convert_file_type::cym)) NumConverted++;
             else
             {
                 p = strrchr(DroppedFilename, '\\') + 1;
@@ -2036,7 +2036,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         {
         case btnUpdateHeader:
             UpdateHeader();
-            Compress(Currentfilename);
+            compress(Currentfilename);
             FixExt(Currentfilename); // in case I've VGM-VGZed
             LoadFile(Currentfilename);
             break;
@@ -2067,7 +2067,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case btnOptimise:
             Optimize(Currentfilename);
-            Compress(Currentfilename);
+            compress(Currentfilename);
             FixExt(Currentfilename);
             LoadFile(Currentfilename);
             break;
@@ -2092,7 +2092,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case btnUpdateGD3:
             UpdateGD3();
-            Compress(Currentfilename);
+            compress(Currentfilename);
             FixExt(Currentfilename); // in case I've VGM-VGZed
             LoadFile(Currentfilename);
             break;
@@ -2210,7 +2210,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             }
             break;
         case btnCompress:
-            Compress(Currentfilename);
+            compress(Currentfilename);
             FixExt(Currentfilename);
             LoadFile(Currentfilename);
             break;

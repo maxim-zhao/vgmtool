@@ -1,12 +1,8 @@
+#pragma once
+#include <string>
 // Conversion routines
 
-#ifndef CONVERT_H
-#define CONVERT_H
+enum class convert_file_type { gym, ssl, cym };
 
-#include <Windows.h>
+bool convert_to_vgm(const std::string& filename, convert_file_type FileType);
 
-enum ConvertFileType { ftGYM, ftSSL, ftCYM };
-
-BOOL ConverttoVGM(char* filename, int FileType);
-
-#endif

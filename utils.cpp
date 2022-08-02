@@ -6,21 +6,19 @@
 #include "gui.h"
 #include "utils.h"
 
-extern HWND hWndMain;
-
 // Buffer for copying (created when needed)
 #define BUFFER_SIZE 1024*8
 
 // returns a boolean specifying if the passed filename exists
 // also shows an error message if it doesn't
-BOOL FileExists(char* filename)
+BOOL FileExists(const char* filename)
 {
     BOOL result = FileExistsQuiet(filename);
     if (!result) ShowError("File not found or in use:\n%s", filename);
     return result;
 }
 
-BOOL FileExistsQuiet(char* filename)
+BOOL FileExistsQuiet(const char* filename)
 {
     if (!filename) return FALSE;
     FILE* f = fopen(filename, "rb");
@@ -30,7 +28,7 @@ BOOL FileExistsQuiet(char* filename)
 }
 
 // returns the size of the file in bytes
-unsigned long int FileSize(char* filename)
+unsigned long int FileSize(const char* filename)
 {
     HANDLE f = CreateFile(filename,GENERIC_READ,FILE_SHARE_READ, nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL, nullptr);
     unsigned long int s = GetFileSize(f, nullptr);
@@ -41,7 +39,7 @@ unsigned long int FileSize(char* filename)
 // makes a unique temp filename out of src, mallocing the space for the result
 // so don't forget to free it when you're done
 // it will probably choke with weird parameters, real writable filenames should be OK
-char* MakeTempFilename(char* src)
+char* make_temp_filename(const char* src)
 {
     int i = 0;
 
@@ -80,7 +78,7 @@ char* MakeSuffixedFilename(const char* src, const char* suffix)
 
 // compresses the file with GZip compression
 // to a temp file, then overwrites the original file with the temp
-BOOL Compress(char* filename)
+BOOL compress(const char* filename)
 {
     int AmtRead;
 
@@ -94,7 +92,7 @@ BOOL Compress(char* filename)
         (ShowQuestion(
             "This uncompressed VGM is over 1MB so it'll take a while to compress.\n"
             "Do you want to skip compressing it?\n"
-            "(You can compress it later using the \"Compress file\" button on the Misc tab.)"
+            "(You can compress it later using the \"compress file\" button on the Misc tab.)"
         ) == IDYES)
     )
     {
@@ -102,7 +100,7 @@ BOOL Compress(char* filename)
         return FALSE;
     }
 
-    char* outfilename = MakeTempFilename(filename);
+    char* outfilename = make_temp_filename(filename);
 
     gzFile out = gzopen(outfilename, "wb9");
     gzFile in = gzopen(filename, "rb");
@@ -146,7 +144,7 @@ BOOL Decompress(char* filename)
 
     ShowStatus("Decompressing...");
 
-    char* outfilename = MakeTempFilename(filename);
+    char* outfilename = make_temp_filename(filename);
 
     FILE* out = fopen(outfilename, "wb");
     gzFile in = gzopen(filename, "rb");
@@ -220,7 +218,7 @@ BOOL FixExt(char* filename)
 }
 
 // Delete filetoreplace, rename with with its name
-void MyReplaceFile(char* filetoreplace, char* with)
+void MyReplaceFile(const char* filetoreplace, const char* with)
 {
     if (strcmp(filetoreplace, with) == 0)
         return;
