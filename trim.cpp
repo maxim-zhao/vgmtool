@@ -374,7 +374,7 @@ BOOL NewTrim(char* filename, const long int start, const long int loop, const lo
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (i = 0; i < GD3Header.Length; ++i) gzputc(out,gzgetc(in));
+        for (i = 0; i < GD3Header.length; ++i) gzputc(out,gzgetc(in));
         VGMHeader.GD3Offset = NewGD3Offset;
     }
     gzclose(in);

@@ -706,7 +706,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (i = 0; i < GD3Header.Length; ++i)
+        for (i = 0; i < GD3Header.length; ++i)
         {
             // Copy strings
             gzputc(out,gzgetc(in));
@@ -907,14 +907,14 @@ void LoadFile(char* filename)
         gzseek(in, CurrentFileVGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         if (
-            (strncmp(GD3Header.IDString, "Gd3 ", 4) == 0) && // Has valid marker
-            (GD3Header.Version >= MINGD3VERSION) && // and is an acceptable version
-            ((GD3Header.Version & REQUIREDGD3MAJORVER) == REQUIREDGD3MAJORVER)
+            (strncmp(GD3Header.id_string, "Gd3 ", 4) == 0) && // Has valid marker
+            (GD3Header.version >= MINGD3VERSION) && // and is an acceptable version
+            ((GD3Header.version & REQUIREDGD3MAJORVER) == REQUIREDGD3MAJORVER)
         )
         {
             if (GD3Strings) free(GD3Strings);
-            GD3Strings = static_cast<wchar_t*>(malloc(GD3Header.Length));
-            gzread(in, GD3Strings, GD3Header.Length);
+            GD3Strings = static_cast<wchar_t*>(malloc(GD3Header.length));
+            gzread(in, GD3Strings, GD3Header.length);
             FileHasGD3 = 1;
         }
     }
@@ -1031,7 +1031,7 @@ void UpdateHeader()
     gzread(in, &VGMHeader, sizeof(VGMHeader));
     gzclose(in);
 
-    if (GetInt(HeaderWnd,edtPlaybackRate, &i)) VGMHeader.RecordingRate = i;
+    if (get_int(HeaderWnd,edtPlaybackRate, &i)) VGMHeader.RecordingRate = i;
 
     GetDlgItemText(HeaderWnd,edtVersion, buffer, 64);
     if (sscanf(buffer, "%d.%d", &i, &j) == 2) // valid data
@@ -1041,15 +1041,15 @@ void UpdateHeader()
             (j / 10) << 4 | // minor tens
             (j % 10); // minor units
 
-    if (GetInt(HeaderWnd,edtPSGClock, &i)) VGMHeader.PSGClock = i;
-    if (GetInt(HeaderWnd,edtYM2413Clock, &i)) VGMHeader.YM2413Clock = i;
-    if (GetInt(HeaderWnd,edtYM2612Clock, &i)) VGMHeader.YM2612Clock = i;
-    if (GetInt(HeaderWnd,edtYM2151Clock, &i)) VGMHeader.YM2151Clock = i;
+    if (get_int(HeaderWnd,edtPSGClock, &i)) VGMHeader.PSGClock = i;
+    if (get_int(HeaderWnd,edtYM2413Clock, &i)) VGMHeader.YM2413Clock = i;
+    if (get_int(HeaderWnd,edtYM2612Clock, &i)) VGMHeader.YM2612Clock = i;
+    if (get_int(HeaderWnd,edtYM2151Clock, &i)) VGMHeader.YM2151Clock = i;
 
     GetDlgItemText(HeaderWnd,edtPSGFeedback, buffer, 64);
     if (sscanf(buffer, "0x%x", &i) == 1) // valid data
         VGMHeader.PSGWhiteNoiseFeedback = i;
-    if (GetInt(HeaderWnd,edtPSGSRWidth, &i)) VGMHeader.PSGShiftRegisterWidth = i;
+    if (get_int(HeaderWnd,edtPSGSRWidth, &i)) VGMHeader.PSGShiftRegisterWidth = i;
 
     write_vgm_header(Currentfilename, VGMHeader);
 }
@@ -1170,12 +1170,12 @@ void UpdateGD3()
     }
     AllGD3End++; // Final null wchar_t
 
-    strncpy(GD3Header.IDString, "Gd3 ", 4);
-    GD3Header.Version = 0x0100;
-    GD3Header.Length = (AllGD3End - AllGD3Strings) * 2;
+    strncpy(GD3Header.id_string, "Gd3 ", 4);
+    GD3Header.version = 0x0100;
+    GD3Header.length = (AllGD3End - AllGD3Strings) * 2;
 
     gzwrite(out, &GD3Header, sizeof(GD3Header)); // write GD3 header
-    gzwrite(out, AllGD3Strings, GD3Header.Length); // write GD3 strings
+    gzwrite(out, AllGD3Strings, GD3Header.length); // write GD3 strings
 
     VGMHeader.EoFOffset = gztell(out) - EOFDELTA; // Update EoF offset in header
 
@@ -1481,7 +1481,7 @@ void Strip(char* filename, char* Outfilename)
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (int i = 0; i < GD3Header.Length; ++i)
+        for (int i = 0; i < GD3Header.length; ++i)
         {
             // Copy strings
             gzputc(out,gzgetc(in));
@@ -1886,13 +1886,13 @@ void ConvertDroppedFiles(HDROP HDrop)
             else
             {
                 p = strrchr(DroppedFilename, '\\') + 1;
-                AddConvertText("Unknown extension: \"%s\"\r\n", p);
+                add_convert_text("Unknown extension: \"%s\"\r\n", p);
             }
         }
         free(DroppedFilename); // deallocate buffer
     }
 
-    AddConvertText("%d of %d file(s) successfully converted in %dms\r\n", NumConverted, NumFiles,
+    add_convert_text("%d of %d file(s) successfully converted in %dms\r\n", NumConverted, NumFiles,
         GetTickCount() - Timer);
 
     DragFinish(HDrop);

@@ -142,7 +142,7 @@ BOOL OptimiseVGMPauses(char* filename)
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (int i = 0; i < GD3Header.Length; ++i) gzputc(out,gzgetc(in));
+        for (int i = 0; i < GD3Header.length; ++i) gzputc(out,gzgetc(in));
         VGMHeader.GD3Offset = NewGD3Offset;
     }
     // 3. Fill in VGM header
@@ -380,7 +380,7 @@ int RemoveOffset(char* filename)
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (int i = 0; i < GD3Header.Length; ++i)
+        for (int i = 0; i < GD3Header.length; ++i)
         {
             // Copy strings
             gzputc(out,gzgetc(in));

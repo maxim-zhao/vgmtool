@@ -46,22 +46,24 @@ char* freq_to_note(char* buf, const double freq)
 // No handling of YM2151
 // YM2413 needs checking
 // TODO: display GD3 too - maybe use UTF-8?
-void write_to_text(char* filename)
+void write_to_text(const std::string& filename)
 {
-    long int SampleCount = 0;
+    int SampleCount = 0;
     int b0, b1, b2;
     char tempstr[32] = "xxxx";
     int i;
     // We write into these
     std::vector<std::string> noiseTypes{{"high (", "med (", "low (", "ch 2"}};
-    const char* ym2413Instruments[] = {
+    const std::vector<std::string> ym2413Instruments{
         "User instrument",
         "Violin", "Guitar", "Piano", "Flute", "Clarinet",
         "Oboe", "Trumpet", "Organ", "Horn", "Synthesizer",
         "Harpsichord", "Vibraphone", "Synthesizer Bass",
         "Acoustic Bass", "Electric Guitar"
     };
-    const char* ym2413RhythmInstrumentNames[] = {"High hat", "Cymbal", "Tom-tom", "Snare drum", "Bass drum"};
+    const std::vector<std::string> ym2413RhythmInstrumentNames{
+        "High hat", "Cymbal", "Tom-tom", "Snare drum", "Bass drum"
+    };
     int ym2413FNumbers[9] = {0};
     char ym2413Blocks[9] = {0};
     int rhythmMode = 1;
@@ -75,11 +77,11 @@ void write_to_text(char* filename)
     unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
     int PSGLatchedRegister = 0;
 
-    if (!FileExists(filename)) return;
+    if (!FileExists(filename.c_str())) return;
 
     ShowStatus("Writing VGM data to text...");
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
     struct VGMHeader vgmHeader;
@@ -91,11 +93,10 @@ void write_to_text(char* filename)
 
     gzseek(in, 0x40,SEEK_SET);
 
-    auto outFilename = static_cast<char*>(malloc(strlen(filename) + 4));
-    strcpy(outFilename, filename);
-    ChangeExt(outFilename, "txt");
+    auto outFilename = filename + ".txt";
+    //ChangeExt(outFilename, "txt"); TODO resurrect this
 
-    FILE* out = fopen(outFilename, "w");
+    FILE* out = fopen(outFilename.c_str(), "w");
 
     fprintf(out,
         "VGM Header:\n"
@@ -256,19 +257,20 @@ void write_to_text(char* filename)
                     break;
                 case 0x0E: // Percussion
                     {
-                        char OutputStr[128]; // 64 should (just) be enough
                         rhythmMode = b2 & 0x20;
-                        sprintf(OutputStr, "Percussion (%s)",ON(rhythmMode));
-                        for (int i1 = 0; i1 < 5; ++i1)
+                        std::string s = "Percussion (";
+                        s += ON(rhythmMode);
+                        s += ")";
+                        for (int bitIndex = 0; bitIndex < 5; ++bitIndex)
                         {
-                            if (b2 >> i1 & 1)
+                            if (b2 >> bitIndex & 1)
                             {
-                                strcat(OutputStr, ", ");
-                                strcat(OutputStr, ym2413RhythmInstrumentNames[i1]);
+                                s += ", ";
+                                s += ym2413RhythmInstrumentNames[bitIndex];
                             }
                         }
-                        strcat(OutputStr, "\n");
-                        fprintf(out, OutputStr);
+                        s += "\n";
+                        fputs(s.c_str(), out);
                     }
                     break;
                 default:
@@ -332,7 +334,7 @@ void write_to_text(char* filename)
                 {
                     fprintf(out, "Tone vol/instrument: ch %1d -> vol 0x%1x = %3d%%; inst 0x%1x = %-17s", b1 & 0xf,
                         b2 & 0xf, static_cast<int>((15 - (b2 & 0xf)) / 15.0 * 100), b2 >> 4,
-                        ym2413Instruments[b2 >> 4]);
+                        ym2413Instruments[b2 >> 4].c_str());
                     if (b1 >= 0x36)
                     {
                         int i1, i2 = -1;
@@ -348,10 +350,10 @@ void write_to_text(char* filename)
                             break;
                         }
                         fprintf(out, " OR Percussion volume:   %s -> vol 0x%1x = %3d%%",
-                            ym2413RhythmInstrumentNames[i1], b2 & 0xf,
+                            ym2413RhythmInstrumentNames[i1].c_str(), b2 & 0xf,
                             static_cast<int>((15 - (b2 & 0xf)) / 15.0 * 100));
                         if (i2 > -1)
-                            fprintf(out, "; %s -> vol 0x%1x = %3d%%", ym2413RhythmInstrumentNames[i2], b2 >> 4,
+                            fprintf(out, "; %s -> vol 0x%1x = %3d%%", ym2413RhythmInstrumentNames[i2].c_str(), b2 >> 4,
                                 static_cast<int>((15 - (b2 >> 4)) / 15.0 * 100));
                     }
                     fprintf(out, "\n");
@@ -620,8 +622,8 @@ void write_to_text(char* filename)
             fputs("      End of music data\n", out);
             gzclose(in);
             fclose(out);
-            if (ShowQuestion("VGM data written to\n%s\nOpen it now?", outFilename) == IDYES)
-                ShellExecute(hWndMain, "open", outFilename, nullptr, nullptr,SW_NORMAL);
+            if (ShowQuestion("VGM data written to\n%s\nOpen it now?", outFilename.c_str()) == IDYES)
+                ShellExecute(hWndMain, "open", outFilename.c_str(), nullptr, nullptr,SW_NORMAL);
             return;
         default:
             fputs("Unknown/invalid data\n", out);
@@ -638,6 +640,5 @@ void write_to_text(char* filename)
     gzclose(in);
     fclose(out);
 
-    free(outFilename);
     ShowStatus("Write to text complete");
 }

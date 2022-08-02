@@ -14,8 +14,8 @@ struct TGYMXHeader
     char dumper_emu[32];
     char dumper_person[32];
     char comments[256];
-    unsigned int looped;
-    unsigned int compressed;
+    uint32_t looped;
+    uint32_t compressed;
 };
 
 void spread_dac(gzFile in, gzFile out)
@@ -25,7 +25,8 @@ void spread_dac(gzFile in, gzFile out)
     // When this function is called, in and out are open and the last byte read was
     // the first 0x2a DAC data address byte.
 
-    int NumDACValues = 1, InFileDataStart = gztell(in);
+    int numDacValues = 1;
+    const int inFileDataStart = gztell(in);
 
     // 1. Count how many DAC values there are
     do
@@ -35,34 +36,37 @@ void spread_dac(gzFile in, gzFile out)
         if ((data == 0) || (data == EOF)) break; // Exit when I find a pause or EOF
         switch (data)
         {
-        case 01:
+        case 0x01:
             {
                 const auto address = gzgetc(in); // Read next byte if not a wait (2a for DAC, 27 for timer)
-                if (address == 0x2a) NumDACValues++; // counter starts at 1 since if I'm here there's at least one
+                if (address == 0x2a)
+                {
+                    numDacValues++; // counter starts at 1 since if I'm here there's at least one
+                }
                 break;
             }
-        case 02:
+        case 0x02:
             gzgetc(in);
             break;
-        case 03:
+        default:
             break;
         }
     }
     while (true);
 
     // 2. Seek back to data start (01 of first 01 2a)
-    gzseek(in, InFileDataStart - 2,SEEK_SET);
+    gzseek(in, inFileDataStart - 2, SEEK_SET);
 
     // 3. Read data again, this time outputting it with wait commands between
     int i = 0;
     do
     {
-        auto data = gzgetc(in); // GYM data type byte
-        if ((data == 0) || (data == EOF)) break;
+        const auto data = gzgetc(in); // GYM data type byte
+        if (data == 0 || data == EOF) break;
 
         switch (data)
         {
-        case 01:
+        case 0x01:
             {
                 gzputc(out,VGM_YM2612_0);
                 const auto address = gzgetc(in); // 2a for DAC, etc
@@ -72,22 +76,24 @@ void spread_dac(gzFile in, gzFile out)
                 {
                     // Got to DAC data so let's pause
                     // Calculate pause length
-                    const long waitLength = (LEN60TH * (i + 1) / NumDACValues) - (LEN60TH * i / NumDACValues);
+                    const long waitLength = (LEN60TH * (i + 1) / numDacValues) - (LEN60TH * i / numDacValues);
                     // Write pause
                     write_pause(out, waitLength);
                     // Increment counter
-                    i++;
+                    ++i;
                 }
                 break;
             }
-        case 02:
+        case 0x02:
             gzputc(out,VGM_YM2612_1);
             gzputc(out, gzgetc(in));
             gzputc(out, gzgetc(in));
             break;
-        case 03:
+        case 0x03:
             gzputc(out,VGM_PSG);
             gzputc(out, gzgetc(in));
+            break;
+        default:
             break;
         }
     }
@@ -139,7 +145,7 @@ bool convert_to_vgm(const std::string& filename, convert_file_type FileType)
                 if (GYMXHeader.compressed)
                 {
                     // Can't handle that
-                    AddConvertText("Cannot convert compressed GYM \"%s\" - see vgmtool.txt\r\n", filename.c_str());
+                    add_convert_text("Cannot convert compressed GYM \"%s\" - see vgmtool.txt\r\n", filename.c_str());
                     gzclose(out);
                     gzclose(in);
                     DeleteFile(outFilename.c_str());
@@ -314,6 +320,6 @@ bool convert_to_vgm(const std::string& filename, convert_file_type FileType)
     compress(outFilename.c_str());
 
     // Report
-    AddConvertText("Converted \"%s\" to \"%s\"\r\n", filename.c_str(), outFilename.c_str());
+    add_convert_text("Converted \"%s\" to \"%s\"\r\n", filename.c_str(), outFilename.c_str());
     return true;
 }

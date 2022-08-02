@@ -1,6 +1,4 @@
-#ifndef WRITETOTEXT_H
-#define WRITETOTEXT_H
+#pragma once
+#include <xstring>
 
-void write_to_text(char* filename);
-
-#endif
+void write_to_text(const std::string& filename);

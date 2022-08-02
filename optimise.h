@@ -1,7 +1,6 @@
-// VGM optimisation
+#pragma once
 
-#ifndef OPTIMISE_H
-#define OPTIMISE_H
+// VGM optimisation
 
 #include <Windows.h>
 
@@ -12,5 +11,3 @@ int RemoveOffset(char* filename);
 BOOL OptimiseVGMData(char* filename);
 
 BOOL RoundToFrameAccurate(char* filename);
-
-#endif

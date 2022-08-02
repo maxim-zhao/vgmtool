@@ -1,4 +1,5 @@
 #pragma once
+
 // VGM file format definitions
 // and generic VGM-related functions
 

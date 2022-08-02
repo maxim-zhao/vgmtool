@@ -1,8 +1,7 @@
+#pragma once
+
 // General purpose functions, not specific to anything much
 // except most are VGM-centric
-
-#ifndef UTILS_H
-#define UTILS_H
 
 #include <Windows.h>
 
@@ -25,5 +24,3 @@ char* MakeSuffixedFilename(const char* src, const char* suffix);
 void MyReplaceFile(const char* filetoreplace, const char* with);
 
 #define ROUND(x) ((int)(x>0?x+0.5:x-0.5))
-
-#endif
