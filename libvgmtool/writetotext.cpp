@@ -73,7 +73,11 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         return;
     }
 
-    callback.show_status("Writing VGM data to text...");
+    auto outFilename = filename + ".txt";
+
+    callback.show_status(Utils::format("Writing VGM data to text in \"%s\"...", outFilename.c_str()));
+
+    FILE* out = fopen(outFilename.c_str(), "w");
 
     gzFile in = gzopen(filename.c_str(), "rb");
 
@@ -86,10 +90,6 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
     }
 
     gzseek(in, 0x40,SEEK_SET);
-
-    auto outFilename = filename + ".txt";
-
-    FILE* out = fopen(outFilename.c_str(), "w");
 
     fprintf(out,
         "VGM Header:\n"

@@ -30,6 +30,10 @@ void MyReplaceFile(const char* filetoreplace, const char* with);
 class Utils
 {
 public:
+#if defined(__RESHARPER__) || defined(__GNUC__)
+    [[gnu::format(printf, 1, 2)]]
+#endif
     static std::string format(const char* format, ...);
+
     static int make_word(int b1, int b2);
 };
