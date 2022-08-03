@@ -1,6 +1,8 @@
 #include <cstdio>
 #include "vgm.h"
 
+#include <filesystem>
+
 #include "IVGMToolCallback.h"
 #include "utils.h"
 
@@ -178,7 +180,7 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
             callback.show_error(Utils::format("Error copying data to temporary file %s!", outfilename));
             gzclose(in);
             gzclose(out);
-            DeleteFile(outfilename);
+            std::filesystem::remove(outfilename);
             return;
         }
     }
@@ -187,7 +189,7 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
     gzclose(in);
     gzclose(out);
 
-    MyReplaceFile(filename, outfilename, callback);
+    MyReplaceFile(filename, outfilename);
 
     free(outfilename);
 
@@ -198,27 +200,27 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
 // Parse *in for chip data, setting BOOLs accordingly
 // *in is an open gzFile
 //----------------------------------------------------------------------------------------------
-void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612, BOOL* UsesYM2151, BOOL* UsesReserved)
+void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612, bool* UsesYM2151, bool* UsesReserved)
 {
     if (UsesPSG)
     {
-        *UsesPSG = FALSE;
+        *UsesPSG = false;
     }
     if (UsesYM2413)
     {
-        *UsesYM2413 = FALSE;
+        *UsesYM2413 = false;
     }
     if (UsesYM2612)
     {
-        *UsesYM2612 = FALSE;
+        *UsesYM2612 = false;
     }
     if (UsesYM2151)
     {
-        *UsesYM2151 = FALSE;
+        *UsesYM2151 = false;
     }
     if (UsesReserved)
     {
-        *UsesReserved = FALSE;
+        *UsesReserved = false;
     }
 
     gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
@@ -232,7 +234,7 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
             gzgetc(in);
             if (UsesPSG)
             {
-                *UsesPSG = TRUE;
+                *UsesPSG = true;
             }
             break;
         case VGM_YM2413:
@@ -240,7 +242,7 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
             gzgetc(in);
             if (UsesYM2413)
             {
-                *UsesYM2413 = TRUE;
+                *UsesYM2413 = true;
             }
             break;
         case VGM_YM2612_0:
@@ -249,7 +251,7 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
             gzgetc(in);
             if (UsesYM2612)
             {
-                *UsesYM2612 = TRUE;
+                *UsesYM2612 = true;
             }
             break;
         case VGM_YM2151:
@@ -257,7 +259,7 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
             gzgetc(in);
             if (UsesYM2151)
             {
-                *UsesYM2151 = TRUE;
+                *UsesYM2151 = true;
             }
             break;
         case 0x55: // Reserved up to 0x5f
@@ -275,7 +277,7 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
             gzgetc(in);
             if (UsesReserved)
             {
-                *UsesReserved = TRUE;
+                *UsesReserved = true;
             }
             break;
         case VGM_PAUSE_WORD:
@@ -318,7 +320,7 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
 // Corrects header if necessary
 // TODO: rewrite as a CheckHeader() function to check everything at once
 //----------------------------------------------------------------------------------------------
-void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& callback)
+void check_lengths(char* filename, bool showResults, const IVGMToolCallback& callback)
 {
     uint32_t sampleCount = 0;
     uint32_t loopSampleCount = 0;
@@ -585,16 +587,16 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
 // Reads in header from file
 // Shows an error if it's not a VGM file
 // returns success/failure
-BOOL ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback)
+bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback)
 {
     gzread(f, header, sizeof(VGMHeader));
     if (!header->is_valid())
     {
         // no VGM marker
         callback.show_error("File is not a VGM file! (no \"Vgm \")");
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 // Count how many writes there are to each chip/channel,
@@ -881,7 +883,7 @@ void WriteToState(TSystemState* state, int b0, int b1, int b2)
         break;
 
     case VGM_PAUSE_WORD: // Wait n samples
-        state->samplecount += MAKEWORD(b1, b2);
+        state->samplecount += Utils::make_word(b1, b2);
         break;
     //  case VGM_PAUSE_BYTE:  // Wait n samples
     //    state->samplecount+=b1;
@@ -920,7 +922,7 @@ void WriteToState(TSystemState* state, int b0, int b1, int b2)
 //----------------------------------------------------------------------------------------------
 // Writes a TSystemState to *out, with key data if WriteKeys
 //----------------------------------------------------------------------------------------------
-void WriteStateToFile(gzFile out, TSystemState* State, BOOL WriteKeys)
+void WriteStateToFile(gzFile out, TSystemState* State, bool WriteKeys)
 {
     // Write a full system state
     int i;

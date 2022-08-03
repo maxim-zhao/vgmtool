@@ -1,4 +1,3 @@
-//#include <Windows.h>
 #include <cstdio>
 #include <cstdlib>
 #include <zlib.h>
@@ -12,33 +11,25 @@
 #include "vgm.h"
 #include "utils.h"
 
-//extern char* MessageBuffer;
-extern HWND hWndMain;
-extern const char* ProgName;
-
 #define ON(x) (x?" on":"off")
 
 // converts a frequency in Hz to a standard MIDI note representation
-char* freq_to_note(char* buf, const double freq)
+std::string note_name(const double frequencyHz)
 {
-    if (freq < 1)
+    if (frequencyHz < 1)
     {
-        strcpy(buf, "notanote");
+        return "notanote";
     }
-    else
-    {
-        const double midiNote = (log(freq) - log(440)) / log(2) * 12 + 69;
-        // only one log is done here due to optimisation so I don't need to rearrange
-        const int nearestNote = ROUND(midiNote);
-        const char* noteNames[] = {"A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"};
-        sprintf(
-            buf, "%2s%-2d %+3d",
-            noteNames[abs(nearestNote - 21) % 12],
-            (nearestNote - 24) / 12 + 1,
-            static_cast<int>((midiNote - nearestNote) * 100 + ((nearestNote < midiNote) ? +0.5 : -0.5))
-        );
-    }
-    return buf;
+
+    const double midiNote = (log(frequencyHz) - log(440)) / log(2) * 12 + 69;
+    const int nearestNote = static_cast<int>(std::round(midiNote));
+    const char* noteNames[] = {"A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"};
+    return Utils::format(
+        "%2s%-2d %+3d",
+        noteNames[abs(nearestNote - 21) % 12],
+        (nearestNote - 24) / 12 + 1,
+        static_cast<int>((midiNote - nearestNote) * 100 + ((nearestNote < midiNote) ? +0.5 : -0.5))
+    );
 }
 
 // Write VGM data from filename to filename.txt
@@ -224,7 +215,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                         PSGLatchedRegister / 2, // Channel
                         PSGRegisters[PSGLatchedRegister], // Value
                         Freq, // Frequency
-                        freq_to_note(tempstr, Freq) // Note
+                        note_name(Freq).c_str() // Note
                     );
                 }
                 break;
@@ -310,7 +301,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     ym2413FNumbers[chan] = ym2413FNumbers[chan] & 0x100 | b2; // Update low bits of F-number
                     freq = static_cast<double>(ym2413FNumbers[chan]) * vgmHeader.YM2413Clock / 72 / (1 << (19 - ym2413Blocks[chan]));
                     fprintf(out, "Tone F-num low bits: ch %1d -> %03d(%1d) = %8.2f Hz = %s", chan, ym2413FNumbers[chan],
-                        ym2413Blocks[chan], freq, freq_to_note(tempstr, freq));
+                        ym2413Blocks[chan], freq, note_name(freq).c_str());
                     if (b1 >= 0x16)
                     {
                         fprintf(out, " OR Percussion F-num\n");
@@ -337,7 +328,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                         ym2413Blocks[chan] = (b2 & 0xE) >> 1;
                         freq = static_cast<double>(ym2413FNumbers[chan]) * vgmHeader.YM2413Clock / 72 / (1 << (19 - ym2413Blocks[chan]));
                         fprintf(out, "Tone F-n/bl/sus/key: ch %1d -> %03d(%1d) = %8.2f Hz = %s; sustain %s, key %s\n",
-                            chan, ym2413FNumbers[chan], ym2413Blocks[chan], freq, freq_to_note(tempstr, freq),
+                            chan, ym2413FNumbers[chan], ym2413Blocks[chan], freq, note_name(freq).c_str(),
                             ON(b2&0x20),ON(b2&0x10));
                     }
                     else

@@ -4,7 +4,6 @@
 // and generic VGM-related functions
 
 #include <string>
-#include <Windows.h>
 #include <zlib.h>
 
 // VGM data bytes
@@ -128,7 +127,7 @@ struct TSystemState
 {
     long int samplecount;
 
-    BOOL UsesPSG, UsesYM2413, UsesYM2612, UsesYM2151, UsesReserved;
+    bool UsesPSG, UsesYM2413, UsesYM2612, UsesYM2151, UsesReserved;
 
     struct PSGState
     {
@@ -165,13 +164,13 @@ void write_pause(gzFile out, long int pauselength);
 
 void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolCallback& callback);
 
-void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612, BOOL* UsesYM2151, BOOL* UsesReserved);
+void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612, bool* UsesYM2151, bool* UsesReserved);
 
-void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& callback);
+void check_lengths(char* filename, bool showResults, const IVGMToolCallback& callback);
 
 int detect_rate(char* filename, const IVGMToolCallback& callback);
 
-BOOL ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback);
+bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback);
 
 void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
                     unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],
@@ -182,4 +181,4 @@ void ResetState(TSystemState* State);
 
 void WriteToState(TSystemState* state, int b0, int b1, int b2);
 
-void WriteStateToFile(gzFile out, TSystemState* State, BOOL WriteKeys);
+void WriteStateToFile(gzFile out, TSystemState* State, bool WriteKeys);

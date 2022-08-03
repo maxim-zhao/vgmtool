@@ -1,6 +1,7 @@
 #include "convert.h"
 #include <zlib.h>
 #include <cstdio>
+#include <filesystem>
 
 #include "IVGMToolCallback.h"
 #include "vgm.h"
@@ -158,7 +159,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
                     callback.show_conversion_progress(Utils::format("Cannot convert compressed GYM \"%s\" - see vgmtool.txt", filename.c_str()));
                     gzclose(out);
                     gzclose(in);
-                    DeleteFile(outFilename.c_str());
+                    std::filesystem::remove(outFilename.c_str());
                     return false;
                 }
 

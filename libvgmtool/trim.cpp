@@ -56,7 +56,7 @@ void log_trim(char* VGMFile, int start, int loop, int end, const IVGMToolCallbac
 // - No optimisation
 // - Hopefully some clarity
 //----------------------------------------------------------------------------------------------
-BOOL new_trim(char* filename, const int start, const int loop, const int end, const IVGMToolCallback& callback)
+bool new_trim(char* filename, const int start, const int loop, const int end, const IVGMToolCallback& callback)
 {
     gzFile in, out;
     VGMHeader VGMHeader;
@@ -64,13 +64,13 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
     int b0 = 0, b1 = 0, b2 = 0;
     TSystemState CurrentState{}, LoopPointState{};
 
-    BOOL PastStart = FALSE, PastLoop = (loop < 0);
+    bool PastStart = false, PastLoop = (loop < 0);
     // If loop<0 then PastLoop=TRUE so it won't bother to record a loop state ever
     // Thus loop=-1 means no loop
 
     if (!FileExists(filename, callback))
     {
-        return FALSE;
+        return false;
     }
 
     // Check edit points are sensible
@@ -80,7 +80,7 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
     {
         // Invalid edit points
         callback.show_error("Invalid edit points!\nFailed the condition start <= loop < end");
-        return FALSE;
+        return false;
     }
 
     // Open input file
@@ -94,7 +94,7 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
     {
         gzclose(in);
         callback.show_error("End point beyond end of file");
-        return FALSE;
+        return false;
     }
 
     // Parse input file to see what chips are used
@@ -225,11 +225,11 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
         {
             // We've gone past (or equalled) the start point, so:
             // 1. Write state
-            WriteStateToFile(out, &CurrentState,TRUE);
+            WriteStateToFile(out, &CurrentState, true);
             // 2. Write any remaining pause left
             write_pause(out, CurrentState.samplecount - start);
             // 3. Record that it's time to start copying data
-            PastStart = TRUE;
+            PastStart = true;
         }
 
         // Loop point state saving and pause splitting (if needed)
@@ -327,7 +327,7 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
             // 4. Write any remaining pause left
             write_pause(out, CurrentState.samplecount - loop);
             // 5. Record that I've done it
-            PastLoop = TRUE;
+            PastLoop = true;
         }
 
         if (CurrentState.samplecount >= end)
@@ -380,7 +380,7 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
     // 1. If we're doing looping, write the loop state
     if (loop != -1)
     {
-        WriteStateToFile(out, &CurrentState,FALSE);
+        WriteStateToFile(out, &CurrentState,false);
     }
     // 2. Write EOF mrker
     gzputc(out,VGM_END);
@@ -417,5 +417,5 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
     write_vgm_header(outfilename, VGMHeader, callback);
 
     free(outfilename);
-    return TRUE;
+    return true;
 }

@@ -8,6 +8,7 @@
       <ConformanceMode>true</ConformanceMode>
       <TreatWarningAsError>Yes</TreatWarningAsError>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
 </Project>

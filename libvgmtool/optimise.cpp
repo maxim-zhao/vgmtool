@@ -17,7 +17,7 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
 
     if (!FileExists(filename, callback))
     {
-        return FALSE;
+        return false;
     }
 
     // Open input file
@@ -27,7 +27,7 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
     if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
-        return FALSE;
+        return false;
     }
 
     const auto oldLoopOffset = static_cast<int>(VGMHeader.LoopOffset + LOOPDELTA);
@@ -163,11 +163,11 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
     // Clean up
     gzclose(in);
 
-    MyReplaceFile(filename, outfilename, callback);
+    MyReplaceFile(filename, outfilename);
 
     free(outfilename);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -179,7 +179,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     signed int b0, b1, b2;
-    BOOL SilencedChannels[3] = {FALSE,FALSE,FALSE};
+    bool SilencedChannels[3] = {false,false,false};
     unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
     int PSGLatchedRegister = 0;
 
@@ -198,7 +198,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
     if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
-        return FALSE;
+        return false;
     }
 
     gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
@@ -274,7 +274,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
                                 (PSGLatchedRegister & 0x6) << 4) // %0cc00000
                         );
                         // Remember I've done it
-                        SilencedChannels[PSGLatchedRegister / 2] = TRUE;
+                        SilencedChannels[PSGLatchedRegister / 2] = true;
                         // Output zero frequency
                         gzputc(out,VGM_PSG);
                         gzputc(out, static_cast<char>(0x80 | (PSGLatchedRegister << 4)));
@@ -294,7 +294,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
                                 (PSGLatchedRegister & 0x6) << 4) | // %0cc00000
                             PSGRegisters[PSGLatchedRegister + 1] // %0000vvvv
                         );
-                        SilencedChannels[PSGLatchedRegister / 2] = FALSE;
+                        SilencedChannels[PSGLatchedRegister / 2] = false;
                     }
                     // Write the frequency bytes
                     gzputc(out,VGM_PSG);
@@ -415,7 +415,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
     write_vgm_header(outfilename, VGMHeader, callback);
 
     // Overwrite original with the new one
-    MyReplaceFile(filename, outfilename, callback);
+    MyReplaceFile(filename, outfilename);
 
     free(outfilename);
 
@@ -678,7 +678,7 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
 
     if (!FileExists(filename, callback))
     {
-        return FALSE;
+        return false;
     }
 
     // Open input file
@@ -701,13 +701,13 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     default:
         callback.show_error("Can't round this file because it's not defined as 50 or 60Hz.");
         gzclose(in);
-        return FALSE;
+        return false;
     }
 
     int numbuckets = framelength / bucketsize + 1;
 
     auto PausePositions = static_cast<int*>(malloc(sizeof(int) * numbuckets));
-    ZeroMemory(PausePositions, sizeof(int)*numbuckets);
+    memset(PausePositions, 0, sizeof(int)*numbuckets);
 
     // Make the output filename...
     char* outfilename = make_temp_filename(filename);
@@ -773,7 +773,7 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
             {
                 const auto b1 = gzgetc(in);
                 const auto b2 = gzgetc(in);
-                PauseLength += MAKEWORD(b1, b2);
+                PauseLength += Utils::make_word(b1, b2);
                 break;
             }
         case VGM_PAUSE_60TH: // Wait 1/60 s
@@ -868,5 +868,5 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
 
     free(outfilename);
 
-    return TRUE;
+    return true;
 }

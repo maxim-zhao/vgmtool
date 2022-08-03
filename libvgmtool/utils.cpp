@@ -1,7 +1,7 @@
-#include <Windows.h>
 #include <cstdio>
 #include <cstdlib>
 #include <zlib.h>
+#include <filesystem>
 #include "utils.h"
 
 #include <stdexcept>
@@ -14,9 +14,9 @@
 
 // returns a boolean specifying if the passed filename exists
 // also shows an error message if it doesn't
-BOOL FileExists(const char* filename, const IVGMToolCallback& callback)
+bool FileExists(const char* filename, const IVGMToolCallback& callback)
 {
-    BOOL result = FileExistsQuiet(filename);
+    bool result = FileExistsQuiet(filename);
     if (!result)
     {
         callback.show_error(Utils::format("File not found or in use:\n%s", filename));
@@ -24,14 +24,14 @@ BOOL FileExists(const char* filename, const IVGMToolCallback& callback)
     return result;
 }
 
-BOOL FileExistsQuiet(const char* filename)
+bool FileExistsQuiet(const char* filename)
 {
     if (!filename)
     {
-        return FALSE;
+        return false;
     }
     FILE* f = fopen(filename, "rb");
-    BOOL result = (f != nullptr);
+    bool result = (f != nullptr);
     if (f)
     {
         fclose(f);
@@ -42,10 +42,12 @@ BOOL FileExistsQuiet(const char* filename)
 // returns the size of the file in bytes
 unsigned long int FileSize(const char* filename)
 {
-    HANDLE f = CreateFile(filename,GENERIC_READ,FILE_SHARE_READ, nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL, nullptr);
-    unsigned long int s = GetFileSize(f, nullptr);
-    CloseHandle(f);
-    return s;
+    FILE* f;
+    fopen_s(&f, filename, "r");
+    fseek(f, 0, SEEK_END);
+    const auto size = ftell(f);
+    fclose(f);
+    return size;
 }
 
 // makes a unique temp filename out of src, mallocing the space for the result
@@ -93,13 +95,13 @@ char* MakeSuffixedFilename(const char* src, const char* suffix, const IVGMToolCa
 
 // compresses the file with GZip compression
 // to a temp file, then overwrites the original file with the temp
-BOOL compress(const char* filename, const IVGMToolCallback& callback)
+bool compress(const char* filename, const IVGMToolCallback& callback)
 {
     int AmtRead;
 
     if (!FileExists(filename, callback))
     {
-        return FALSE;
+        return false;
     }
 
     callback.show_status("Compressing...");
@@ -136,8 +138,8 @@ BOOL compress(const char* filename, const IVGMToolCallback& callback)
             free(copybuffer);
             gzclose(in);
             gzclose(out);
-            DeleteFile(outfilename);
-            return FALSE;
+            std::filesystem::remove(outfilename);
+            return false;
         }
     }
     while (AmtRead > 0);
@@ -146,20 +148,20 @@ BOOL compress(const char* filename, const IVGMToolCallback& callback)
     gzclose(in);
     gzclose(out);
 
-    MyReplaceFile(filename, outfilename, callback);
+    MyReplaceFile(filename, outfilename);
 
     free(outfilename);
     callback.show_status("Compression complete");
-    return TRUE;
+    return true;
 }
 
 // decompress the file
 // to a temp file, then overwrites the original file with the temp file
-BOOL Decompress(char* filename, const IVGMToolCallback& callback)
+bool Decompress(char* filename, const IVGMToolCallback& callback)
 {
     if (!FileExists(filename, callback))
     {
-        return FALSE;
+        return false;
     }
 
     callback.show_status("Decompressing...");
@@ -182,8 +184,8 @@ BOOL Decompress(char* filename, const IVGMToolCallback& callback)
             free(copyBuffer);
             gzclose(in);
             fclose(out);
-            DeleteFile(outFilename);
-            return FALSE;
+            std::filesystem::remove(outFilename);
+            return false;
         }
     }
     while (!gzeof(in));
@@ -192,11 +194,11 @@ BOOL Decompress(char* filename, const IVGMToolCallback& callback)
     gzclose(in);
     fclose(out);
 
-    MyReplaceFile(filename, outFilename, callback);
+    MyReplaceFile(filename, outFilename);
 
     free(outFilename);
     callback.show_status("Decompression complete");
-    return TRUE;
+    return true;
 }
 
 // Assumes filename has space at the end for the extension, if needed
@@ -216,11 +218,11 @@ void ChangeExt(char* filename, const char* ext)
 #define GZMagic1 0x1f
 #define GZMagic2 0x8b
 // Changes the file's extension to vgm or vgz depending on whether it's compressed
-BOOL FixExt(char* filename, const IVGMToolCallback& callback)
+bool FixExt(char* filename, const IVGMToolCallback& callback)
 {
     if (!FileExists(filename, callback))
     {
-        return FALSE;
+        return false;
     }
 
     FILE* f = fopen(filename, "rb");
@@ -242,17 +244,17 @@ BOOL FixExt(char* filename, const IVGMToolCallback& callback)
 
     if (strcmp(newfilename, filename) != 0)
     {
-        MyReplaceFile(newfilename, filename, callback);
+        MyReplaceFile(newfilename, filename);
         // replaces any existing file with the new name, with the existing file
         strcpy(filename, newfilename);
     }
 
     free(newfilename);
-    return TRUE;
+    return true;
 }
 
 // Delete filetoreplace, rename with with its name
-void MyReplaceFile(const char* filetoreplace, const char* with, const IVGMToolCallback& callback)
+void MyReplaceFile(const char* filetoreplace, const char* with)
 {
     if (strcmp(filetoreplace, with) == 0)
     {
@@ -260,13 +262,9 @@ void MyReplaceFile(const char* filetoreplace, const char* with, const IVGMToolCa
     }
     if (FileExistsQuiet(filetoreplace))
     {
-        DeleteFile(filetoreplace);
+        std::filesystem::remove(filetoreplace);
     }
-    if (MoveFile(with, filetoreplace) == 0)
-    {
-        callback.show_error(Utils::format("Error replacing old file:\n%s\nUpdated file is called:\n%s", filetoreplace,
-            with));
-    }
+    std::filesystem::rename(filetoreplace, with);
 }
 
 std::string Utils::format(const char* format, ...)
@@ -300,4 +298,10 @@ std::string Utils::format(const char* format, ...)
     va_end(args);
 
     return result;
+}
+
+int Utils::make_word(const int b1, const int b2)
+{
+    return ((b1 & 0xff) << 0) |
+        ((b2 & 0xff) << 8);
 }

@@ -47,7 +47,7 @@ void remove_gd3(const char* filename, const IVGMToolCallback& callback)
 
     write_vgm_header(outFilename, VGMHeader, callback); // Write changed header
 
-    MyReplaceFile(filename, outFilename, callback);
+    MyReplaceFile(filename, outFilename);
 
     free(outFilename);
 
