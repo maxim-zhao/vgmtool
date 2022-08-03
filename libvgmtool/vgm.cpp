@@ -1,7 +1,8 @@
 #include <cstdio>
 #include "vgm.h"
+
+#include "IVGMToolCallback.h"
 #include "utils.h"
-#include "gui.h"
 
 #define BUFFER_SIZE 5*1024 // 5KB buffer size for mass copying
 
@@ -145,14 +146,14 @@ void write_pause(gzFile out, long int pauselength)
 // Assumes you are writing the original header with minor modifications, so it
 // doesn't check anything (like the GD3 offset, EOF offset).
 //----------------------------------------------------------------------------------------------
-void write_vgm_header(const char* filename, struct VGMHeader VGMHeader)
+void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolCallback& callback)
 {
     char copybuffer[BUFFER_SIZE];
     int AmtRead;
 
-    if (!FileExists(filename)) return;
+    if (!FileExists(filename, callback)) return;
 
-    ShowStatus("Updating VGM header...");
+    callback.show_status("Updating VGM header...");
 
     char* outfilename = make_temp_filename(filename);
 
@@ -168,7 +169,7 @@ void write_vgm_header(const char* filename, struct VGMHeader VGMHeader)
         if (gzwrite(out, copybuffer, AmtRead) != AmtRead)
         {
             // Error copying file
-            ShowError("Error copying data to temporary file %s!", outfilename);
+            callback.show_error(Utils::format("Error copying data to temporary file %s!", outfilename));
             gzclose(in);
             gzclose(out);
             DeleteFile(outfilename);
@@ -180,18 +181,18 @@ void write_vgm_header(const char* filename, struct VGMHeader VGMHeader)
     gzclose(in);
     gzclose(out);
 
-    MyReplaceFile(filename, outfilename);
+    MyReplaceFile(filename, outfilename, callback);
 
     free(outfilename);
 
-    ShowStatus("VGM header update complete");
+    callback.show_status("VGM header update complete");
 }
 
 //----------------------------------------------------------------------------------------------
 // Parse *in for chip data, setting BOOLs accordingly
 // *in is an open gzFile
 //----------------------------------------------------------------------------------------------
-void GetUsedChips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612, BOOL* UsesYM2151, BOOL* UsesReserved)
+void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612, BOOL* UsesYM2151, BOOL* UsesReserved)
 {
     char b0;
 
@@ -284,15 +285,15 @@ void GetUsedChips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612, 
 // Corrects header if necessary
 // TODO: rewrite as a CheckHeader() function to check everything at once
 //----------------------------------------------------------------------------------------------
-void CheckLengths(char* filename, BOOL ShowResults)
+void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& callback)
 {
     long int SampleCount = 0, LoopSampleCount = -1;
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     int b0, b1, b2;
 
-    if (!FileExists(filename)) return;
+    if (!FileExists(filename, callback)) return;
 
-    ShowStatus("Counting samples...");
+    callback.show_status("Counting samples...");
 
     gzFile in = gzopen(filename, "rb");
 
@@ -302,9 +303,9 @@ void CheckLengths(char* filename, BOOL ShowResults)
     if (!VGMHeader.is_valid())
     {
         // no VGM marker
-        ShowError("File is not a VGM file! (no \"Vgm \")");
+        callback.show_error("File is not a VGM file! (no \"Vgm \")");
         gzclose(in);
-        ShowStatus("");
+        callback.show_status("");
         return;
     }
 
@@ -373,10 +374,10 @@ void CheckLengths(char* filename, BOOL ShowResults)
             LoopSampleCount = SampleCount - LoopSampleCount;
         // Change its meaning! Now it's the number of samples in the loop
 
-            if (ShowResults)
+            if (showResults)
             {
-                ShowStatus("Displaying results...");
-                ShowMessage(
+                callback.show_status("Displaying results...");
+                callback.show_message(Utils::format(
                     "Lengths:\n"
                     "In file:\n"
                     "Total: %d samples = %.2f seconds\n"
@@ -392,7 +393,7 @@ void CheckLengths(char* filename, BOOL ShowResults)
                     VGMHeader.TotalLength / 44100.0,
                     VGMHeader.LoopLength,
                     VGMHeader.LoopLength / 44100.0
-                );
+                ));
             }
             gzclose(in);
             if (
@@ -401,38 +402,38 @@ void CheckLengths(char* filename, BOOL ShowResults)
             )
             {
                 // Need to repair header
-                ShowStatus("Correcting header...");
+                callback.show_status("Correcting header...");
                 VGMHeader.TotalLength = SampleCount;
                 VGMHeader.LoopLength = LoopSampleCount;
                 if (LoopSampleCount == 0) VGMHeader.LoopOffset = 0;
-                write_vgm_header(filename, VGMHeader);
+                write_vgm_header(filename, VGMHeader, callback);
             }
             b0 = EOF;
         }
     }
     while (b0 != EOF);
-    ShowStatus("Sample count complete");
+    callback.show_status("Sample count complete");
 }
 
 
 //----------------------------------------------------------------------------------------------
 // Go through file, if I find a 1/50th or a 1/60th then I'll assume that's correct
 //----------------------------------------------------------------------------------------------
-int DetectRate(char* filename)
+int detect_rate(char* filename, const IVGMToolCallback& callback)
 {
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     int b0, b1, b2;
 
-    if (!FileExists(filename)) return 0;
+    if (!FileExists(filename, callback)) return 0;
 
-    ShowStatus("Detecting VGM recording rate...");
+    callback.show_status("Detecting VGM recording rate...");
 
     gzFile in = gzopen(filename, "rb");
 
     // Read header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE))
+    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
     {
-        ShowStatus("");
+        callback.show_status("");
         gzclose(in);
         return 0;
     }
@@ -520,8 +521,8 @@ int DetectRate(char* filename)
 
     gzclose(in);
 
-    if (Speed) ShowStatus("VGM rate detected as %dHz", Speed);
-    else ShowStatus("VGM rate not detected");
+    if (Speed) callback.show_status(Utils::format("VGM rate detected as %dHz", Speed));
+    else callback.show_status("VGM rate not detected");
 
     return Speed;
 }
@@ -529,13 +530,13 @@ int DetectRate(char* filename)
 // Reads in header from file
 // Shows an error if it's not a VGM file && !quiet
 // returns success/failure
-BOOL ReadVGMHeader(gzFile f, struct VGMHeader* header, BOOL quiet)
+BOOL ReadVGMHeader(gzFile f, VGMHeader* header, BOOL quiet, const IVGMToolCallback& callback)
 {
-    gzread(f, header, sizeof(struct VGMHeader));
+    gzread(f, header, sizeof(VGMHeader));
     if (!header->is_valid())
     {
         // no VGM marker
-        ShowError("File is not a VGM file! (no \"Vgm \")");
+        callback.show_error("File is not a VGM file! (no \"Vgm \")");
         return FALSE;
     }
     return TRUE;
@@ -546,9 +547,9 @@ BOOL ReadVGMHeader(gzFile f, struct VGMHeader* header, BOOL quiet)
 // ought to be equally capable
 void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
                     unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],
-                    unsigned long reservedwrites[NumReservedTypes])
+                    unsigned long reservedwrites[NumReservedTypes], const IVGMToolCallback& callback)
 {
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     int b0, b1, b2;
     int i;
     int Channel = 0; // for tracking PSG latched register
@@ -560,19 +561,19 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
     memset(YM2151writes, 0, sizeof(int) * NumYM2151Types);
     memset(reservedwrites, 0, sizeof(int) * NumReservedTypes);
 
-    if (!filename || !FileExists(filename)) return;
+    if (!filename || !FileExists(filename, callback)) return;
     // explicitly check for filename==NULL because that signals that we're supposed to return all zero
 
     gzFile in = gzopen(filename, "rb");
 
     // Read header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE))
+    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
     {
         gzclose(in);
         return;
     }
 
-    ShowStatus("Scanning for chip data...");
+    callback.show_status("Scanning for chip data...");
 
     gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
 
@@ -696,14 +697,14 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
 
     gzclose(in);
 
-    ShowStatus("Scan for chip data complete");
+    callback.show_status("Scan for chip data complete");
 }
 
 
 //----------------------------------------------------------------------------------------------
 // Fills a TSystemState with default values
 //----------------------------------------------------------------------------------------------
-void ResetState(struct TSystemState* State)
+void ResetState(TSystemState* State)
 {
     State->samplecount = 0;
 
@@ -725,7 +726,7 @@ void ResetState(struct TSystemState* State)
 // handles a chip write by updating the state in memory
 // also keeps track of time passed
 // unused parameters are zero where necessary
-void WriteToState(struct TSystemState* state, int b0, int b1, int b2)
+void WriteToState(TSystemState* state, int b0, int b1, int b2)
 {
     int i;
     switch (b0)
@@ -822,7 +823,7 @@ void WriteToState(struct TSystemState* state, int b0, int b1, int b2)
 //----------------------------------------------------------------------------------------------
 // Writes a TSystemState to *out, with key data if WriteKeys
 //----------------------------------------------------------------------------------------------
-void WriteStateToFile(gzFile out, struct TSystemState* State, BOOL WriteKeys)
+void WriteStateToFile(gzFile out, TSystemState* State, BOOL WriteKeys)
 {
     // Write a full system state
     int i;

@@ -1,27 +1,28 @@
 #include "gd3.h"
 #include <zlib.h>
+
+#include "IVGMToolCallback.h"
 #include "vgm.h"
-#include "gui.h"
 #include "utils.h"
 
 //----------------------------------------------------------------------------------------------
 // Remove GD3 from file
 //----------------------------------------------------------------------------------------------
-void RemoveGD3(char* filename)
+void remove_gd3(char* filename, const IVGMToolCallback& callback)
 {
-    struct VGMHeader VGMHeader;
-    if (!FileExists(filename)) return;
+    VGMHeader VGMHeader;
+    if (!FileExists(filename, callback)) return;
 
     gzFile in = gzopen(filename, "rb");
 
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE) || !VGMHeader.GD3Offset)
+    if (!ReadVGMHeader(in, &VGMHeader, FALSE, callback) || !VGMHeader.GD3Offset)
     {
         // do nothing if not a VGM file, or file already has no GD3
         gzclose(in);
         return;
     }
 
-    ShowStatus("Removing GD3 tag...");
+    // ShowStatus("Removing GD3 tag...");
 
     gzrewind(in);
 
@@ -38,11 +39,11 @@ void RemoveGD3(char* filename)
     gzclose(in);
     gzclose(out);
 
-    write_vgm_header(outfilename, VGMHeader); // Write changed header
+    write_vgm_header(outfilename, VGMHeader, callback); // Write changed header
 
-    MyReplaceFile(filename, outfilename);
+    MyReplaceFile(filename, outfilename, callback);
 
     free(outfilename);
 
-    ShowStatus("GD3 tag removed");
+    callback.show_status("GD3 tag removed");
 }

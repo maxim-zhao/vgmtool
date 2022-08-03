@@ -3,18 +3,25 @@
 #include <cstdlib>
 #include <zlib.h>
 #include "vgm.h"
-#include "gui.h"
 #include "utils.h"
+
+#include <stdexcept>
+#include <vector>
+
+#include "IVGMToolCallback.h"
 
 // Buffer for copying (created when needed)
 #define BUFFER_SIZE 1024*8
 
 // returns a boolean specifying if the passed filename exists
 // also shows an error message if it doesn't
-BOOL FileExists(const char* filename)
+BOOL FileExists(const char* filename, const IVGMToolCallback& callback)
 {
     BOOL result = FileExistsQuiet(filename);
-    if (!result) ShowError("File not found or in use:\n%s", filename);
+    if (!result)
+    {
+        callback.show_error(Utils::format("File not found or in use:\n%s", filename));
+    }
     return result;
 }
 
@@ -61,7 +68,7 @@ char* make_temp_filename(const char* src)
 //----------------------------------------------------------------------------------------------
 // Helper routine - "filename.ext","suffix" becomes "filename (suffix).ext"
 //----------------------------------------------------------------------------------------------
-char* MakeSuffixedFilename(const char* src, const char* suffix)
+char* MakeSuffixedFilename(const char* src, const char* suffix, const IVGMToolCallback& callback)
 {
     auto dest = static_cast<char*>(malloc(strlen(src) + strlen(suffix) + 10)); // 10 is more than I need to be safe
 
@@ -70,7 +77,7 @@ char* MakeSuffixedFilename(const char* src, const char* suffix)
     if (!p) p = dest + strlen(dest); // if no extension, add to the end of the file instead
     sprintf(p, " (%s)%s", suffix, src + (p - dest));
 
-    ShowMessage("Made a temp filename:\n%s\nfrom:\n%s", dest, src); // debugging
+    callback.show_message(Utils::format("Made a temp filename:\n%s\nfrom:\n%s", dest, src)); // debugging
 
     return dest;
 }
@@ -78,15 +85,16 @@ char* MakeSuffixedFilename(const char* src, const char* suffix)
 
 // compresses the file with GZip compression
 // to a temp file, then overwrites the original file with the temp
-BOOL compress(const char* filename)
+BOOL compress(const char* filename, const IVGMToolCallback& callback)
 {
     int AmtRead;
 
-    if (!FileExists(filename)) return FALSE;
+    if (!FileExists(filename, callback)) return FALSE;
 
-    ShowStatus("Compressing...");
+    callback.show_status("Compressing...");
 
     // Check filesize since big files take ages to compress
+    /*
     if (
         (FileSize(filename) > 1024 * 1024 * 1) &&
         (ShowQuestion(
@@ -98,7 +106,7 @@ BOOL compress(const char* filename)
     {
         ShowStatus("Compression skipped");
         return FALSE;
-    }
+    }*/
 
     char* outfilename = make_temp_filename(filename);
 
@@ -113,7 +121,7 @@ BOOL compress(const char* filename)
         if (gzwrite(out, copybuffer, AmtRead) != AmtRead)
         {
             // Error copying file
-            ShowError("Error copying data to temporary file %s!", outfilename);
+            callback.show_error(Utils::format("Error copying data to temporary file %s!", outfilename));
             free(copybuffer);
             gzclose(in);
             gzclose(out);
@@ -127,22 +135,22 @@ BOOL compress(const char* filename)
     gzclose(in);
     gzclose(out);
 
-    MyReplaceFile(filename, outfilename);
+    MyReplaceFile(filename, outfilename, callback);
 
     free(outfilename);
-    ShowStatus("Compression complete");
+    callback.show_status("Compression complete");
     return TRUE;
 }
 
 // decompress the file
 // to a temp file, then overwrites the original file with the temp file
-BOOL Decompress(char* filename)
+BOOL Decompress(char* filename, const IVGMToolCallback& callback)
 {
     int x;
 
-    if (!FileExists(filename)) return FALSE;
+    if (!FileExists(filename, callback)) return FALSE;
 
-    ShowStatus("Decompressing...");
+    callback.show_status("Decompressing...");
 
     char* outfilename = make_temp_filename(filename);
 
@@ -157,7 +165,7 @@ BOOL Decompress(char* filename)
         if ((x = fwrite(copybuffer, 1, AmtRead, out)) != AmtRead)
         {
             // Error copying file
-            ShowError("Error copying data to temporary file %s!", outfilename);
+            callback.show_error(Utils::format("Error copying data to temporary file %s!", outfilename));
             free(copybuffer);
             gzclose(in);
             fclose(out);
@@ -171,10 +179,10 @@ BOOL Decompress(char* filename)
     gzclose(in);
     fclose(out);
 
-    MyReplaceFile(filename, outfilename);
+    MyReplaceFile(filename, outfilename, callback);
 
     free(outfilename);
-    ShowStatus("Decompression complete");
+    callback.show_status("Decompression complete");
     return TRUE;
 }
 
@@ -192,9 +200,9 @@ void ChangeExt(char* filename, const char* ext)
 #define GZMagic1 0x1f
 #define GZMagic2 0x8b
 // Changes the file's extension to vgm or vgz depending on whether it's compressed
-BOOL FixExt(char* filename)
+BOOL FixExt(char* filename, const IVGMToolCallback& callback)
 {
-    if (!FileExists(filename)) return FALSE;
+    if (!FileExists(filename, callback)) return FALSE;
 
     FILE* f = fopen(filename, "rb");
     int IsCompressed = ((fgetc(f) == GZMagic1) && (fgetc(f) == GZMagic2));
@@ -209,7 +217,7 @@ BOOL FixExt(char* filename)
 
     if (strcmp(newfilename, filename) != 0)
     {
-        MyReplaceFile(newfilename, filename); // replaces any existing file with the new name, with the existing file
+        MyReplaceFile(newfilename, filename, callback); // replaces any existing file with the new name, with the existing file
         strcpy(filename, newfilename);
     }
 
@@ -218,12 +226,47 @@ BOOL FixExt(char* filename)
 }
 
 // Delete filetoreplace, rename with with its name
-void MyReplaceFile(const char* filetoreplace, const char* with)
+void MyReplaceFile(const char* filetoreplace, const char* with, const IVGMToolCallback& callback)
 {
     if (strcmp(filetoreplace, with) == 0)
         return;
     if (FileExistsQuiet(filetoreplace))
         DeleteFile(filetoreplace);
     if (MoveFile(with, filetoreplace) == 0)
-        ShowError("Error replacing old file:\n%s\nUpdated file is called:\n%s", filetoreplace, with);
+    {
+        callback.show_error(Utils::format("Error replacing old file:\n%s\nUpdated file is called:\n%s", filetoreplace, with));
+    }
+}
+
+std::string Utils::format(const char* format, ...)
+{
+    // Copy args to test length
+    va_list args;
+    va_list args_copy;
+
+    va_start(args, format);
+    va_copy(args_copy, args);
+
+    const int lengthNeeded = vsnprintf(nullptr, 0, format, args);  // NOLINT(clang-diagnostic-format-nonliteral)
+    if (lengthNeeded < 0)
+    {
+        va_end(args_copy);
+        va_end(args);
+        throw std::runtime_error("vsnprintf error");
+    }
+
+    std::string result;
+    if (lengthNeeded > 0)
+    {
+        // Make a vector as it needs to be mutable
+        std::vector<char> buffer(lengthNeeded + 1);
+        vsnprintf(&buffer[0], buffer.size(), format, args_copy);  // NOLINT(clang-diagnostic-format-nonliteral)
+        // Then copy into a string
+        result = std::string(&buffer[0], lengthNeeded);
+    }
+
+    va_end(args_copy);
+    va_end(args);
+
+    return result;
 }

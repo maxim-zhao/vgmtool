@@ -1,9 +1,10 @@
 #include "convert.h"
 #include <zlib.h>
 #include <cstdio>
+
+#include "IVGMToolCallback.h"
 #include "vgm.h"
 #include "utils.h"
-#include "gui.h"
 
 struct TGYMXHeader
 {
@@ -102,14 +103,14 @@ void spread_dac(gzFile in, gzFile out)
     // 4. Finished!
 }
 
-bool convert_to_vgm(const std::string& filename, convert_file_type FileType)
+bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGMToolCallback& callback)
 {
-    if (!FileExists(filename.c_str())) return false;
+    if (!FileExists(filename.c_str(), callback)) return false;
 
     // Make output filename filename.gym.vgz
     const auto outFilename = filename + ".vgz";
 
-    ShowStatus("Converting \"%s\" to VGM format...", filename.c_str());
+    callback.show_status(Utils::format("Converting \"%s\" to VGM format...", filename.c_str()));
 
     // Open files
     gzFile in = gzopen(filename.c_str(), "rb");
@@ -122,9 +123,9 @@ bool convert_to_vgm(const std::string& filename, convert_file_type FileType)
     vgmHeader.RecordingRate = 60;
     vgmHeader.Version = 0x110;
 
-    switch (FileType)
+    switch (fileType)
     {
-    case convert_file_type::gym:
+    case file_type::gym:
         {
             // GYM format:
             // 00    wait
@@ -145,7 +146,7 @@ bool convert_to_vgm(const std::string& filename, convert_file_type FileType)
                 if (GYMXHeader.compressed)
                 {
                     // Can't handle that
-                    add_convert_text("Cannot convert compressed GYM \"%s\" - see vgmtool.txt\r\n", filename.c_str());
+                    callback.show_conversion_progress(Utils::format("Cannot convert compressed GYM \"%s\" - see vgmtool.txt", filename.c_str()));
                     gzclose(out);
                     gzclose(in);
                     DeleteFile(outFilename.c_str());
@@ -230,7 +231,7 @@ bool convert_to_vgm(const std::string& filename, convert_file_type FileType)
             }
         }
         break;
-    case convert_file_type::ssl:
+    case file_type::ssl:
         {
             // SSL format:
             // 00    wait
@@ -278,7 +279,7 @@ bool convert_to_vgm(const std::string& filename, convert_file_type FileType)
             while (!gzeof(in));
             break;
         }
-    case convert_file_type::cym:
+    case file_type::cym:
         // CYM format
         // 00    wait
         // aa dd  YM2151 address aa data dd
@@ -316,10 +317,11 @@ bool convert_to_vgm(const std::string& filename, convert_file_type FileType)
     gzclose(in);
 
     // Update header
-    write_vgm_header(outFilename.c_str(), vgmHeader);
-    compress(outFilename.c_str());
+    write_vgm_header(outFilename.c_str(), vgmHeader, callback);
+    compress(outFilename.c_str(), callback);
 
     // Report
-    add_convert_text("Converted \"%s\" to \"%s\"\r\n", filename.c_str(), outFilename.c_str());
+    callback.show_conversion_progress(Utils::format("Converted \"%s\" to \"%s\"", filename.c_str(), outFilename.c_str()));
     return true;
 }
+

@@ -33,6 +33,7 @@
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="Shared">
+    <Import Project="..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets" Condition="Exists('..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -49,6 +50,7 @@
       <ConformanceMode>true</ConformanceMode>
       <TreatWarningAsError>No</TreatWarningAsError>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(SolutionDir)libvgmtool;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -66,6 +68,7 @@
       <ConformanceMode>true</ConformanceMode>
       <TreatWarningAsError>No</TreatWarningAsError>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(SolutionDir)libvgmtool;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -76,33 +79,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="convert.cpp" />
-    <ClCompile Include="gd3.cpp" />
     <ClCompile Include="gui.cpp" />
-    <ClCompile Include="optimise.cpp" />
-    <ClCompile Include="trim.cpp" />
-    <ClCompile Include="utils.cpp" />
-    <ClCompile Include="vgm.cpp" />
     <ClCompile Include="vgmtool.cpp" />
-    <ClCompile Include="writetotext.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="convert.h" />
-    <ClInclude Include="gd3.h" />
     <ClInclude Include="gui.h" />
-    <ClInclude Include="optimise.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="trim.h" />
-    <ClInclude Include="utils.h" />
-    <ClInclude Include="vgm.h" />
-    <ClInclude Include="writetotext.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources.rc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="manifest.xml" />
@@ -112,16 +100,17 @@
     <Image Include="Imagelist.bmp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="vgmtool.txt" />
+    <ProjectReference Include="..\libvgmtool\libvgmtool.vcxproj">
+      <Project>{9ac351cf-f0ae-43c4-8db2-68257b077f19}</Project>
+      <Private>false</Private>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets" Condition="Exists('packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" />
-  </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
+    <Error Condition="!Exists('..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
   </Target>
 </Project>

@@ -8,9 +8,9 @@
 #include <string>
 #include <vector>
 
+#include "IVGMToolCallback.h"
 #include "vgm.h"
 #include "utils.h"
-#include "gui.h"
 
 //extern char* MessageBuffer;
 extern HWND hWndMain;
@@ -46,7 +46,7 @@ char* freq_to_note(char* buf, const double freq)
 // No handling of YM2151
 // YM2413 needs checking
 // TODO: display GD3 too - maybe use UTF-8?
-void write_to_text(const std::string& filename)
+void write_to_text(const std::string& filename, const IVGMToolCallback& callback)
 {
     int SampleCount = 0;
     int b0, b1, b2;
@@ -77,15 +77,15 @@ void write_to_text(const std::string& filename)
     unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
     int PSGLatchedRegister = 0;
 
-    if (!FileExists(filename.c_str())) return;
+    if (!FileExists(filename.c_str(), callback)) return;
 
-    ShowStatus("Writing VGM data to text...");
+    callback.show_status("Writing VGM data to text...");
 
     gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
-    struct VGMHeader vgmHeader;
-    if (!ReadVGMHeader(in, &vgmHeader,FALSE))
+    VGMHeader vgmHeader;
+    if (!ReadVGMHeader(in, &vgmHeader,FALSE, callback))
     {
         gzclose(in);
         return;
@@ -94,7 +94,6 @@ void write_to_text(const std::string& filename)
     gzseek(in, 0x40,SEEK_SET);
 
     auto outFilename = filename + ".txt";
-    //ChangeExt(outFilename, "txt"); TODO resurrect this
 
     FILE* out = fopen(outFilename.c_str(), "w");
 
@@ -622,8 +621,6 @@ void write_to_text(const std::string& filename)
             fputs("      End of music data\n", out);
             gzclose(in);
             fclose(out);
-            if (ShowQuestion("VGM data written to\n%s\nOpen it now?", outFilename.c_str()) == IDYES)
-                ShellExecute(hWndMain, "open", outFilename.c_str(), nullptr, nullptr,SW_NORMAL);
             return;
         default:
             fputs("Unknown/invalid data\n", out);
@@ -640,5 +637,5 @@ void write_to_text(const std::string& filename)
     gzclose(in);
     fclose(out);
 
-    ShowStatus("Write to text complete");
+    callback.show_status("Write to text complete");
 }

@@ -1,23 +1,47 @@
 // Dialogue-based UI
-#include <Windows.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
+#include <Windows.h>
 #include <CommCtrl.h>
 #include <Uxtheme.h>
 #include <zlib.h>
 
-#include "resource.h"
-
-#include "vgm.h"
-#include "gd3.h"
-#include "writetotext.h"
-#include "utils.h"
+#include <convert.h>
+#include <gd3.h>
 #include "gui.h"
-#include "optimise.h"
-#include "trim.h"
-#include "convert.h"
+#include <optimise.h>
+#include "resource.h"
+#include <trim.h>
+#include "utils.h"
+#include <vgm.h>
+#include <writetotext.h>
+
+#include "IVGMToolCallback.h"
+
+class Callback: public IVGMToolCallback
+{
+public:
+    void show_message(const std::string& message) const override
+    {
+        ShowMessage("%s", message.c_str());
+    }
+
+    void show_status(const std::string& message) const override
+    {
+        ShowStatus("%s", message.c_str());
+    }
+    void show_conversion_progress(const std::string& message) const override
+    {
+        add_convert_text("%s\r\n", message.c_str());
+    }
+
+    void show_error(const std::string& message) const override
+    {
+        ShowError("%s", message.c_str());
+    }
+} callback;
 
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
@@ -31,7 +55,7 @@ HWND hWndMain = nullptr;
 HINSTANCE HInst;
 
 char Currentfilename[10240] = "You didn't load a file yet!";
-struct VGMHeader CurrentFileVGMHeader;
+VGMHeader CurrentFileVGMHeader;
 
 const char* ProgName = "VGMTool 2 release 5";
 
@@ -122,7 +146,7 @@ const int YM2413RegWriteFlags[YM2413NumRegs] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
 
-struct TPSGState LastWrittenPSGState = {
+TPSGState LastWrittenPSGState = {
     static_cast<char>(0xff), // GG stereo - all on
     {0, 0, 0}, // Tone channels - off
     static_cast<char>(0xe5), // Noise byte - white, medium
@@ -142,7 +166,7 @@ int
     KeysPressed = 0;
 int NoiseChanged = 0;
 
-void WriteVGMInfo(gzFile out, long* pauselength, struct TPSGState* PSGState, unsigned char YM2413Regs[YM2413NumRegs])
+void WriteVGMInfo(gzFile out, long* pauselength, TPSGState* PSGState, unsigned char YM2413Regs[YM2413NumRegs])
 {
     int i;
     if (!*pauselength) return;
@@ -319,7 +343,7 @@ void WriteYM2413State(gzFile out, unsigned char YM2413Regs[YM2413NumRegs], int I
     */
 }
 
-void WritePSGState(gzFile out, struct TPSGState PSGState)
+void WritePSGState(gzFile out, TPSGState PSGState)
 {
     int i;
     // GG stereo
@@ -367,7 +391,7 @@ void CheckWriteCounts(char* filename);
 void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL PromptToPlay)
 {
     gzFile in, out;
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     char* Outfilename;
     char* p;
     int b0, b1, b2;
@@ -378,7 +402,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     char LastFirstByteWritten = 0;
     char WrittenStart = 0, WrittenLoop = 0;
 
-    struct TPSGState CurrentPSGState = {
+    TPSGState CurrentPSGState = {
         static_cast<char>(0xff), // GG stereo - all on
         {0, 0, 0}, // Tone channels - off
         static_cast<char>(0xe5), // Noise byte - white, medium
@@ -388,9 +412,9 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
 
     unsigned char YM2413Regs[YM2413NumRegs];
 
-    if (!FileExists(filename)) return;
+    if (!FileExists(filename, callback)) return;
 
-    if (IsDlgButtonChecked(TrimWnd,cbLogTrims)) LogTrim(Currentfilename, start, loop, end);
+    if (IsDlgButtonChecked(TrimWnd,cbLogTrims)) log_trim(Currentfilename, start, loop, end, callback);
 
     CheckWriteCounts(filename);
 
@@ -405,7 +429,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     in = gzopen(filename, "rb");
 
     // Read header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE))
+    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
     {
         gzclose(in);
         return;
@@ -699,7 +723,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     // Copy GD3 tag
     if (VGMHeader.GD3Offset)
     {
-        struct TGD3Header GD3Header;
+        TGD3Header GD3Header;
         int i;
         int NewGD3Offset = gztell(out) - GD3DELTA;
         ShowStatus("Copying GD3 tag...");
@@ -733,11 +757,11 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     }
 
     // Amend it with the updated header
-    write_vgm_header(Outfilename, VGMHeader);
+    write_vgm_header(Outfilename, VGMHeader, callback);
 
-    OptimiseVGMPauses(Outfilename);
+    optimise_vgm_pauses(Outfilename, callback);
 
-    compress(Outfilename);
+    compress(Outfilename, callback);
 
     if (OverWrite == TRUE)
     {
@@ -772,7 +796,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
 
 void Optimize(char* filename)
 {
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     int NumOffsetsRemoved = 0;
 
     gzFile in = gzopen(filename, "rb");
@@ -781,10 +805,10 @@ void Optimize(char* filename)
     long FileSizeBefore = VGMHeader.EoFOffset + EOFDELTA;
 
     // Make sure lengths are correct
-    CheckLengths(filename,FALSE);
+    check_lengths(filename,FALSE, callback);
 
     // Remove PSG offsets if selected
-    if ((VGMHeader.PSGClock) && IsDlgButtonChecked(TrimWnd,cbRemoveOffset)) NumOffsetsRemoved = RemoveOffset(filename);
+    if ((VGMHeader.PSGClock) && IsDlgButtonChecked(TrimWnd,cbRemoveOffset)) NumOffsetsRemoved = remove_offset(filename, callback);
 
     // Trim (using the existing edit points), also merges pauses
     if (VGMHeader.LoopLength)
@@ -797,7 +821,7 @@ void Optimize(char* filename)
     gzclose(in);
     long FileSizeAfter = VGMHeader.EoFOffset + EOFDELTA;
 
-    FixExt(filename);
+    FixExt(filename, callback);
 
     if (ShowQuestion(
         "File optimised to\n"
@@ -841,7 +865,7 @@ void UpdateWriteCount(const int CheckBoxes[], unsigned long Writes[], int count)
 void CheckWriteCounts(char* filename)
 {
     int i, j;
-    GetWriteCounts(filename, PSGWrites, YM2413Writes, YM2612Writes, YM2151Writes, ReservedWrites);
+    GetWriteCounts(filename, PSGWrites, YM2413Writes, YM2612Writes, YM2151Writes, ReservedWrites, callback);
 
     UpdateWriteCount(PSGCheckBoxes, PSGWrites,NumPSGTypes);
     UpdateWriteCount(YM2413CheckBoxes, YM2413Writes,NumYM2413Types);
@@ -877,10 +901,10 @@ void CheckWriteCounts(char* filename)
 void LoadFile(char* filename)
 {
     char buffer[64];
-    struct TGD3Header GD3Header;
+    TGD3Header GD3Header;
     int FileHasGD3 = 0;
 
-    if (!FileExists(filename)) return;
+    if (!FileExists(filename, callback)) return;
 
     ShowStatus("Loading file...");
 
@@ -1023,9 +1047,9 @@ void UpdateHeader()
     char buffer[64];
     BOOL b = FALSE;
     int i, j;
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
 
-    if (!FileExists(Currentfilename)) return;
+    if (!FileExists(Currentfilename, callback)) return;
 
     gzFile in = gzopen(Currentfilename, "rb");
     gzread(in, &VGMHeader, sizeof(VGMHeader));
@@ -1051,7 +1075,7 @@ void UpdateHeader()
         VGMHeader.PSGWhiteNoiseFeedback = i;
     if (get_int(HeaderWnd,edtPSGSRWidth, &i)) VGMHeader.PSGShiftRegisterWidth = i;
 
-    write_vgm_header(Currentfilename, VGMHeader);
+    write_vgm_header(Currentfilename, VGMHeader, callback);
 }
 
 void ClearGD3Strings()
@@ -1063,19 +1087,19 @@ void ClearGD3Strings()
 void UpdateGD3()
 {
     wchar_t* GD3string = GD3Strings; // pointer to parse GD3Strings
-    struct VGMHeader VGMHeader;
-    struct TGD3Header GD3Header;
+    VGMHeader VGMHeader;
+    TGD3Header GD3Header;
     long int i;
     wchar_t AllGD3Strings[1024 * NumGD3Strings] = L""; // zeroes the whole buffer
     wchar_t* AllGD3End = AllGD3Strings;
     int ConversionErrors = 0;
 
-    if (!FileExists(Currentfilename)) return;
+    if (!FileExists(Currentfilename, callback)) return;
 
     ShowStatus("Updating GD3 tag...");
 
     gzFile in = gzopen(Currentfilename, "rb");
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE))
+    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
     {
         gzclose(in);
         return;
@@ -1182,7 +1206,7 @@ void UpdateGD3()
     gzclose(in);
     gzclose(out);
 
-    write_vgm_header(Outfilename, VGMHeader); // Write changed header
+    write_vgm_header(Outfilename, VGMHeader, callback); // Write changed header
 
     DeleteFile(Currentfilename);
     MoveFile(Outfilename, Currentfilename);
@@ -1201,7 +1225,7 @@ void UpdateGD3()
 // Remove data for checked boxes
 void Strip(char* filename, char* Outfilename)
 {
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     signed int b0, b1, b2;
     int i;
     char LatchedChannel = 0;
@@ -1232,7 +1256,7 @@ void Strip(char* filename, char* Outfilename)
     gzFile in = gzopen(filename, "rb");
 
     // Read header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE))
+    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
     {
         gzclose(in);
         return;
@@ -1476,7 +1500,7 @@ void Strip(char* filename, char* Outfilename)
     // Then copy the GD3 over
     if (VGMHeader.GD3Offset)
     {
-        struct TGD3Header GD3Header;
+        TGD3Header GD3Header;
         int NewGD3Offset = gztell(out) - GD3DELTA;
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
@@ -1495,20 +1519,20 @@ void Strip(char* filename, char* Outfilename)
     gzclose(out);
 
     // Amend it with the updated header
-    write_vgm_header(Outfilename, VGMHeader);
+    write_vgm_header(Outfilename, VGMHeader, callback);
 }
 
 void StripChecked(char* filename)
 {
     char Tmpfilename[MAX_PATH + 10], Outfilename[MAX_PATH + 10];
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
 
-    if (!FileExists(filename)) return;
+    if (!FileExists(filename, callback)) return;
 
     ShowStatus("Stripping chip data...");
 
     gzFile in = gzopen(filename, "rb");
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE))
+    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
     {
         gzclose(in);
         return;
@@ -1859,6 +1883,9 @@ void CopyLengthsToClipboard()
     ShowStatus(MessageBuffer);
 }
 
+// TODO: make this nicer?
+;
+
 
 void ConvertDroppedFiles(HDROP HDrop)
 {
@@ -1880,9 +1907,9 @@ void ConvertDroppedFiles(HDROP HDrop)
 
         if (p)
         {
-            if ((_strcmpi(p, ".gym") == 0) && convert_to_vgm(DroppedFilename, convert_file_type::gym)) NumConverted++;
-            else if ((_strcmpi(p, ".ssl") == 0) && convert_to_vgm(DroppedFilename, convert_file_type::ssl)) NumConverted++;
-            else if ((_strcmpi(p, ".cym") == 0) && convert_to_vgm(DroppedFilename, convert_file_type::cym)) NumConverted++;
+            if ((_strcmpi(p, ".gym") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::gym, callback)) NumConverted++;
+            else if ((_strcmpi(p, ".ssl") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::ssl, callback)) NumConverted++;
+            else if ((_strcmpi(p, ".cym") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::cym, callback)) NumConverted++;
             else
             {
                 p = strrchr(DroppedFilename, '\\') + 1;
@@ -2036,12 +2063,12 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         {
         case btnUpdateHeader:
             UpdateHeader();
-            compress(Currentfilename);
-            FixExt(Currentfilename); // in case I've VGM-VGZed
+            compress(Currentfilename, callback);
+            FixExt(Currentfilename, callback); // in case I've VGM-VGZed
             LoadFile(Currentfilename);
             break;
         case btnCheckLengths:
-            CheckLengths(Currentfilename, 1);
+            check_lengths(Currentfilename, TRUE, callback);
             LoadFile(Currentfilename);
             break;
         case btnTrim:
@@ -2063,16 +2090,16 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             }
             break;
         case btnWriteToText:
-            write_to_text(Currentfilename);
+            write_to_text(Currentfilename, callback);
             break;
         case btnOptimise:
             Optimize(Currentfilename);
-            compress(Currentfilename);
-            FixExt(Currentfilename);
+            compress(Currentfilename, callback);
+            FixExt(Currentfilename, callback);
             LoadFile(Currentfilename);
             break;
         case btnDecompress:
-            if (Decompress(Currentfilename) && FixExt(Currentfilename)) LoadFile(Currentfilename);
+            if (Decompress(Currentfilename, callback) && FixExt(Currentfilename, callback)) LoadFile(Currentfilename);
             break;
         case btnRoundTimes:
             {
@@ -2092,8 +2119,8 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case btnUpdateGD3:
             UpdateGD3();
-            compress(Currentfilename);
-            FixExt(Currentfilename); // in case I've VGM-VGZed
+            compress(Currentfilename, callback);
+            FixExt(Currentfilename, callback); // in case I've VGM-VGZed
             LoadFile(Currentfilename);
             break;
         case btnGD3Clear:
@@ -2141,7 +2168,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case btnRateDetect:
             {
-                int i = DetectRate(Currentfilename);
+                int i = detect_rate(Currentfilename, callback);
                 if (i) SetDlgItemInt(HeaderWnd,edtPlaybackRate, i,FALSE);
                 // TODO: make sure VGM version is set high enough when updating header
             }
@@ -2172,11 +2199,11 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             CopyLengthsToClipboard();
             break;
         case btnRemoveGD3:
-            RemoveGD3(Currentfilename);
+            remove_gd3(Currentfilename, callback);
             LoadFile(Currentfilename);
             break;
         case btnRemoveOffsets:
-            RemoveOffset(Currentfilename);
+            remove_offset(Currentfilename, callback);
             LoadFile(Currentfilename);
             break;
         case btnOptimiseVGMData:
@@ -2185,7 +2212,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             LoadFile(Currentfilename);
             break;
         case btnOptimisePauses:
-            OptimiseVGMPauses(Currentfilename);
+            optimise_vgm_pauses(Currentfilename, callback);
             LoadFile(Currentfilename);
             break;
         case btnTrimOnly:
@@ -2204,14 +2231,14 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                     break;
                 }
 
-                if (IsDlgButtonChecked(TrimWnd,cbLogTrims)) LogTrim(Currentfilename, Start, Loop, End);
+                if (IsDlgButtonChecked(TrimWnd,cbLogTrims)) log_trim(Currentfilename, Start, Loop, End, callback);
 
-                NewTrim(Currentfilename, Start, Loop, End);
+                new_trim(Currentfilename, Start, Loop, End, callback);
             }
             break;
         case btnCompress:
-            compress(Currentfilename);
-            FixExt(Currentfilename);
+            compress(Currentfilename, callback);
+            FixExt(Currentfilename, callback);
             LoadFile(Currentfilename);
             break;
         case btnNewTrim:
@@ -2229,17 +2256,17 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                     ShowError("Invalid edit points!");
                     break;
                 }
-                NewTrim(Currentfilename, Start, Loop, End);
-                RemoveOffset(Currentfilename);
+                new_trim(Currentfilename, Start, Loop, End, callback);
+                remove_offset(Currentfilename, callback);
                 //        OptimiseVGMData(Currentfilename);
-                OptimiseVGMPauses(Currentfilename);
+                optimise_vgm_pauses(Currentfilename, callback);
             }
             break;
         case btnGetCounts:
             CheckWriteCounts(Currentfilename);
             break;
         case btnRoundToFrames:
-            RoundToFrameAccurate(Currentfilename);
+            round_to_frame_accurate(Currentfilename, callback);
             break;
         } // end switch(LOWORD(wParam))
         {

@@ -2,17 +2,17 @@
 #include <cstring>
 #include <cstdio>
 #include "trim.h"
-#include "gui.h"
 #include <zlib.h>
 #include "vgm.h"
 #include "gd3.h"
+#include "IVGMToolCallback.h"
 #include "utils.h"
 
 //----------------------------------------------------------------------------------------------
 // Creates a log of the trim for future reference
 // in a file called "editpoints.txt" in the VGM's directory
 //----------------------------------------------------------------------------------------------
-void LogTrim(char* VGMFile, int start, int loop, int end)
+void log_trim(char* VGMFile, int start, int loop, int end, const IVGMToolCallback& callback)
 {
     if (!strrchr(VGMFile, '\\')) return;
 
@@ -23,7 +23,7 @@ void LogTrim(char* VGMFile, int start, int loop, int end)
 
     FILE* f = fopen(fn, "a"); // open file for append
 
-    if (!f) ShowError("Error opening editpoints.txt");
+    if (!f) callback.show_error("Error opening editpoints.txt");
     else
         fprintf(f, "Filename: %s\n"
             "Start:    %d\n"
@@ -45,19 +45,19 @@ void LogTrim(char* VGMFile, int start, int loop, int end)
 // - No optimisation
 // - Hopefully some clarity
 //----------------------------------------------------------------------------------------------
-BOOL NewTrim(char* filename, const long int start, const long int loop, const long int end)
+BOOL new_trim(char* filename, const long int start, const long int loop, const long int end, const IVGMToolCallback& callback)
 {
     gzFile in, out;
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     char* outfilename;
     int b0, b1, b2;
-    struct TSystemState CurrentState, LoopPointState;
+    TSystemState CurrentState, LoopPointState;
 
     BOOL PastStart = FALSE, PastLoop = (loop < 0);
     // If loop<0 then PastLoop=TRUE so it won't bother to record a loop state ever
     // Thus loop=-1 means no loop
 
-    if (!FileExists(filename)) return FALSE;
+    if (!FileExists(filename, callback)) return FALSE;
 
     // Check edit points are sensible
     if ((start < 0) ||
@@ -65,7 +65,7 @@ BOOL NewTrim(char* filename, const long int start, const long int loop, const lo
         (end <= loop))
     {
         // Invalid edit points
-        ShowError("Invalid edit points!\nFailed the condition start <= loop < end");
+        callback.show_error("Invalid edit points!\nFailed the condition start <= loop < end");
         return FALSE;
     }
 
@@ -79,16 +79,16 @@ BOOL NewTrim(char* filename, const long int start, const long int loop, const lo
     if (end > VGMHeader.TotalLength)
     {
         gzclose(in);
-        ShowError("End point beyond end of file");
+        callback.show_error("End point beyond end of file");
         return FALSE;
     }
 
     // Parse input file to see what chips are used
-    GetUsedChips(in, &CurrentState.UsesPSG, &CurrentState.UsesYM2413, &CurrentState.UsesYM2612,
+    get_used_chips(in, &CurrentState.UsesPSG, &CurrentState.UsesYM2413, &CurrentState.UsesYM2612,
         &CurrentState.UsesYM2151, &CurrentState.UsesReserved);
 
     // Let's make the output filename...
-    outfilename = MakeSuffixedFilename(filename, "trimmed");
+    outfilename = MakeSuffixedFilename(filename, "trimmed", callback);
 
     // ...open it...
     out = gzopen(outfilename, "wb0");
@@ -367,10 +367,10 @@ BOOL NewTrim(char* filename, const long int start, const long int loop, const lo
     // 3. Copy GD3 tag
     if (VGMHeader.GD3Offset)
     {
-        struct TGD3Header GD3Header;
+        TGD3Header GD3Header;
         int i;
         int NewGD3Offset = gztell(out) - GD3DELTA;
-        ShowStatus("Copying GD3 tag...");
+        callback.show_status("Copying GD3 tag...");
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
@@ -389,7 +389,7 @@ BOOL NewTrim(char* filename, const long int start, const long int loop, const lo
     }
 
     gzclose(out);
-    write_vgm_header(outfilename, VGMHeader);
+    write_vgm_header(outfilename, VGMHeader, callback);
 
     free(outfilename);
     return TRUE;

@@ -15,28 +15,25 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="convert.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="gd3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="gui.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vgmtool.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vgm.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="utils.cpp">
+    <ClCompile Include="optimise.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="trim.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="optimise.cpp">
+    <ClCompile Include="utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vgm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="writetotext.cpp">
@@ -50,49 +47,23 @@
     <ClInclude Include="gd3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="gui.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vgm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="utils.h">
+    <ClInclude Include="optimise.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="trim.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
+    <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="optimise.h">
+    <ClInclude Include="vgm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="writetotext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="resources.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="README.md" />
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <Xml Include="manifest.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="Imagelist.bmp">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="icon1.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="vgmtool.txt" />
+    <ClInclude Include="IVGMToolCallback.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

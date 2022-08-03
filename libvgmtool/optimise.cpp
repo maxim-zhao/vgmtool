@@ -4,25 +4,25 @@
 #include "vgm.h"
 #include "trim.h"
 #include "gd3.h"
+#include "IVGMToolCallback.h"
 #include "utils.h"
-#include "gui.h"
 
 //----------------------------------------------------------------------------------------------
 // Pause optimiser
 //----------------------------------------------------------------------------------------------
-BOOL OptimiseVGMPauses(char* filename)
+bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
 {
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     char b0, b1, b2;
     int PauseLength = 0;
 
-    if (!FileExists(filename)) return FALSE;
+    if (!FileExists(filename, callback)) return FALSE;
 
     // Open input file
     gzFile in = gzopen(filename, "rb");
 
     // Read its VGM header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE))
+    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
     {
         gzclose(in);
         return FALSE;
@@ -137,7 +137,7 @@ BOOL OptimiseVGMPauses(char* filename)
     // 2. Copy GD3 tag
     if (VGMHeader.GD3Offset)
     {
-        struct TGD3Header GD3Header;
+        TGD3Header GD3Header;
         int NewGD3Offset = gztell(out) - GD3DELTA;
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
@@ -151,12 +151,12 @@ BOOL OptimiseVGMPauses(char* filename)
 
     gzclose(out);
 
-    write_vgm_header(outfilename, VGMHeader);
+    write_vgm_header(outfilename, VGMHeader, callback);
 
     // Clean up
     gzclose(in);
 
-    MyReplaceFile(filename, outfilename);
+    MyReplaceFile(filename, outfilename, callback);
 
     free(outfilename);
 
@@ -168,9 +168,9 @@ BOOL OptimiseVGMPauses(char* filename)
 // PSG offset (small freq value, volume on) remover
 // Returns number of offsets removed
 //----------------------------------------------------------------------------------------------
-int RemoveOffset(char* filename)
+int remove_offset(char* filename, const IVGMToolCallback& callback)
 {
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     signed int b0, b1, b2;
     BOOL SilencedChannels[3] = {FALSE,FALSE,FALSE};
     unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
@@ -180,12 +180,12 @@ int RemoveOffset(char* filename)
     int NumOffsetsRemoved = 0;
     int NoiseCh2 = 0;
 
-    if (!FileExists(filename)) return 0;
+    if (!FileExists(filename, callback)) return 0;
 
     gzFile in = gzopen(filename, "rb");
 
     // Read header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE))
+    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
     {
         gzclose(in);
         return FALSE;
@@ -375,7 +375,7 @@ int RemoveOffset(char* filename)
     // Then copy the GD3 over
     if (VGMHeader.GD3Offset)
     {
-        struct TGD3Header GD3Header;
+        TGD3Header GD3Header;
         int NewGD3Offset = gztell(out) - GD3DELTA;
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
@@ -394,10 +394,10 @@ int RemoveOffset(char* filename)
     gzclose(out);
 
     // Amend it with the updated header
-    write_vgm_header(outfilename, VGMHeader);
+    write_vgm_header(outfilename, VGMHeader, callback);
 
     // Overwrite original with the new one
-    MyReplaceFile(filename, outfilename);
+    MyReplaceFile(filename, outfilename, callback);
 
     free(outfilename);
 
@@ -651,22 +651,21 @@ BOOL OptimiseVGMData(char *filename) {
 */
 
 
-BOOL RoundToFrameAccurate(char* filename)
+bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
 {
-    struct VGMHeader VGMHeader;
+    VGMHeader VGMHeader;
     char b0, b1, b2;
     int i, PauseLength = 0;
     int bucketsize = 1; // how many samples per bucket for counting
     int framelength;
-    char buffer[1024 * 10], buffer2[64];
 
-    if (!FileExists(filename)) return FALSE;
+    if (!FileExists(filename, callback)) return FALSE;
 
     // Open input file
     gzFile in = gzopen(filename, "rb");
 
     // Read its VGM header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE))
+    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
     {
         gzclose(in);
     }
@@ -681,7 +680,7 @@ BOOL RoundToFrameAccurate(char* filename)
         framelength = LEN60TH;
         break;
     default:
-        ShowError("Can't round this file because it's not defined as 50 or 60Hz.");
+        callback.show_error("Can't round this file because it's not defined as 50 or 60Hz.");
         gzclose(in);
         return FALSE;
         break;
@@ -793,20 +792,21 @@ BOOL RoundToFrameAccurate(char* filename)
             maxcount = PausePositions[i];
     }
 
-    sprintf(buffer, "Slots (max %d):\n", maxcount);
+    auto s = Utils::format("Slots (max %d):\n", maxcount);
 
     maxcount /= 9;
 
     for (i = 0; i < numbuckets; ++i)
     {
-        sprintf(buffer2, "%d ", PausePositions[i]);
-        strcat(buffer, buffer2);
+        s += std::to_string(PausePositions[i]) + " ";
 
         if (i % 32 == 31)
-            strcat(buffer, "\n");
+        {
+            s += "\n";
+        }
     }
 
-    ShowMessage(buffer);
+    callback.show_message(s);
 
     /*
     // At end:
