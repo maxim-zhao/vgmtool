@@ -102,12 +102,12 @@ HWND TabChildWnds[NumTabChildWnds]; // Holds child windows' HWnds
 
 struct TPSGState
 {
-    unsigned char GGStereo; // GG stereo byte
-    unsigned short ToneFreqs[3];
-    unsigned char NoiseByte;
-    unsigned char Volumes[4];
-    unsigned char PSGFrequencyLowBits, Channel;
-    BOOL NoiseUpdated;
+    uint8_t GGStereo; // GG stereo byte
+    uint16_t ToneFreqs[3];
+    uint8_t NoiseByte;
+    uint8_t Volumes[4];
+    uint8_t PSGFrequencyLowBits, Channel;
+    bool NoiseUpdated;
 };
 
 const int YM2413StateRegWriteFlags[YM2413NumRegs] = {
@@ -147,9 +147,9 @@ const int YM2413RegWriteFlags[YM2413NumRegs] = {
 };
 
 TPSGState LastWrittenPSGState = {
-    static_cast<char>(0xff), // GG stereo - all on
+    0xff, // GG stereo - all on
     {0, 0, 0}, // Tone channels - off
-    static_cast<char>(0xe5), // Noise byte - white, medium
+    0xe5, // Noise byte - white, medium
     {15, 15, 15, 15}, // Volumes - all off
     0, 4 // PSG low bits, channel - 4 so no values needed
 };
@@ -410,14 +410,14 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     char WrittenStart = 0, WrittenLoop = 0;
 
     TPSGState CurrentPSGState = {
-        static_cast<char>(0xff), // GG stereo - all on
+        0xff, // GG stereo - all on
         {0, 0, 0}, // Tone channels - off
-        static_cast<char>(0xe5), // Noise byte - white, medium
+        0xe5, // Noise byte - white, medium
         {15, 15, 15, 15}, // Volumes - all off
         0, 4 // PSG low bits, channel - 4 so no values needed
     };
 
-    unsigned char YM2413Regs[YM2413NumRegs];
+    uint8_t YM2413Regs[YM2413NumRegs];
 
     if (!FileExists(filename, callback))
     {
@@ -470,11 +470,13 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     gzwrite(out, &VGMHeader, sizeof(VGMHeader));
     gzseek(out,VGM_DATA_OFFSET,SEEK_SET);
 
-    if (end > VGMHeader.TotalLength)
+    if (end > static_cast<int>(VGMHeader.TotalLength))
     {
-        ShowMessage("End point (%d samples) beyond end of file!\nUsing maximum value of %d samples instead", end,
+        ShowMessage(
+            "End point (%d samples) beyond end of file!\nUsing maximum value of %d samples instead",
+            end,
             VGMHeader.TotalLength);
-        end = VGMHeader.TotalLength;
+        end = static_cast<int>(VGMHeader.TotalLength);
     }
 
     do
@@ -487,7 +489,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
             if (b1 != CurrentPSGState.GGStereo)
             {
                 // Do not copy it if the current stereo state is the same
-                CurrentPSGState.GGStereo = b1;
+                CurrentPSGState.GGStereo = static_cast<uint8_t>(b1);
                 if ((WrittenStart) && (VGMHeader.PSGClock))
                 {
                     WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
@@ -542,7 +544,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
                         {
                             WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
                         }
-                        CurrentPSGState.ToneFreqs[CurrentPSGState.Channel] = freq; // Write 2nd byte
+                        CurrentPSGState.ToneFreqs[CurrentPSGState.Channel] = static_cast<uint16_t>(freq); // Write 2nd byte
                     }
                 }
                 break;
@@ -552,7 +554,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
                     // noise
                     // No "does it change" because writing resets the LFSR (ie. has an effect)
                     NoiseChanged = 1;
-                    CurrentPSGState.NoiseByte = b1;
+                    CurrentPSGState.NoiseByte = static_cast<uint8_t>(b1);
                     CurrentPSGState.Channel = 3;
                     if ((WrittenStart) && (VGMHeader.PSGClock))
                     {
@@ -591,7 +593,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
             {
                 break; // Discard invalid register numbers
             }
-            YM2413Regs[b1] = b2;
+            YM2413Regs[b1] = static_cast<uint8_t>(b2);
 
         // Check for percussion keys lifted or pressed
             if (b1 == 0x0e)
@@ -781,13 +783,12 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     if (VGMHeader.GD3Offset)
     {
         TGD3Header GD3Header;
-        int i;
         int NewGD3Offset = gztell(out) - GD3DELTA;
         ShowStatus("Copying GD3 tag...");
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (i = 0; i < GD3Header.length; ++i)
+        for (auto i = 0u; i < GD3Header.length; ++i)
         {
             // Copy strings
             gzputc(out,gzgetc(in));
@@ -1162,7 +1163,6 @@ void LoadFile(char* filename)
 void UpdateHeader()
 {
     char buffer[64];
-    BOOL b = FALSE;
     int i, j;
     VGMHeader VGMHeader;
 
@@ -1212,11 +1212,11 @@ void UpdateHeader()
     if (sscanf(buffer, "0x%x", &i) == 1)
     {
         // valid data
-        VGMHeader.PSGWhiteNoiseFeedback = i;
+        VGMHeader.PSGWhiteNoiseFeedback = static_cast<uint16_t>(i);
     }
     if (get_int(HeaderWnd,edtPSGSRWidth, &i))
     {
-        VGMHeader.PSGShiftRegisterWidth = i;
+        VGMHeader.PSGShiftRegisterWidth = static_cast<uint8_t>(i);
     }
 
     write_vgm_header(Currentfilename, VGMHeader, callback);
@@ -1232,10 +1232,8 @@ void ClearGD3Strings()
 
 void UpdateGD3()
 {
-    wchar_t* GD3string = GD3Strings; // pointer to parse GD3Strings
     VGMHeader VGMHeader;
-    TGD3Header GD3Header;
-    long int i;
+    TGD3Header GD3Header{};
     wchar_t AllGD3Strings[1024 * NumGD3Strings] = L""; // zeroes the whole buffer
     wchar_t* AllGD3End = AllGD3Strings;
     int ConversionErrors = 0;
@@ -1270,14 +1268,14 @@ void UpdateGD3()
     gzFile out = gzopen(Outfilename, "wb0");
 
     // Copy everything up to the GD3 tag
-    for (i = 0; i < (VGMHeader.GD3Offset ? VGMHeader.GD3Offset + GD3DELTA : VGMHeader.EoFOffset + EOFDELTA); ++i)
+    for (auto i = 0; i < static_cast<int>(VGMHeader.GD3Offset > 0 ? VGMHeader.GD3Offset + GD3DELTA : VGMHeader.EoFOffset + EOFDELTA); ++i)
     {
         gzputc(out,gzgetc(in));
     }
 
     VGMHeader.GD3Offset = gztell(out) - GD3DELTA; // record GD3 position
 
-    for (i = 0; i < NumGD3Strings; ++i)
+    for (auto i = 0; i < NumGD3Strings; ++i)
     {
         wchar_t widestr[1024] = L"\0";
         if (!GetDlgItemTextW(GD3Wnd, GD3EditControls[i], widestr, 1023))
@@ -1352,7 +1350,7 @@ void UpdateGD3()
 
     strncpy(GD3Header.id_string, "Gd3 ", 4);
     GD3Header.version = 0x0100;
-    GD3Header.length = (AllGD3End - AllGD3Strings) * 2;
+    GD3Header.length = static_cast<uint32_t>((AllGD3End - AllGD3Strings) * 2);
 
     gzwrite(out, &GD3Header, sizeof(GD3Header)); // write GD3 header
     gzwrite(out, AllGD3Strings, GD3Header.length); // write GD3 strings
@@ -1383,13 +1381,12 @@ void Strip(char* filename, char* Outfilename)
 {
     VGMHeader VGMHeader;
     signed int b0, b1, b2;
-    int i;
     char LatchedChannel = 0;
     long int NewLoopOffset = 0;
 
     // Set up masks
     unsigned char PSGMask = (1 << NumPSGTypes) - 1;
-    for (i = 0; i < NumPSGTypes; i++)
+    for (auto i = 0; i < NumPSGTypes; i++)
     {
         if ((IsDlgButtonChecked(StripWnd, PSGCheckBoxes[i])) || (!IsWindowEnabled(
             GetDlgItem(StripWnd, PSGCheckBoxes[i]))))
@@ -1398,7 +1395,7 @@ void Strip(char* filename, char* Outfilename)
         }
     }
     unsigned long YM2413Mask = (1 << NumYM2413Types) - 1;
-    for (i = 0; i < NumYM2413Types; i++)
+    for (auto i = 0; i < NumYM2413Types; i++)
     {
         if ((IsDlgButtonChecked(StripWnd, YM2413CheckBoxes[i])) || (!IsWindowEnabled(
             GetDlgItem(StripWnd, YM2413CheckBoxes[i]))))
@@ -1407,7 +1404,7 @@ void Strip(char* filename, char* Outfilename)
         }
     }
     unsigned char YM2612Mask = (1 << NumYM2612Types) - 1;
-    for (i = 0; i < NumYM2612Types; i++)
+    for (auto i = 0; i < NumYM2612Types; i++)
     {
         if ((IsDlgButtonChecked(StripWnd, YM2612CheckBoxes[i])) || (!IsWindowEnabled(
             GetDlgItem(StripWnd, YM2612CheckBoxes[i]))))
@@ -1416,7 +1413,7 @@ void Strip(char* filename, char* Outfilename)
         }
     }
     unsigned char YM2151Mask = (1 << NumYM2151Types) - 1;
-    for (i = 0; i < NumYM2151Types; i++)
+    for (auto i = 0; i < NumYM2151Types; i++)
     {
         if ((IsDlgButtonChecked(StripWnd, YM2151CheckBoxes[i])) || (!IsWindowEnabled(
             GetDlgItem(StripWnd, YM2151CheckBoxes[i]))))
@@ -1444,7 +1441,7 @@ void Strip(char* filename, char* Outfilename)
     // process file
     do
     {
-        if ((VGMHeader.LoopOffset) && (gztell(in) == VGMHeader.LoopOffset + LOOPDELTA))
+        if ((VGMHeader.LoopOffset) && (gztell(in) == static_cast<long>(VGMHeader.LoopOffset) + LOOPDELTA))
         {
             NewLoopOffset = gztell(out) -
                 LOOPDELTA;
@@ -1694,7 +1691,7 @@ void Strip(char* filename, char* Outfilename)
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (int i = 0; i < GD3Header.length; ++i)
+        for (auto i = 0u; i < GD3Header.length; ++i)
         {
             // Copy strings
             gzputc(out,gzgetc(in));
@@ -1780,10 +1777,9 @@ void StripChecked(char* filename)
 
 void ccb(const int CheckBoxes[], const unsigned long WriteCount[], int count, int mode)
 {
-    int i, Cutoff = 0;
-    char tempstr[64];
+    unsigned long Cutoff = 0;
 
-    for (i = 0; i < count; ++i)
+    for (auto i = 0; i < count; ++i)
     {
         if (Cutoff < WriteCount[i])
         {
@@ -1792,7 +1788,7 @@ void ccb(const int CheckBoxes[], const unsigned long WriteCount[], int count, in
     }
     Cutoff = Cutoff / 50; // 2% of largest for that chip
 
-    for (i = 0; i < count; ++i)
+    for (auto i = 0; i < count; ++i)
     {
         if (IsWindowEnabled(GetDlgItem(StripWnd, CheckBoxes[i])))
         {
@@ -1808,9 +1804,12 @@ void ccb(const int CheckBoxes[], const unsigned long WriteCount[], int count, in
                 CheckDlgButton(StripWnd, CheckBoxes[i], !IsDlgButtonChecked(StripWnd, CheckBoxes[i]));
                 break;
             case 4: // guess
-                GetDlgItemText(StripWnd, CheckBoxes[i], tempstr, 64);
-                CheckDlgButton(StripWnd, CheckBoxes[i], ((WriteCount[i] < Cutoff) || (strstr(tempstr, "Invalid"))));
-                break;
+                {
+                    char tempstr[64];
+                    GetDlgItemText(StripWnd, CheckBoxes[i], tempstr, 64);
+                    CheckDlgButton(StripWnd, CheckBoxes[i], ((WriteCount[i] < Cutoff) || (strstr(tempstr, "Invalid"))));
+                    break;
+                }
             }
         }
     }
@@ -2025,7 +2024,6 @@ void PasteUnicode()
         {
             // If there is...
             auto wp = static_cast<wchar_t*>(GlobalLock(DataHandle));
-            int i = 0;
             while (static_cast<int>(*wp))
             {
                 if (static_cast<int>(*wp) < 128)
@@ -2068,7 +2066,7 @@ void CopyLengthsToClipboard()
     GetDlgItemText(HeaderWnd,edtLengthLoop, MessageBuffer, 5);
     sprintf(String, "%s   %s\r\n", String, MessageBuffer);
 
-    int strlength = (strlen(String) + 1) * sizeof(char);
+    auto strlength = (strlen(String) + 1) * sizeof(char);
     if (!OpenClipboard(hWndMain))
     {
         return;
@@ -2645,7 +2643,7 @@ void DoCtrlTab(void)
     TabCtrl_SetCurFocus(TabCtrlWnd, currenttab);
 }
 
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR lpCmdLine, int nCmdShow)
 {
     MSG msg;
 

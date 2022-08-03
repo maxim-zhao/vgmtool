@@ -60,7 +60,7 @@ void add_convert_text(const char* format, ...)
     _vsnprintf(buffer, 1024, format, args);
     va_end(args); // clean things up before leaving
 
-    const int length = SendDlgItemMessage(ConvertWnd,edtConvertResults,WM_GETTEXTLENGTH, 0, 0); // Get length
+    const auto length = SendDlgItemMessage(ConvertWnd,edtConvertResults,WM_GETTEXTLENGTH, 0, 0); // Get length
     SendDlgItemMessage(ConvertWnd,edtConvertResults,EM_SETSEL, length, length); // move caret to end of text
     SendDlgItemMessage(ConvertWnd,edtConvertResults,EM_REPLACESEL,FALSE, reinterpret_cast<LPARAM>(buffer)); // insert text there
 }

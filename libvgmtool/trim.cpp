@@ -61,7 +61,7 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
     gzFile in, out;
     VGMHeader VGMHeader;
     char* outfilename;
-    int b0, b1, b2;
+    int b0 = 0, b1 = 0, b2 = 0;
     TSystemState CurrentState{}, LoopPointState{};
 
     BOOL PastStart = FALSE, PastLoop = (loop < 0);
@@ -237,7 +237,7 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
         if ((!PastLoop) && (CurrentState.samplecount >= loop))
         {
             // We've gone past (or equalled) the loop point so:
-            int LastPauseLength;
+            int LastPauseLength = 0;
             // 1. Record current state
             LoopPointState = CurrentState;
             // 2. Write any remaining pause up to the loop point
@@ -334,7 +334,7 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
         {
             // We've got to the end
             // 1. Write any remaining pause
-            int LastPauseLength;
+            int LastPauseLength = 0;
             switch (b0)
             {
             case VGM_PAUSE_WORD: LastPauseLength = b1 | (b2 << 8);
@@ -388,13 +388,12 @@ BOOL new_trim(char* filename, const int start, const int loop, const int end, co
     if (VGMHeader.GD3Offset)
     {
         TGD3Header GD3Header;
-        int i;
         int NewGD3Offset = gztell(out) - GD3DELTA;
         callback.show_status("Copying GD3 tag...");
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (i = 0; i < GD3Header.length; ++i)
+        for (auto i = 0u; i < GD3Header.length; ++i)
         {
             gzputc(out,gzgetc(in));
         }

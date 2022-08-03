@@ -146,7 +146,7 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
         gzseek(in, static_cast<long>(VGMHeader.GD3Offset) + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (int i = 0; i < GD3Header.length; ++i)
+        for (auto i = 0u; i < GD3Header.length; ++i)
         {
             gzputc(out,gzgetc(in));
         }
@@ -398,7 +398,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (int i = 0; i < GD3Header.length; ++i)
+        for (auto i = 0u; i < GD3Header.length; ++i)
         {
             // Copy strings
             gzputc(out,gzgetc(in));

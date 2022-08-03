@@ -153,12 +153,12 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
     do
     {
         filePos = gztell(in);
-        if (filePos == vgmHeader.LoopOffset + LOOPDELTA)
+        if (filePos == static_cast<long>(vgmHeader.LoopOffset) + LOOPDELTA)
         {
             fprintf(out, "------- Loop point -------\n");
         }
         b0 = gzgetc(in);
-        fprintf(out, "0x%08x: %02x ", filePos, b0);
+        fprintf(out, "0x%08lx: %02x ", filePos, b0);
         switch (b0)
         {
         case VGM_GGST: // GG stereo (1 byte data)
@@ -308,8 +308,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     int chan = b1 & 0xf;
                     double freq;
                     ym2413FNumbers[chan] = ym2413FNumbers[chan] & 0x100 | b2; // Update low bits of F-number
-                    freq = static_cast<double>(ym2413FNumbers[chan]) * vgmHeader.YM2413Clock / 72 / (1 << 19 -
-                        ym2413Blocks[chan]);
+                    freq = static_cast<double>(ym2413FNumbers[chan]) * vgmHeader.YM2413Clock / 72 / (1 << (19 - ym2413Blocks[chan]));
                     fprintf(out, "Tone F-num low bits: ch %1d -> %03d(%1d) = %8.2f Hz = %s", chan, ym2413FNumbers[chan],
                         ym2413Blocks[chan], freq, freq_to_note(tempstr, freq));
                     if (b1 >= 0x16)
@@ -336,9 +335,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                         double freq;
                         ym2413FNumbers[chan] = ym2413FNumbers[chan] & 0xff | (b2 & 1) << 8;
                         ym2413Blocks[chan] = (b2 & 0xE) >> 1;
-                        freq = static_cast<double>(ym2413FNumbers[chan]) * vgmHeader.YM2413Clock / 72 / (1 << 19 -
-                            ym2413Blocks[
-                                chan]);
+                        freq = static_cast<double>(ym2413FNumbers[chan]) * vgmHeader.YM2413Clock / 72 / (1 << (19 - ym2413Blocks[chan]));
                         fprintf(out, "Tone F-n/bl/sus/key: ch %1d -> %03d(%1d) = %8.2f Hz = %s; sustain %s, key %s\n",
                             chan, ym2413FNumbers[chan], ym2413Blocks[chan], freq, freq_to_note(tempstr, freq),
                             ON(b2&0x20),ON(b2&0x10));
@@ -449,7 +446,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     strcpy(tempstr, "1234");
                     for (i = 0; i < 4; ++i)
                     {
-                        if (!(b2 >> i + 4 & 1))
+                        if (!((b2 >> (i + 4)) & 1))
                         {
                             tempstr[3 - i] = '-';
                         }
@@ -529,7 +526,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     {
                         // Valid
                         fprintf(out, "ch %d op %d ", ch, op);
-                        fprintf(out, "RS 1/%d, AR %d\n", 1 << 3 - (b2 >> 6), b2 & 0x1f);
+                        fprintf(out, "RS 1/%d, AR %d\n", 1 << (3 - (b2 >> 6)), b2 & 0x1f);
                     }
                     else
                     {
