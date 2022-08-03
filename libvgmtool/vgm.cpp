@@ -200,8 +200,6 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
 //----------------------------------------------------------------------------------------------
 void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612, BOOL* UsesYM2151, BOOL* UsesReserved)
 {
-    char b0;
-
     if (UsesPSG)
     {
         *UsesPSG = FALSE;
@@ -224,9 +222,9 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
     }
 
     gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
-    do
+    for (bool atEnd = false; !atEnd;)
     {
-        b0 = gzgetc(in);
+        auto b0 = gzgetc(in);
         switch (b0)
         {
         case VGM_GGST:
@@ -308,11 +306,10 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
         case 0x7f: // Wait 1-16 samples
             break;
         case VGM_END:
-            b0 = EOF;
+            atEnd = true;
             break;
         }
     }
-    while (b0 != EOF);
 }
 
 
@@ -323,8 +320,9 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
 //----------------------------------------------------------------------------------------------
 void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& callback)
 {
-    long int SampleCount = 0, LoopSampleCount = -1;
-    VGMHeader VGMHeader;
+    uint32_t sampleCount = 0;
+    uint32_t loopSampleCount = 0;
+    VGMHeader vgmHeader;
     int b0, b1, b2;
 
     if (!FileExists(filename, callback))
@@ -337,9 +335,9 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
     gzFile in = gzopen(filename, "rb");
 
     // Read header
-    gzread(in, &VGMHeader, sizeof(VGMHeader));
+    gzread(in, &vgmHeader, sizeof(vgmHeader));
 
-    if (!VGMHeader.is_valid())
+    if (!vgmHeader.is_valid())
     {
         // no VGM marker
         callback.show_error("File is not a VGM file! (no \"Vgm \")");
@@ -350,9 +348,9 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
 
     do
     {
-        if (gztell(in) == VGMHeader.LoopOffset + LOOPDELTA)
+        if (gztell(in) == static_cast<int>(vgmHeader.LoopOffset) + LOOPDELTA)
         {
-            LoopSampleCount = SampleCount;
+            loopSampleCount = sampleCount;
         }
         b0 = gzgetc(in);
         switch (b0)
@@ -382,13 +380,13 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
         case VGM_PAUSE_WORD: // Wait n samples
             b1 = gzgetc(in);
             b2 = gzgetc(in);
-            SampleCount += b1 | (b2 << 8);
+            sampleCount += b1 | (b2 << 8);
             break;
         case VGM_PAUSE_60TH: // Wait 1/60 s
-            SampleCount += LEN60TH;
+            sampleCount += LEN60TH;
             break;
         case VGM_PAUSE_50TH: // Wait 1/50 s
-            SampleCount += LEN50TH;
+            sampleCount += LEN50TH;
             break;
         //    case VGM_PAUSE_BYTE: // Wait n samples (1 byte)
         //      SampleCount+=gzgetc(in);
@@ -409,14 +407,14 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
         case 0x7d:
         case 0x7e:
         case 0x7f: // Wait 1-16 samples
-            SampleCount += (b0 & 0xf) + 1;
+            sampleCount += (b0 & 0xf) + 1;
             break;
         case VGM_END: // End of sound data... report
-            if (LoopSampleCount == -1)
+            if (loopSampleCount == -1)
             {
-                LoopSampleCount = SampleCount;
+                loopSampleCount = sampleCount;
             }
-            LoopSampleCount = SampleCount - LoopSampleCount;
+            loopSampleCount = sampleCount - loopSampleCount;
         // Change its meaning! Now it's the number of samples in the loop
 
             if (showResults)
@@ -430,31 +428,31 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
                     "In header:\n"
                     "Total: %d samples = %.2f seconds\n"
                     "Loop: %d samples = %.2f seconds",
-                    SampleCount,
-                    SampleCount / 44100.0,
-                    LoopSampleCount,
-                    LoopSampleCount / 44100.0,
-                    VGMHeader.TotalLength,
-                    VGMHeader.TotalLength / 44100.0,
-                    VGMHeader.LoopLength,
-                    VGMHeader.LoopLength / 44100.0
+                    sampleCount,
+                    sampleCount / 44100.0,
+                    loopSampleCount,
+                    loopSampleCount / 44100.0,
+                    vgmHeader.TotalLength,
+                    vgmHeader.TotalLength / 44100.0,
+                    vgmHeader.LoopLength,
+                    vgmHeader.LoopLength / 44100.0
                 ));
             }
             gzclose(in);
             if (
-                (SampleCount != VGMHeader.TotalLength) ||
-                (LoopSampleCount != VGMHeader.LoopLength)
+                (sampleCount != vgmHeader.TotalLength) ||
+                (loopSampleCount != vgmHeader.LoopLength)
             )
             {
                 // Need to repair header
                 callback.show_status("Correcting header...");
-                VGMHeader.TotalLength = SampleCount;
-                VGMHeader.LoopLength = LoopSampleCount;
-                if (LoopSampleCount == 0)
+                vgmHeader.TotalLength = sampleCount;
+                vgmHeader.LoopLength = loopSampleCount;
+                if (loopSampleCount == 0)
                 {
-                    VGMHeader.LoopOffset = 0;
+                    vgmHeader.LoopOffset = 0;
                 }
-                write_vgm_header(filename, VGMHeader, callback);
+                write_vgm_header(filename, vgmHeader, callback);
             }
             b0 = EOF;
         }
@@ -482,7 +480,7 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
     gzFile in = gzopen(filename, "rb");
 
     // Read header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
+    if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         callback.show_status("");
         gzclose(in);
@@ -585,9 +583,9 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
 }
 
 // Reads in header from file
-// Shows an error if it's not a VGM file && !quiet
+// Shows an error if it's not a VGM file
 // returns success/failure
-BOOL ReadVGMHeader(gzFile f, VGMHeader* header, BOOL quiet, const IVGMToolCallback& callback)
+BOOL ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback)
 {
     gzread(f, header, sizeof(VGMHeader));
     if (!header->is_valid())
@@ -627,7 +625,7 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
     gzFile in = gzopen(filename, "rb");
 
     // Read header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
+    if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
         return;

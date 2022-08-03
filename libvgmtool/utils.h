@@ -4,6 +4,7 @@
 // except most are VGM-centric
 
 #include <Windows.h>
+#include <string>
 
 class IVGMToolCallback;
 

@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <zlib.h>
-#include "vgm.h"
 #include "utils.h"
 
 #include <stdexcept>
@@ -158,8 +157,6 @@ BOOL compress(const char* filename, const IVGMToolCallback& callback)
 // to a temp file, then overwrites the original file with the temp file
 BOOL Decompress(char* filename, const IVGMToolCallback& callback)
 {
-    int x;
-
     if (!FileExists(filename, callback))
     {
         return FALSE;
@@ -167,36 +164,37 @@ BOOL Decompress(char* filename, const IVGMToolCallback& callback)
 
     callback.show_status("Decompressing...");
 
-    char* outfilename = make_temp_filename(filename);
+    char* outFilename = make_temp_filename(filename);
 
-    FILE* out = fopen(outfilename, "wb");
+    FILE* out = fopen(outFilename, "wb");
     gzFile in = gzopen(filename, "rb");
 
-    auto copybuffer = static_cast<char*>(malloc(BUFFER_SIZE));
+    const auto copyBuffer = malloc(BUFFER_SIZE);
 
     do
     {
-        int AmtRead = gzread(in, copybuffer,BUFFER_SIZE);
-        if ((x = fwrite(copybuffer, 1, AmtRead, out)) != AmtRead)
+        const auto amountRead = gzread(in, copyBuffer, BUFFER_SIZE);
+        const auto amountWritten = fwrite(copyBuffer, 1, amountRead, out);
+        if (static_cast<int>(amountWritten) != amountRead)
         {
             // Error copying file
-            callback.show_error(Utils::format("Error copying data to temporary file %s!", outfilename));
-            free(copybuffer);
+            callback.show_error(Utils::format("Error copying data to temporary file %s!", outFilename));
+            free(copyBuffer);
             gzclose(in);
             fclose(out);
-            DeleteFile(outfilename);
+            DeleteFile(outFilename);
             return FALSE;
         }
     }
     while (!gzeof(in));
 
-    free(copybuffer);
+    free(copyBuffer);
     gzclose(in);
     fclose(out);
 
-    MyReplaceFile(filename, outfilename, callback);
+    MyReplaceFile(filename, outFilename, callback);
 
-    free(outfilename);
+    free(outFilename);
     callback.show_status("Decompression complete");
     return TRUE;
 }
@@ -244,7 +242,8 @@ BOOL FixExt(char* filename, const IVGMToolCallback& callback)
 
     if (strcmp(newfilename, filename) != 0)
     {
-        MyReplaceFile(newfilename, filename, callback); // replaces any existing file with the new name, with the existing file
+        MyReplaceFile(newfilename, filename, callback);
+        // replaces any existing file with the new name, with the existing file
         strcpy(filename, newfilename);
     }
 
@@ -265,7 +264,8 @@ void MyReplaceFile(const char* filetoreplace, const char* with, const IVGMToolCa
     }
     if (MoveFile(with, filetoreplace) == 0)
     {
-        callback.show_error(Utils::format("Error replacing old file:\n%s\nUpdated file is called:\n%s", filetoreplace, with));
+        callback.show_error(Utils::format("Error replacing old file:\n%s\nUpdated file is called:\n%s", filetoreplace,
+            with));
     }
 }
 
@@ -278,7 +278,7 @@ std::string Utils::format(const char* format, ...)
     va_start(args, format);
     va_copy(args_copy, args);
 
-    const int lengthNeeded = vsnprintf(nullptr, 0, format, args);  // NOLINT(clang-diagnostic-format-nonliteral)
+    const int lengthNeeded = vsnprintf(nullptr, 0, format, args); // NOLINT(clang-diagnostic-format-nonliteral)
     if (lengthNeeded < 0)
     {
         va_end(args_copy);
@@ -291,7 +291,7 @@ std::string Utils::format(const char* format, ...)
     {
         // Make a vector as it needs to be mutable
         std::vector<char> buffer(lengthNeeded + 1);
-        vsnprintf(&buffer[0], buffer.size(), format, args_copy);  // NOLINT(clang-diagnostic-format-nonliteral)
+        vsnprintf(&buffer[0], buffer.size(), format, args_copy); // NOLINT(clang-diagnostic-format-nonliteral)
         // Then copy into a string
         result = std::string(&buffer[0], lengthNeeded);
     }

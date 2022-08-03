@@ -15,4 +15,4 @@ struct TGD3Header
 
 #define NumGD3Strings 11
 
-void remove_gd3(char* filename, const IVGMToolCallback& callback);
+void remove_gd3(const char* filename, const IVGMToolCallback& callback);

@@ -171,7 +171,7 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
 
 int detect_rate(char* filename, const IVGMToolCallback& callback);
 
-BOOL ReadVGMHeader(gzFile f, VGMHeader* header, BOOL quiet, const IVGMToolCallback& callback);
+BOOL ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback);
 
 void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
                     unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],

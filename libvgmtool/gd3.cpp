@@ -8,7 +8,7 @@
 //----------------------------------------------------------------------------------------------
 // Remove GD3 from file
 //----------------------------------------------------------------------------------------------
-void remove_gd3(char* filename, const IVGMToolCallback& callback)
+void remove_gd3(const char* filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     if (!FileExists(filename, callback))
@@ -18,7 +18,7 @@ void remove_gd3(char* filename, const IVGMToolCallback& callback)
 
     gzFile in = gzopen(filename, "rb");
 
-    if (!ReadVGMHeader(in, &VGMHeader, FALSE, callback) || !VGMHeader.GD3Offset)
+    if (!ReadVGMHeader(in, &VGMHeader, callback) || !VGMHeader.GD3Offset)
     {
         // do nothing if not a VGM file, or file already has no GD3
         gzclose(in);
@@ -29,14 +29,14 @@ void remove_gd3(char* filename, const IVGMToolCallback& callback)
 
     gzrewind(in);
 
-    char* outfilename = make_temp_filename(filename);
+    char* outFilename = make_temp_filename(filename);
 
-    gzFile out = gzopen(outfilename, "wb0");
+    gzFile out = gzopen(outFilename, "wb0");
 
     // Copy everything up to the GD3 tag
-    for (long int i = 0; i < VGMHeader.GD3Offset + GD3DELTA; ++i)
+    for (auto i = 0; i < static_cast<int>(VGMHeader.GD3Offset + GD3DELTA); ++i)
     {
-        gzputc(out,gzgetc(in));
+        gzputc(out, gzgetc(in));
     }
 
     VGMHeader.GD3Offset = 0;
@@ -45,11 +45,11 @@ void remove_gd3(char* filename, const IVGMToolCallback& callback)
     gzclose(in);
     gzclose(out);
 
-    write_vgm_header(outfilename, VGMHeader, callback); // Write changed header
+    write_vgm_header(outFilename, VGMHeader, callback); // Write changed header
 
-    MyReplaceFile(filename, outfilename, callback);
+    MyReplaceFile(filename, outFilename, callback);
 
-    free(outfilename);
+    free(outFilename);
 
     callback.show_status("GD3 tag removed");
 }

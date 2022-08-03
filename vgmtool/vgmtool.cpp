@@ -442,7 +442,7 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     in = gzopen(filename, "rb");
 
     // Read header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
+    if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
         return;
@@ -1248,7 +1248,7 @@ void UpdateGD3()
     ShowStatus("Updating GD3 tag...");
 
     gzFile in = gzopen(Currentfilename, "rb");
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
+    if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
         return;
@@ -1428,7 +1428,7 @@ void Strip(char* filename, char* Outfilename)
     gzFile in = gzopen(filename, "rb");
 
     // Read header
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
+    if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
         return;
@@ -1724,7 +1724,7 @@ void StripChecked(char* filename)
     ShowStatus("Stripping chip data...");
 
     gzFile in = gzopen(filename, "rb");
-    if (!ReadVGMHeader(in, &VGMHeader,FALSE, callback))
+    if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
         return;

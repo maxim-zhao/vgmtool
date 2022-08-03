@@ -88,7 +88,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
 
     // Read header
     VGMHeader vgmHeader;
-    if (!ReadVGMHeader(in, &vgmHeader,FALSE, callback))
+    if (!ReadVGMHeader(in, &vgmHeader, callback))
     {
         gzclose(in);
         return;

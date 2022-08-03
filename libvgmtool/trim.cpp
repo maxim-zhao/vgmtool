@@ -56,13 +56,13 @@ void log_trim(char* VGMFile, int start, int loop, int end, const IVGMToolCallbac
 // - No optimisation
 // - Hopefully some clarity
 //----------------------------------------------------------------------------------------------
-BOOL new_trim(char* filename, const long int start, const long int loop, const long int end, const IVGMToolCallback& callback)
+BOOL new_trim(char* filename, const int start, const int loop, const int end, const IVGMToolCallback& callback)
 {
     gzFile in, out;
     VGMHeader VGMHeader;
     char* outfilename;
     int b0, b1, b2;
-    TSystemState CurrentState, LoopPointState;
+    TSystemState CurrentState{}, LoopPointState{};
 
     BOOL PastStart = FALSE, PastLoop = (loop < 0);
     // If loop<0 then PastLoop=TRUE so it won't bother to record a loop state ever
@@ -90,7 +90,7 @@ BOOL new_trim(char* filename, const long int start, const long int loop, const l
     gzread(in, &VGMHeader, sizeof(VGMHeader));
 
     // See if the edit points are within the file
-    if (end > VGMHeader.TotalLength)
+    if (end > static_cast<int>(VGMHeader.TotalLength))
     {
         gzclose(in);
         callback.show_error("End point beyond end of file");
