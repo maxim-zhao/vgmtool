@@ -11,7 +11,10 @@
 void remove_gd3(char* filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
-    if (!FileExists(filename, callback)) return;
+    if (!FileExists(filename, callback))
+    {
+        return;
+    }
 
     gzFile in = gzopen(filename, "rb");
 
@@ -31,7 +34,10 @@ void remove_gd3(char* filename, const IVGMToolCallback& callback)
     gzFile out = gzopen(outfilename, "wb0");
 
     // Copy everything up to the GD3 tag
-    for (long int i = 0; i < VGMHeader.GD3Offset + GD3DELTA; ++i) gzputc(out,gzgetc(in));
+    for (long int i = 0; i < VGMHeader.GD3Offset + GD3DELTA; ++i)
+    {
+        gzputc(out,gzgetc(in));
+    }
 
     VGMHeader.GD3Offset = 0;
     VGMHeader.EoFOffset = gztell(out) - EOFDELTA; // Update EoF offset in header

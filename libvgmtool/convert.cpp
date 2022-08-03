@@ -34,7 +34,10 @@ void spread_dac(gzFile in, gzFile out)
     {
         gzgetc(in); // Skip DAC data
         const auto data = gzgetc(in); // Read next byte (00 for wait or 01 for port 0 for DAC/timer)
-        if ((data == 0) || (data == EOF)) break; // Exit when I find a pause or EOF
+        if ((data == 0) || (data == EOF))
+        {
+            break; // Exit when I find a pause or EOF
+        }
         switch (data)
         {
         case 0x01:
@@ -63,7 +66,10 @@ void spread_dac(gzFile in, gzFile out)
     do
     {
         const auto data = gzgetc(in); // GYM data type byte
-        if (data == 0 || data == EOF) break;
+        if (data == 0 || data == EOF)
+        {
+            break;
+        }
 
         switch (data)
         {
@@ -105,7 +111,10 @@ void spread_dac(gzFile in, gzFile out)
 
 bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGMToolCallback& callback)
 {
-    if (!FileExists(filename.c_str(), callback)) return false;
+    if (!FileExists(filename.c_str(), callback))
+    {
+        return false;
+    }
 
     // Make output filename filename.gym.vgz
     const auto outFilename = filename + ".vgz";

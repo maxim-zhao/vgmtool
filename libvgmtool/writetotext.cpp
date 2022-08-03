@@ -77,7 +77,10 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
     unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
     int PSGLatchedRegister = 0;
 
-    if (!FileExists(filename.c_str(), callback)) return;
+    if (!FileExists(filename.c_str(), callback))
+    {
+        return;
+    }
 
     callback.show_status("Writing VGM data to text...");
 
@@ -150,7 +153,10 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
     do
     {
         filePos = gztell(in);
-        if (filePos == vgmHeader.LoopOffset + LOOPDELTA) fprintf(out, "------- Loop point -------\n");
+        if (filePos == vgmHeader.LoopOffset + LOOPDELTA)
+        {
+            fprintf(out, "------- Loop point -------\n");
+        }
         b0 = gzgetc(in);
         fprintf(out, "0x%08x: %02x ", filePos, b0);
         switch (b0)
@@ -158,7 +164,13 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         case VGM_GGST: // GG stereo (1 byte data)
             b1 = gzgetc(in);
             strcpy(tempstr, "012N012N");
-            for (i = 0; i < 8; ++i) if (!(b1 >> i & 1)) tempstr[7 - i] = '-';
+            for (i = 0; i < 8; ++i)
+            {
+                if (!(b1 >> i & 1))
+                {
+                    tempstr[7 - i] = '-';
+                }
+            }
             fprintf(out, "%02x    GG st:  %s\n", b1, tempstr);
             break;
         case VGM_PSG: // PSG write (1 byte data)
@@ -178,13 +190,17 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 // Data byte
                 fprintf(out, "Data:       ");
                 if (!(PSGLatchedRegister % 2) && PSGLatchedRegister < 5)
+                {
                     // Tone register
                     PSGRegisters[PSGLatchedRegister] =
                         PSGRegisters[PSGLatchedRegister] & 0x00f // zero high 6 bits
                         | (b1 & 0x3f) << 4; // and replace with data
+                }
                 else
+                {
                     // Other register
                     PSGRegisters[PSGLatchedRegister] = b1 & 0x0f; // Replace with data
+                }
             }
         // Analyse:
             switch (PSGLatchedRegister)
@@ -195,9 +211,14 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                     float Freq;
                     if (PSGRegisters[PSGLatchedRegister])
+                    {
                         Freq = vgmHeader.PSGClock / 32 / static_cast<float>(PSGRegisters[
                             PSGLatchedRegister]);
-                    else Freq = 0.0;
+                    }
+                    else
+                    {
+                        Freq = 0.0;
+                    }
                     fprintf(out,
                         "Tone ch %d -> 0x%03x = %8.2f Hz = %s\n",
                         PSGLatchedRegister / 2, // Channel
@@ -291,8 +312,14 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                         ym2413Blocks[chan]);
                     fprintf(out, "Tone F-num low bits: ch %1d -> %03d(%1d) = %8.2f Hz = %s", chan, ym2413FNumbers[chan],
                         ym2413Blocks[chan], freq, freq_to_note(tempstr, freq));
-                    if (b1 >= 0x16) fprintf(out, " OR Percussion F-num\n");
-                    else fprintf(out, "\n");
+                    if (b1 >= 0x16)
+                    {
+                        fprintf(out, " OR Percussion F-num\n");
+                    }
+                    else
+                    {
+                        fprintf(out, "\n");
+                    }
                 }
                 break;
             case 0x2: // Tone more stuff including key
@@ -319,8 +346,14 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     else
                     {
                         fprintf(out, "Tone F-n/bl/sus/key (ch %1d, key off)", b1 & 0xf);
-                        if (b1 >= 0x26) fprintf(out, " OR Percussion F-num/bl\n");
-                        else fprintf(out, "\n");
+                        if (b1 >= 0x26)
+                        {
+                            fprintf(out, " OR Percussion F-num/bl\n");
+                        }
+                        else
+                        {
+                            fprintf(out, "\n");
+                        }
                     }
                 }
                 break;
@@ -352,8 +385,10 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                             ym2413RhythmInstrumentNames[i1].c_str(), b2 & 0xf,
                             static_cast<int>((15 - (b2 & 0xf)) / 15.0 * 100));
                         if (i2 > -1)
+                        {
                             fprintf(out, "; %s -> vol 0x%1x = %3d%%", ym2413RhythmInstrumentNames[i2].c_str(), b2 >> 4,
                                 static_cast<int>((15 - (b2 >> 4)) / 15.0 * 100));
+                        }
                     }
                     fprintf(out, "\n");
                 }
@@ -412,7 +447,13 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     break;
                 case 0x28: // Operator enabling
                     strcpy(tempstr, "1234");
-                    for (i = 0; i < 4; ++i) if (!(b2 >> i + 4 & 1)) tempstr[3 - i] = '-';
+                    for (i = 0; i < 4; ++i)
+                    {
+                        if (!(b2 >> i + 4 & 1))
+                        {
+                            tempstr[3 - i] = '-';
+                        }
+                    }
                     fprintf(out, "Operator control: channel %d -> %s\n", b2 & 0x7, tempstr);
                     break;
                 case 0x2a: // DAC
@@ -436,12 +477,21 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                         // Valid
                         fprintf(out, "ch %d op %d ", ch, op);
                         // Multiple:
-                        if ((b2 & 0xf) == 0) strcpy(tempstr, "0.5");
-                        else sprintf(tempstr, "%d", b2 & 0xf);
+                        if ((b2 & 0xf) == 0)
+                        {
+                            strcpy(tempstr, "0.5");
+                        }
+                        else
+                        {
+                            sprintf(tempstr, "%d", b2 & 0xf);
+                        }
                         fprintf(out, "frequency*%s", tempstr);
                         // Detune:
-                        if (b2 >> 4 & 0x3) // detune !=0
+                        if (b2 >> 4 & 0x3)
+                        {
+                            // detune !=0
                             fprintf(out, "*(1%c%depsilon)", b2 & 0x40 ? '+' : '-', b2 >> 4 & 0x3);
+                        }
                         fprintf(out, "\n");
                     }
                     else

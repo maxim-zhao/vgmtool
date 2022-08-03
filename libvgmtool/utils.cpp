@@ -27,10 +27,16 @@ BOOL FileExists(const char* filename, const IVGMToolCallback& callback)
 
 BOOL FileExistsQuiet(const char* filename)
 {
-    if (!filename) return FALSE;
+    if (!filename)
+    {
+        return FALSE;
+    }
     FILE* f = fopen(filename, "rb");
     BOOL result = (f != nullptr);
-    if (f) fclose(f);
+    if (f)
+    {
+        fclose(f);
+    }
     return result;
 }
 
@@ -74,7 +80,10 @@ char* MakeSuffixedFilename(const char* src, const char* suffix, const IVGMToolCa
 
     strcpy(dest, src);
     char* p = strrchr(strrchr(dest, '\\'), '.'); // find last dot after last slash
-    if (!p) p = dest + strlen(dest); // if no extension, add to the end of the file instead
+    if (!p)
+    {
+        p = dest + strlen(dest); // if no extension, add to the end of the file instead
+    }
     sprintf(p, " (%s)%s", suffix, src + (p - dest));
 
     callback.show_message(Utils::format("Made a temp filename:\n%s\nfrom:\n%s", dest, src)); // debugging
@@ -89,7 +98,10 @@ BOOL compress(const char* filename, const IVGMToolCallback& callback)
 {
     int AmtRead;
 
-    if (!FileExists(filename, callback)) return FALSE;
+    if (!FileExists(filename, callback))
+    {
+        return FALSE;
+    }
 
     callback.show_status("Compressing...");
 
@@ -148,7 +160,10 @@ BOOL Decompress(char* filename, const IVGMToolCallback& callback)
 {
     int x;
 
-    if (!FileExists(filename, callback)) return FALSE;
+    if (!FileExists(filename, callback))
+    {
+        return FALSE;
+    }
 
     callback.show_status("Decompressing...");
 
@@ -191,7 +206,10 @@ void ChangeExt(char* filename, const char* ext)
 {
     char* p = strrchr(filename, '\\');
     char* q = strchr(p, '.');
-    if (q == nullptr) q = p + strlen(p); // if no ext, point to end of string
+    if (q == nullptr)
+    {
+        q = p + strlen(p); // if no ext, point to end of string
+    }
 
     strcpy(q, ".");
     strcpy(q + 1, ext);
@@ -202,7 +220,10 @@ void ChangeExt(char* filename, const char* ext)
 // Changes the file's extension to vgm or vgz depending on whether it's compressed
 BOOL FixExt(char* filename, const IVGMToolCallback& callback)
 {
-    if (!FileExists(filename, callback)) return FALSE;
+    if (!FileExists(filename, callback))
+    {
+        return FALSE;
+    }
 
     FILE* f = fopen(filename, "rb");
     int IsCompressed = ((fgetc(f) == GZMagic1) && (fgetc(f) == GZMagic2));
@@ -212,8 +233,14 @@ BOOL FixExt(char* filename, const IVGMToolCallback& callback)
 
     strcpy(newfilename, filename);
 
-    if (IsCompressed) ChangeExt(newfilename, "vgz");
-    else ChangeExt(newfilename, "vgm");
+    if (IsCompressed)
+    {
+        ChangeExt(newfilename, "vgz");
+    }
+    else
+    {
+        ChangeExt(newfilename, "vgm");
+    }
 
     if (strcmp(newfilename, filename) != 0)
     {
@@ -229,9 +256,13 @@ BOOL FixExt(char* filename, const IVGMToolCallback& callback)
 void MyReplaceFile(const char* filetoreplace, const char* with, const IVGMToolCallback& callback)
 {
     if (strcmp(filetoreplace, with) == 0)
+    {
         return;
+    }
     if (FileExistsQuiet(filetoreplace))
+    {
         DeleteFile(filetoreplace);
+    }
     if (MoveFile(with, filetoreplace) == 0)
     {
         callback.show_error(Utils::format("Error replacing old file:\n%s\nUpdated file is called:\n%s", filetoreplace, with));

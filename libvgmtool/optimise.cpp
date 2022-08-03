@@ -13,10 +13,12 @@
 bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
-    char b0, b1, b2;
-    int PauseLength = 0;
+    int pauseLength = 0;
 
-    if (!FileExists(filename, callback)) return FALSE;
+    if (!FileExists(filename, callback))
+    {
+        return FALSE;
+    }
 
     // Open input file
     gzFile in = gzopen(filename, "rb");
@@ -28,7 +30,7 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
         return FALSE;
     }
 
-    long int OldLoopOffset = VGMHeader.LoopOffset + LOOPDELTA;
+    const auto oldLoopOffset = VGMHeader.LoopOffset + LOOPDELTA;
 
     // Make the output filename...
     char* outfilename = make_temp_filename(filename);
@@ -42,28 +44,29 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
 
     // ...and parse the input file
     // Go through the file; if it's a pause, add it to the total; if it's data, write the current total and zero it
-    do
+    while (!gzeof(in))
     {
         // Update loop point
-        // Write any remaining pauyse being buffered first, though
-        if (gztell(in) == OldLoopOffset)
+        // Write any remaining pause being buffered first, though
+        if (gztell(in) == oldLoopOffset)
         {
-            write_pause(out, PauseLength);
-            PauseLength = 0;
+            write_pause(out, pauseLength);
+            pauseLength = 0;
             VGMHeader.LoopOffset = gztell(out) - LOOPDELTA;
         }
 
-        b0 = gzgetc(in);
+        auto b0 = gzgetc(in);
         switch (b0)
         {
         case VGM_GGST: // GG stereo
         case VGM_PSG: // PSG write
-            write_pause(out, PauseLength);
-            PauseLength = 0;
-            b1 = gzgetc(in);
-            gzputc(out, b0);
-            gzputc(out, b1);
-            break;
+            {
+                write_pause(out, pauseLength);
+                pauseLength = 0;
+                gzputc(out, b0);
+                gzputc(out, gzgetc(in));
+                break;
+            }
         case VGM_YM2413: // YM2413
         case VGM_YM2612_0: // YM2612 port 0
         case VGM_YM2612_1: // YM2612 port 1
@@ -79,24 +82,26 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
         case 0x5d:
         case 0x5e:
         case 0x5f:
-            write_pause(out, PauseLength);
-            PauseLength = 0;
-            b1 = gzgetc(in);
-            b2 = gzgetc(in);
-            gzputc(out, b0);
-            gzputc(out, b1);
-            gzputc(out, b2);
-            break;
+            {
+                write_pause(out, pauseLength);
+                pauseLength = 0;
+                gzputc(out, b0);
+                gzputc(out, gzgetc(in));
+                gzputc(out, gzgetc(in));
+                break;
+            }
         case VGM_PAUSE_WORD: // Wait n samples
-            b1 = gzgetc(in);
-            b2 = gzgetc(in);
-            PauseLength += MAKEWORD(b1, b2);
-            break;
+            {
+                const auto b1 = gzgetc(in);
+                const auto b2 = gzgetc(in);
+                pauseLength += b1 | (b2 << 8);
+                break;
+            }
         case VGM_PAUSE_60TH: // Wait 1/60 s
-            PauseLength += LEN60TH;
+            pauseLength += LEN60TH;
             break;
         case VGM_PAUSE_50TH: // Wait 1/50 s
-            PauseLength += LEN50TH;
+            pauseLength += LEN50TH;
             break;
         //    case VGM_PAUSE_BYTE:  // Wait n samples
         //      b1=gzgetc(in);
@@ -118,18 +123,17 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
         case 0x7d:
         case 0x7e:
         case 0x7f: // Wait 1-16 samples
-            PauseLength += (b0 & 0xf) + 1;
+            pauseLength += (b0 & 0xf) + 1;
             break;
         case VGM_END: // End of sound data
-            write_pause(out, PauseLength);
-            PauseLength = 0;
+            write_pause(out, pauseLength);
+            pauseLength = 0;
             b0 = EOF; // break out of loop
             break;
         default:
             break;
         } // end switch
     }
-    while (b0 != EOF);
 
     // At end:
     // 1. Write EOF mrker
@@ -137,13 +141,16 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
     // 2. Copy GD3 tag
     if (VGMHeader.GD3Offset)
     {
-        TGD3Header GD3Header;
-        int NewGD3Offset = gztell(out) - GD3DELTA;
+        TGD3Header GD3Header{};
+        const int newGd3Offset = gztell(out) - GD3DELTA;
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (int i = 0; i < GD3Header.length; ++i) gzputc(out,gzgetc(in));
-        VGMHeader.GD3Offset = NewGD3Offset;
+        for (int i = 0; i < GD3Header.length; ++i)
+        {
+            gzputc(out,gzgetc(in));
+        }
+        VGMHeader.GD3Offset = newGd3Offset;
     }
     // 3. Fill in VGM header
     VGMHeader.EoFOffset = gztell(out) - EOFDELTA;
@@ -180,7 +187,10 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
     int NumOffsetsRemoved = 0;
     int NoiseCh2 = 0;
 
-    if (!FileExists(filename, callback)) return 0;
+    if (!FileExists(filename, callback))
+    {
+        return 0;
+    }
 
     gzFile in = gzopen(filename, "rb");
 
@@ -204,9 +214,10 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
     // Process file
     do
     {
-        if ((VGMHeader.LoopOffset) && (gztell(in) == VGMHeader.LoopOffset + LOOPDELTA))
-            NewLoopOffset = gztell(out) -
-                LOOPDELTA;
+        if ((VGMHeader.LoopOffset) && (gztell(in) == VGMHeader.LoopOffset + static_cast<uint32_t>(LOOPDELTA)))
+        {
+            NewLoopOffset = gztell(out) - LOOPDELTA;
+        }
         b0 = gzgetc(in);
         switch (b0)
         {
@@ -231,13 +242,17 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
             {
                 // Data byte
                 if (!(PSGLatchedRegister % 2) && (PSGLatchedRegister < 5))
+                {
                     // Tone register
                     PSGRegisters[PSGLatchedRegister] =
                         (PSGRegisters[PSGLatchedRegister] & 0x00f) // zero high 6 bits
                         | ((b1 & 0x3f) << 4); // and replace with data
+                }
                 else
+                {
                     // Other register
                     PSGRegisters[PSGLatchedRegister] = b1 & 0x0f; // Replace with data
+                }
             }
         // Analyse:
             switch (PSGLatchedRegister)
@@ -298,8 +313,11 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
                 break;
             default: // Volume
                 if ((PSGLatchedRegister / 2 < 3) && // Tone channel
-                    SilencedChannels[PSGLatchedRegister / 2]) // Silenced
+                    SilencedChannels[PSGLatchedRegister / 2])
+                {
+                    // Silenced
                     break; // Don't write
+                }
             // Pass through
                 gzputc(out,VGM_PSG);
                 gzputc(out, b1);
@@ -659,7 +677,10 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     int bucketsize = 1; // how many samples per bucket for counting
     int framelength;
 
-    if (!FileExists(filename, callback)) return FALSE;
+    if (!FileExists(filename, callback))
+    {
+        return FALSE;
+    }
 
     // Open input file
     gzFile in = gzopen(filename, "rb");
@@ -710,7 +731,10 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
         {
         case VGM_GGST: // GG stereo
         case VGM_PSG: // PSG write
-            if (PauseLength > 0)PausePositions[(PauseLength % framelength) / bucketsize]++;
+            if (PauseLength > 0)
+            {
+                PausePositions[(PauseLength % framelength) / bucketsize]++;
+            }
         // increment the corresponding counter
             PauseLength %= framelength;
             b1 = gzgetc(in);
@@ -732,7 +756,10 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
         case 0x5d:
         case 0x5e:
         case 0x5f:
-            if (PauseLength > 0)PausePositions[(PauseLength % framelength) / bucketsize]++;
+            if (PauseLength > 0)
+            {
+                PausePositions[(PauseLength % framelength) / bucketsize]++;
+            }
         // increment the corresponding counter
             PauseLength %= framelength;
             b1 = gzgetc(in);
@@ -789,7 +816,9 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     for (i = 0; i < numbuckets; ++i)
     {
         if (PausePositions[i] > maxcount)
+        {
             maxcount = PausePositions[i];
+        }
     }
 
     auto s = Utils::format("Slots (max %d):\n", maxcount);

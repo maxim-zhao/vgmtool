@@ -100,7 +100,10 @@ bool VGMHeader::is_valid() const
 //----------------------------------------------------------------------------------------------
 void write_pause(gzFile out, long int pauselength)
 {
-    if (pauselength == 0) return; // If zero do nothing
+    if (pauselength == 0)
+    {
+        return; // If zero do nothing
+    }
     while (pauselength > 0xffff)
     {
         // If over 0xffff, write 0xffffs
@@ -151,7 +154,10 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
     char copybuffer[BUFFER_SIZE];
     int AmtRead;
 
-    if (!FileExists(filename, callback)) return;
+    if (!FileExists(filename, callback))
+    {
+        return;
+    }
 
     callback.show_status("Updating VGM header...");
 
@@ -196,11 +202,26 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
 {
     char b0;
 
-    if (UsesPSG) *UsesPSG = FALSE;
-    if (UsesYM2413) *UsesYM2413 = FALSE;
-    if (UsesYM2612) *UsesYM2612 = FALSE;
-    if (UsesYM2151) *UsesYM2151 = FALSE;
-    if (UsesReserved) *UsesReserved = FALSE;
+    if (UsesPSG)
+    {
+        *UsesPSG = FALSE;
+    }
+    if (UsesYM2413)
+    {
+        *UsesYM2413 = FALSE;
+    }
+    if (UsesYM2612)
+    {
+        *UsesYM2612 = FALSE;
+    }
+    if (UsesYM2151)
+    {
+        *UsesYM2151 = FALSE;
+    }
+    if (UsesReserved)
+    {
+        *UsesReserved = FALSE;
+    }
 
     gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
     do
@@ -211,23 +232,35 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
         case VGM_GGST:
         case VGM_PSG:
             gzgetc(in);
-            if (UsesPSG) *UsesPSG = TRUE;
+            if (UsesPSG)
+            {
+                *UsesPSG = TRUE;
+            }
             break;
         case VGM_YM2413:
             gzgetc(in);
             gzgetc(in);
-            if (UsesYM2413) *UsesYM2413 = TRUE;
+            if (UsesYM2413)
+            {
+                *UsesYM2413 = TRUE;
+            }
             break;
         case VGM_YM2612_0:
         case VGM_YM2612_1:
             gzgetc(in);
             gzgetc(in);
-            if (UsesYM2612) *UsesYM2612 = TRUE;
+            if (UsesYM2612)
+            {
+                *UsesYM2612 = TRUE;
+            }
             break;
         case VGM_YM2151:
             gzgetc(in);
             gzgetc(in);
-            if (UsesYM2151) *UsesYM2151 = TRUE;
+            if (UsesYM2151)
+            {
+                *UsesYM2151 = TRUE;
+            }
             break;
         case 0x55: // Reserved up to 0x5f
         case 0x56:
@@ -242,7 +275,10 @@ void get_used_chips(gzFile in, BOOL* UsesPSG, BOOL* UsesYM2413, BOOL* UsesYM2612
         case 0x5f:
             gzgetc(in);
             gzgetc(in);
-            if (UsesReserved) *UsesReserved = TRUE;
+            if (UsesReserved)
+            {
+                *UsesReserved = TRUE;
+            }
             break;
         case VGM_PAUSE_WORD:
             gzgetc(in);
@@ -291,7 +327,10 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
     VGMHeader VGMHeader;
     int b0, b1, b2;
 
-    if (!FileExists(filename, callback)) return;
+    if (!FileExists(filename, callback))
+    {
+        return;
+    }
 
     callback.show_status("Counting samples...");
 
@@ -311,7 +350,10 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
 
     do
     {
-        if (gztell(in) == VGMHeader.LoopOffset + LOOPDELTA) LoopSampleCount = SampleCount;
+        if (gztell(in) == VGMHeader.LoopOffset + LOOPDELTA)
+        {
+            LoopSampleCount = SampleCount;
+        }
         b0 = gzgetc(in);
         switch (b0)
         {
@@ -370,7 +412,10 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
             SampleCount += (b0 & 0xf) + 1;
             break;
         case VGM_END: // End of sound data... report
-            if (LoopSampleCount == -1) LoopSampleCount = SampleCount;
+            if (LoopSampleCount == -1)
+            {
+                LoopSampleCount = SampleCount;
+            }
             LoopSampleCount = SampleCount - LoopSampleCount;
         // Change its meaning! Now it's the number of samples in the loop
 
@@ -405,7 +450,10 @@ void check_lengths(char* filename, BOOL showResults, const IVGMToolCallback& cal
                 callback.show_status("Correcting header...");
                 VGMHeader.TotalLength = SampleCount;
                 VGMHeader.LoopLength = LoopSampleCount;
-                if (LoopSampleCount == 0) VGMHeader.LoopOffset = 0;
+                if (LoopSampleCount == 0)
+                {
+                    VGMHeader.LoopOffset = 0;
+                }
                 write_vgm_header(filename, VGMHeader, callback);
             }
             b0 = EOF;
@@ -424,7 +472,10 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
     VGMHeader VGMHeader;
     int b0, b1, b2;
 
-    if (!FileExists(filename, callback)) return 0;
+    if (!FileExists(filename, callback))
+    {
+        return 0;
+    }
 
     callback.show_status("Detecting VGM recording rate...");
 
@@ -521,8 +572,14 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
 
     gzclose(in);
 
-    if (Speed) callback.show_status(Utils::format("VGM rate detected as %dHz", Speed));
-    else callback.show_status("VGM rate not detected");
+    if (Speed)
+    {
+        callback.show_status(Utils::format("VGM rate detected as %dHz", Speed));
+    }
+    else
+    {
+        callback.show_status("VGM rate not detected");
+    }
 
     return Speed;
 }
@@ -561,7 +618,10 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
     memset(YM2151writes, 0, sizeof(int) * NumYM2151Types);
     memset(reservedwrites, 0, sizeof(int) * NumReservedTypes);
 
-    if (!filename || !FileExists(filename, callback)) return;
+    if (!filename || !FileExists(filename, callback))
+    {
+        return;
+    }
     // explicitly check for filename==NULL because that signals that we're supposed to return all zero
 
     gzFile in = gzopen(filename, "rb");
@@ -588,7 +648,10 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
             break;
         case VGM_PSG: // PSG write (1 byte data)
             b1 = gzgetc(in);
-            if (b1 & 0x80) Channel = ((b1 >> 5) & 0x03); // Latch/data byte   %1 cc t dddd
+            if (b1 & 0x80)
+            {
+                Channel = ((b1 >> 5) & 0x03); // Latch/data byte   %1 cc t dddd
+            }
             ++PSGwrites[PSGTone0 + Channel];
             break;
         case VGM_YM2413: // YM2413
@@ -611,7 +674,13 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
                     ++YM2413writes[YM2413UserInst];
                     break;
                 case 0x0E: // Percussion
-                    for (i = 0; i < 5; ++i) if ((b2 >> i) & 1) ++YM2413writes[YM2413PercHH + i];
+                    for (i = 0; i < 5; ++i)
+                    {
+                        if ((b2 >> i) & 1)
+                        {
+                            ++YM2413writes[YM2413PercHH + i];
+                        }
+                    }
                     break;
                 default:
                     ++YM2413writes[YM2413Invalid]; // invalid reg
@@ -619,16 +688,34 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
                 }
                 break;
             case 0x1: // Tone F-number low 8 bits
-                if (b1 > 0x18) ++YM2413writes[YM2413Invalid]; // invalid reg
-                else ++YM2413writes[YM2413Tone1 + b1 & 0xf];
+                if (b1 > 0x18)
+                {
+                    ++YM2413writes[YM2413Invalid]; // invalid reg
+                }
+                else
+                {
+                    ++YM2413writes[YM2413Tone1 + b1 & 0xf];
+                }
                 break;
             case 0x2: // Tone more stuff including key
-                if (b1 > 0x28) ++YM2413writes[YM2413Invalid]; // invalid reg
-                else ++YM2413writes[YM2413Tone1 - b1 & 0xf];
+                if (b1 > 0x28)
+                {
+                    ++YM2413writes[YM2413Invalid]; // invalid reg
+                }
+                else
+                {
+                    ++YM2413writes[YM2413Tone1 - b1 & 0xf];
+                }
                 break;
             case 0x3: // Tone instruments and volume
-                if (b1 >= YM2413NumRegs) ++YM2413writes[YM2413Invalid]; // invalid reg
-                else ++YM2413writes[YM2413Tone1 + b1 & 0xf];
+                if (b1 >= YM2413NumRegs)
+                {
+                    ++YM2413writes[YM2413Invalid]; // invalid reg
+                }
+                else
+                {
+                    ++YM2413writes[YM2413Tone1 + b1 & 0xf];
+                }
                 break;
             default:
                 ++YM2413writes[YM2413Invalid]; // invalid reg
@@ -748,21 +835,33 @@ void WriteToState(TSystemState* state, int b0, int b1, int b2)
             i = state->PSGState.LatchedRegister;
             if ((i > -1) && (i < 8))
             {
-                if (!(i % 2) && (i < 5)) // if latched register is a tone channel
+                if (!(i % 2) && (i < 5))
+                {
+                    // if latched register is a tone channel
                     state->PSGState.Registers[i] = (state->PSGState.Registers[i] & 0x00f) | ((b1 & 0x3f) << 4);
                     // update the high 6 bits
-                else // otherwise it's noise/vol
+                }
+                else
+                {
+                    // otherwise it's noise/vol
                     state->PSGState.Registers[i] = b1 & 0x0f; // so update the low 4 bits
+                }
             }
         }
         break;
     case VGM_YM2413: // YM2413
-        if (b1 < YM2413NumRegs) state->YM2413State.Registers[b1] = b2;
+        if (b1 < YM2413NumRegs)
+        {
+            state->YM2413State.Registers[b1] = b2;
+        }
         break;
     case VGM_YM2612_0: // YM2612 port 0
     case VGM_YM2612_1: // YM2612 port 1
         i = (b0 == VGM_YM2612_0 ? 0 : 0x100) + b1;
-        if (i < YM2612NumRegs) state->YM2612State.Registers[i] = b2;
+        if (i < YM2612NumRegs)
+        {
+            state->YM2612State.Registers[i] = b2;
+        }
         break;
     case VGM_YM2151: // YM2151
         // TODO: this
@@ -871,6 +970,7 @@ void WriteStateToFile(gzFile out, TSystemState* State, BOOL WriteKeys)
     if (State->UsesYM2413)
     {
         for (i = 0; i < YM2413NumRegs; ++i)
+        {
             if (YM2413ValidBits[i])
             {
                 gzputc(out,VGM_YM2413);
@@ -879,18 +979,24 @@ void WriteStateToFile(gzFile out, TSystemState* State, BOOL WriteKeys)
                     State->YM2413State.Registers[i] & YM2413ValidBits[i] & (WriteKeys ? 0xff : (~YM2413KeyBits[i])));
                 // Output, but zero key bits if it's not the starting point
             }
+        }
     }
 
     // Then YM2612
     if (State->UsesYM2612)
     {
         for (i = 0; i < YM2612NumRegs; ++i)
+        {
             if (YM2612ValidBits[i])
             {
                 if (i < 0x100)
+                {
                     gzputc(out,VGM_YM2612_0);
+                }
                 else
+                {
                     gzputc(out,VGM_YM2612_1);
+                }
                 gzputc(out, (i & 0xff));
                 // key bit handling
                 if (
@@ -901,6 +1007,7 @@ void WriteStateToFile(gzFile out, TSystemState* State, BOOL WriteKeys)
                     gzputc(out, State->YM2612State.Registers[i] & YM2612ValidBits[i]);
                 }
             }
+        }
     }
 
     // TODO: YM2151 states

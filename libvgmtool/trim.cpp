@@ -14,7 +14,10 @@
 //----------------------------------------------------------------------------------------------
 void log_trim(char* VGMFile, int start, int loop, int end, const IVGMToolCallback& callback)
 {
-    if (!strrchr(VGMFile, '\\')) return;
+    if (!strrchr(VGMFile, '\\'))
+    {
+        return;
+    }
 
     // make filename to log to
     auto fn = static_cast<char*>(malloc(strlen(VGMFile) + 20));
@@ -23,8 +26,12 @@ void log_trim(char* VGMFile, int start, int loop, int end, const IVGMToolCallbac
 
     FILE* f = fopen(fn, "a"); // open file for append
 
-    if (!f) callback.show_error("Error opening editpoints.txt");
+    if (!f)
+    {
+        callback.show_error("Error opening editpoints.txt");
+    }
     else
+    {
         fprintf(f, "Filename: %s\n"
             "Start:    %d\n"
             "Loop:     %d\n"
@@ -33,8 +40,12 @@ void log_trim(char* VGMFile, int start, int loop, int end, const IVGMToolCallbac
             start,
             loop,
             end);
+    }
 
-    if (f) fclose(f);
+    if (f)
+    {
+        fclose(f);
+    }
 
     free(fn);
 }
@@ -57,7 +68,10 @@ BOOL new_trim(char* filename, const long int start, const long int loop, const l
     // If loop<0 then PastLoop=TRUE so it won't bother to record a loop state ever
     // Thus loop=-1 means no loop
 
-    if (!FileExists(filename, callback)) return FALSE;
+    if (!FileExists(filename, callback))
+    {
+        return FALSE;
+    }
 
     // Check edit points are sensible
     if ((start < 0) ||
@@ -302,7 +316,10 @@ BOOL new_trim(char* filename, const long int start, const long int loop, const l
                No real music has that and it'd be a lot more work to get right.
       
             */
-            if (LastPauseLength > (CurrentState.samplecount - start)) LastPauseLength = loop - start;
+            if (LastPauseLength > (CurrentState.samplecount - start))
+            {
+                LastPauseLength = loop - start;
+            }
 
             write_pause(out, LastPauseLength - (CurrentState.samplecount - loop));
             // 3. Record loop offset
@@ -361,7 +378,10 @@ BOOL new_trim(char* filename, const long int start, const long int loop, const l
 
     // At end:
     // 1. If we're doing looping, write the loop state
-    if (loop != -1) WriteStateToFile(out, &CurrentState,FALSE);
+    if (loop != -1)
+    {
+        WriteStateToFile(out, &CurrentState,FALSE);
+    }
     // 2. Write EOF mrker
     gzputc(out,VGM_END);
     // 3. Copy GD3 tag
@@ -374,14 +394,20 @@ BOOL new_trim(char* filename, const long int start, const long int loop, const l
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (i = 0; i < GD3Header.length; ++i) gzputc(out,gzgetc(in));
+        for (i = 0; i < GD3Header.length; ++i)
+        {
+            gzputc(out,gzgetc(in));
+        }
         VGMHeader.GD3Offset = NewGD3Offset;
     }
     gzclose(in);
     // 4. Fill in VGM header
     VGMHeader.EoFOffset = gztell(out) - EOFDELTA;
     VGMHeader.TotalLength = end - start;
-    if (loop > -1) VGMHeader.LoopLength = end - loop;
+    if (loop > -1)
+    {
+        VGMHeader.LoopLength = end - loop;
+    }
     else
     {
         VGMHeader.LoopLength = 0;

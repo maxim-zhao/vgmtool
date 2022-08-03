@@ -169,7 +169,10 @@ int NoiseChanged = 0;
 void WriteVGMInfo(gzFile out, long* pauselength, TPSGState* PSGState, unsigned char YM2413Regs[YM2413NumRegs])
 {
     int i;
-    if (!*pauselength) return;
+    if (!*pauselength)
+    {
+        return;
+    }
     // If pause=zero do nothing so only the last write to each register before a pause is written
     // Write PSG stuff
     if (PSGState->GGStereo != LastWrittenPSGState.GGStereo)
@@ -218,6 +221,7 @@ void WriteVGMInfo(gzFile out, long* pauselength, TPSGState* PSGState, unsigned c
     }
     // Write YM2413 stuff
     for (i = 0; i < YM2413NumRegs; ++i)
+    {
         if (YM2413RegWriteFlags[i])
         {
             if (
@@ -231,6 +235,7 @@ void WriteVGMInfo(gzFile out, long* pauselength, TPSGState* PSGState, unsigned c
                 LastWrittenYM2413Regs[i] = YM2413Regs[i] & YM2413RegWriteFlags[i];
             }
         }
+    }
     // Percussion after tone
     if (LastWrittenYM2413Regs[0x0e] != (YM2413Regs[0x0e] & YM2413RegWriteFlags[0x0e]))
     {
@@ -306,6 +311,7 @@ void WriteVGMInfo(gzFile out, long* pauselength, TPSGState* PSGState, unsigned c
 void WriteYM2413State(gzFile out, unsigned char YM2413Regs[YM2413NumRegs], int IsStart)
 {
     for (int i = 0; i < YM2413NumRegs; ++i)
+    {
         if (YM2413StateRegWriteFlags[i])
         {
             gzputc(out,VGM_YM2413); // YM2413
@@ -313,6 +319,7 @@ void WriteYM2413State(gzFile out, unsigned char YM2413Regs[YM2413NumRegs], int I
             gzputc(out, (YM2413Regs[i] & YM2413StateRegWriteFlags[i])); // Value
             LastWrittenYM2413Regs[i] = YM2413Regs[i] & YM2413StateRegWriteFlags[i];
         }
+    }
 
     if (IsStart)
     {
@@ -412,9 +419,15 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
 
     unsigned char YM2413Regs[YM2413NumRegs];
 
-    if (!FileExists(filename, callback)) return;
+    if (!FileExists(filename, callback))
+    {
+        return;
+    }
 
-    if (IsDlgButtonChecked(TrimWnd,cbLogTrims)) log_trim(Currentfilename, start, loop, end, callback);
+    if (IsDlgButtonChecked(TrimWnd,cbLogTrims))
+    {
+        log_trim(Currentfilename, start, loop, end, callback);
+    }
 
     CheckWriteCounts(filename);
 
@@ -443,11 +456,13 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
     Outfilename = static_cast<char*>(malloc(strlen(filename) + 15));
     strcpy(Outfilename, filename);
     for (p = Outfilename + strlen(Outfilename) - 1; p >= Outfilename; --p)
+    {
         if (*p == '.')
         {
             strcpy(p, " (trimmed).vgz");
             break;
         }
+    }
 
     out = gzopen(Outfilename, "wb0"); // No compression, since I'll recompress it later
 
@@ -474,7 +489,9 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
                 // Do not copy it if the current stereo state is the same
                 CurrentPSGState.GGStereo = b1;
                 if ((WrittenStart) && (VGMHeader.PSGClock))
+                {
                     WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+                }
             }
             break;
         case VGM_PSG: // PSG write (1 byte data)
@@ -483,7 +500,10 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
             {
             case 0x00: // fall through
             case 0x10: // second frequency byte
-                if (CurrentPSGState.Channel > 3) break;
+                if (CurrentPSGState.Channel > 3)
+                {
+                    break;
+                }
                 if (CurrentPSGState.Channel == 3)
                 {
                     // 2nd noise byte (Micro Machines title screen)
@@ -491,12 +511,17 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
                     NoiseChanged = 1;
                     CurrentPSGState.NoiseByte = (b1 & 0xf) | 0xe0;
                     if ((WrittenStart) && (VGMHeader.PSGClock))
+                    {
                         WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+                    }
                 }
                 else
                 {
                     int freq = (b1 & 0x3F) << 4 | CurrentPSGState.PSGFrequencyLowBits;
-                    if (freq < PSGCutoff) freq = 0;
+                    if (freq < PSGCutoff)
+                    {
+                        freq = 0;
+                    }
                     if (CurrentPSGState.ToneFreqs[CurrentPSGState.Channel] != freq)
                     {
                         // Changes the freq
@@ -506,13 +531,17 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
                         {
                             // If necessary, write 1st byte
                             if ((WrittenStart) && (VGMHeader.PSGClock))
+                            {
                                 WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+                            }
                             LastFirstByteWritten = FirstByte;
                         }
                         // Don't write if volume is off
                         if ((WrittenStart) && (VGMHeader.PSGClock)
                             /*&& (CurrentPSGState.Volumes[CurrentPSGState.Channel])*/)
+                        {
                             WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+                        }
                         CurrentPSGState.ToneFreqs[CurrentPSGState.Channel] = freq; // Write 2nd byte
                     }
                 }
@@ -526,7 +555,9 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
                     CurrentPSGState.NoiseByte = b1;
                     CurrentPSGState.Channel = 3;
                     if ((WrittenStart) && (VGMHeader.PSGClock))
+                    {
                         WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+                    }
                 }
                 else
                 {
@@ -545,7 +576,9 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
                         CurrentPSGState.Channel = 4;
                         // Only write volume change if we've got to the start and PSG is turned on
                         if ((WrittenStart) && (VGMHeader.PSGClock))
+                        {
                             WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+                        }
                     }
                 }
                 break;
@@ -554,7 +587,10 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
         case VGM_YM2413: // YM2413
             b1 = gzgetc(in);
             b2 = gzgetc(in);
-            if ((b1 >= YM2413NumRegs) || !(YM2413RegWriteFlags[b1])) break; // Discard invalid register numbers
+            if ((b1 >= YM2413NumRegs) || !(YM2413RegWriteFlags[b1]))
+            {
+                break; // Discard invalid register numbers
+            }
             YM2413Regs[b1] = b2;
 
         // Check for percussion keys lifted or pressed
@@ -569,10 +605,15 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
         // Check for tone keys lifted or pressed
             if ((b1 >= 0x20) && (b1 <= 0x28))
             {
-                if (b2 & 0x10) // Key was pressed
+                if (b2 & 0x10)
+                {
+                    // Key was pressed
                     KeysPressed |= 1 << (b1 - 0x20 + 5);
+                }
                 else
+                {
                     KeysLifted |= 1 << (b1 - 0x20 + 5);
+                }
                 if (
                     (KeysLifted & KeysPressed & (1 << (b1 - 0x20 + 5))) // the key has gone UD
                     &&
@@ -585,7 +626,9 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
             }
 
             if ((WrittenStart) && (VGMHeader.YM2413Clock))
+            {
                 WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+            }
             break;
         case VGM_YM2612_0: // YM2612 port 0
         case VGM_YM2612_1: // YM2612 port 1
@@ -616,19 +659,25 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
             SampleCount += b1 | (b2 << 8);
             PauseLength += b1 | (b2 << 8);
             if ((WrittenStart) && ((SampleCount <= loop) || (loop == -1) || (WrittenLoop)) && (SampleCount <= end))
+            {
                 WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+            }
             break;
         case VGM_PAUSE_60TH: // Wait 1/60 s
             SampleCount += LEN60TH;
             PauseLength += LEN60TH;
             if ((WrittenStart) && ((SampleCount <= loop) || (loop == -1) || (WrittenLoop)) && (SampleCount <= end))
+            {
                 WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+            }
             break;
         case VGM_PAUSE_50TH: // Wait 1/50 s
             SampleCount += LEN50TH;
             PauseLength += LEN50TH;
             if ((WrittenStart) && ((SampleCount <= loop) || (loop == -1) || (WrittenLoop)) && (SampleCount <= end))
+            {
                 WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+            }
             break;
         //    case VGM_PAUSE_BYTE:  // Wait n samples
         //      b1=gzgetc(in);
@@ -656,7 +705,9 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
             SampleCount += b1;
             PauseLength += b1;
             if ((WrittenStart) && ((SampleCount <= loop) || (loop == -1) || (WrittenLoop)) && (SampleCount <= end))
+            {
                 WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
+            }
             break;
         case VGM_END: // End of sound data
             gzclose(in);
@@ -688,7 +739,10 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
                     CurrentPSGState.NoiseByte &= 0xf7;
                     WritePSGState(out, CurrentPSGState);
                 }
-                if (IsWindowEnabled(GetDlgItem(StripWnd,gbYM2413))) WriteYM2413State(out, YM2413Regs,FALSE);
+                if (IsWindowEnabled(GetDlgItem(StripWnd,gbYM2413)))
+                {
+                    WriteYM2413State(out, YM2413Regs,FALSE);
+                }
             }
             WrittenLoop = 1;
         }
@@ -700,7 +754,10 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
                 CurrentPSGState.NoiseByte &= 0xf7;
                 WritePSGState(out, CurrentPSGState);
             }
-            if (IsWindowEnabled(GetDlgItem(StripWnd,gbYM2413))) WriteYM2413State(out, YM2413Regs,TRUE);
+            if (IsWindowEnabled(GetDlgItem(StripWnd,gbYM2413)))
+            {
+                WriteYM2413State(out, YM2413Regs,TRUE);
+            }
             // Remember any needed delay
             PauseLength = SampleCount - start;
             WrittenStart = 1;
@@ -788,7 +845,9 @@ void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL Pro
             FileSizeAfter,
             (static_cast<double>(FileSizeAfter) - FileSizeBefore) * 100 / FileSizeBefore
         ) == IDYES)
+        {
             ShellExecute(hWndMain, "Play", Outfilename, nullptr, nullptr,SW_NORMAL);
+        }
     }
 
     free(Outfilename);
@@ -808,13 +867,20 @@ void Optimize(char* filename)
     check_lengths(filename,FALSE, callback);
 
     // Remove PSG offsets if selected
-    if ((VGMHeader.PSGClock) && IsDlgButtonChecked(TrimWnd,cbRemoveOffset)) NumOffsetsRemoved = remove_offset(filename, callback);
+    if ((VGMHeader.PSGClock) && IsDlgButtonChecked(TrimWnd,cbRemoveOffset))
+    {
+        NumOffsetsRemoved = remove_offset(filename, callback);
+    }
 
     // Trim (using the existing edit points), also merges pauses
     if (VGMHeader.LoopLength)
+    {
         Trim(filename, 0, VGMHeader.TotalLength - VGMHeader.LoopLength, VGMHeader.TotalLength,TRUE,FALSE);
+    }
     else
+    {
         Trim(filename, 0, -1, VGMHeader.TotalLength,TRUE,FALSE);
+    }
 
     in = gzopen(filename, "rb");
     gzread(in, &VGMHeader, sizeof(VGMHeader));
@@ -835,7 +901,9 @@ void Optimize(char* filename)
         FileSizeAfter,
         (FileSizeAfter - FileSizeBefore) * 100.0 / FileSizeBefore
     ) == IDYES)
+    {
         ShellExecute(hWndMain, "Play", filename, nullptr, nullptr,SW_NORMAL);
+    }
 }
 
 void UpdateWriteCount(const int CheckBoxes[], unsigned long Writes[], int count)
@@ -854,10 +922,16 @@ void UpdateWriteCount(const int CheckBoxes[], unsigned long Writes[], int count)
             }
             ++p;
         }
-        if (Writes[i]) sprintf(TempStr, "%s (%d)", TempStr, Writes[i]);
+        if (Writes[i])
+        {
+            sprintf(TempStr, "%s (%d)", TempStr, Writes[i]);
+        }
         SetDlgItemText(StripWnd, CheckBoxes[i], TempStr);
         EnableWindow(GetDlgItem(StripWnd, CheckBoxes[i]), (Writes[i] > 0));
-        if (!Writes[i]) CheckDlgButton(StripWnd, CheckBoxes[i], 0);
+        if (!Writes[i])
+        {
+            CheckDlgButton(StripWnd, CheckBoxes[i], 0);
+        }
     }
 }
 
@@ -875,22 +949,46 @@ void CheckWriteCounts(char* filename)
 
     // Sum stuff for group checkboxes and other stuff:
     // PSG tone channels
-    for (i = j = 0; i < 3; ++i) j += PSGWrites[i]; // count writes
-    if (!j) CheckDlgButton(StripWnd,cbPSGTone, 0); // if >0, initialise unchecked
+    for (i = j = 0; i < 3; ++i)
+    {
+        j += PSGWrites[i]; // count writes
+    }
+    if (!j)
+    {
+        CheckDlgButton(StripWnd,cbPSGTone, 0); // if >0, initialise unchecked
+    }
     EnableWindow(GetDlgItem(StripWnd,cbPSGTone), (j > 0)); // enabled = (>0)
     // YM2413 tone channels
-    for (i = j = 0; i < 9; ++i) j += YM2413Writes[i];
-    if (!j) CheckDlgButton(StripWnd,cbYM2413Tone, 0);
+    for (i = j = 0; i < 9; ++i)
+    {
+        j += YM2413Writes[i];
+    }
+    if (!j)
+    {
+        CheckDlgButton(StripWnd,cbYM2413Tone, 0);
+    }
     EnableWindow(GetDlgItem(StripWnd,cbYM2413Tone), (j > 0));
     // YM2413 percussion
-    for (i = 9, j = 0; i < 14; ++i) j += YM2413Writes[i];
-    if (!j) CheckDlgButton(StripWnd,cbYM2413Percussion, 0);
+    for (i = 9, j = 0; i < 14; ++i)
+    {
+        j += YM2413Writes[i];
+    }
+    if (!j)
+    {
+        CheckDlgButton(StripWnd,cbYM2413Percussion, 0);
+    }
     EnableWindow(GetDlgItem(StripWnd,cbYM2413Percussion), (j > 0));
     // PSG anything
-    for (i = j = 0; i < NumPSGTypes; ++i) j += PSGWrites[i];
+    for (i = j = 0; i < NumPSGTypes; ++i)
+    {
+        j += PSGWrites[i];
+    }
     EnableWindow(GetDlgItem(StripWnd,gbPSG), (j != 0));
     // YM2413 anything
-    for (i = j = 0; i < NumYM2413Types; ++i) j += YM2413Writes[i];
+    for (i = j = 0; i < NumYM2413Types; ++i)
+    {
+        j += YM2413Writes[i];
+    }
     EnableWindow(GetDlgItem(StripWnd,gbYM2413), (j != 0));
 
     ShowStatus("Scan for chip data complete");
@@ -904,7 +1002,10 @@ void LoadFile(char* filename)
     TGD3Header GD3Header;
     int FileHasGD3 = 0;
 
-    if (!FileExists(filename, callback)) return;
+    if (!FileExists(filename, callback))
+    {
+        return;
+    }
 
     ShowStatus("Loading file...");
 
@@ -936,7 +1037,10 @@ void LoadFile(char* filename)
             ((GD3Header.version & REQUIREDGD3MAJORVER) == REQUIREDGD3MAJORVER)
         )
         {
-            if (GD3Strings) free(GD3Strings);
+            if (GD3Strings)
+            {
+                free(GD3Strings);
+            }
             GD3Strings = static_cast<wchar_t*>(malloc(GD3Header.length));
             gzread(in, GD3Strings, GD3Header.length);
             FileHasGD3 = 1;
@@ -958,7 +1062,10 @@ void LoadFile(char* filename)
         Secs = ROUND(CurrentFileVGMHeader.LoopLength/44100.0-Mins*60);
         sprintf(buffer, "%d:%02d", Mins, Secs);
     }
-    else strcpy(buffer, "-");
+    else
+    {
+        strcpy(buffer, "-");
+    }
     SetDlgItemText(HeaderWnd,edtLengthLoop, buffer);
 
     // Version
@@ -1020,8 +1127,14 @@ void LoadFile(char* filename)
                     for (unsigned int j = 0; j < wcslen(ModifiedString); j++)
                     {
                         int val = *p;
-                        if (val < 128) sprintf(tempstr, "%c", *p);
-                        else sprintf(tempstr, "&#x%04x;", val);
+                        if (val < 128)
+                        {
+                            sprintf(tempstr, "%c", *p);
+                        }
+                        else
+                        {
+                            sprintf(tempstr, "&#x%04x;", val);
+                        }
                         strcat(MBCSstring, tempstr);
                         p++;
                     }
@@ -1037,9 +1150,13 @@ void LoadFile(char* filename)
     CheckWriteCounts(nullptr); // reset counts
 
     if ((!FileHasGD3) && GD3Strings)
+    {
         ShowStatus("File loaded - file has no GD3 tag, previous tag kept");
+    }
     else
+    {
         ShowStatus("File loaded");
+    }
 }
 
 void UpdateHeader()
@@ -1049,31 +1166,58 @@ void UpdateHeader()
     int i, j;
     VGMHeader VGMHeader;
 
-    if (!FileExists(Currentfilename, callback)) return;
+    if (!FileExists(Currentfilename, callback))
+    {
+        return;
+    }
 
     gzFile in = gzopen(Currentfilename, "rb");
     gzread(in, &VGMHeader, sizeof(VGMHeader));
     gzclose(in);
 
-    if (get_int(HeaderWnd,edtPlaybackRate, &i)) VGMHeader.RecordingRate = i;
+    if (get_int(HeaderWnd,edtPlaybackRate, &i))
+    {
+        VGMHeader.RecordingRate = i;
+    }
 
     GetDlgItemText(HeaderWnd,edtVersion, buffer, 64);
-    if (sscanf(buffer, "%d.%d", &i, &j) == 2) // valid data
+    if (sscanf(buffer, "%d.%d", &i, &j) == 2)
+    {
+        // valid data
         VGMHeader.Version =
             (i / 10) << 12 | // major tens
             (i % 10) << 8 | // major units
             (j / 10) << 4 | // minor tens
             (j % 10); // minor units
+    }
 
-    if (get_int(HeaderWnd,edtPSGClock, &i)) VGMHeader.PSGClock = i;
-    if (get_int(HeaderWnd,edtYM2413Clock, &i)) VGMHeader.YM2413Clock = i;
-    if (get_int(HeaderWnd,edtYM2612Clock, &i)) VGMHeader.YM2612Clock = i;
-    if (get_int(HeaderWnd,edtYM2151Clock, &i)) VGMHeader.YM2151Clock = i;
+    if (get_int(HeaderWnd,edtPSGClock, &i))
+    {
+        VGMHeader.PSGClock = i;
+    }
+    if (get_int(HeaderWnd,edtYM2413Clock, &i))
+    {
+        VGMHeader.YM2413Clock = i;
+    }
+    if (get_int(HeaderWnd,edtYM2612Clock, &i))
+    {
+        VGMHeader.YM2612Clock = i;
+    }
+    if (get_int(HeaderWnd,edtYM2151Clock, &i))
+    {
+        VGMHeader.YM2151Clock = i;
+    }
 
     GetDlgItemText(HeaderWnd,edtPSGFeedback, buffer, 64);
-    if (sscanf(buffer, "0x%x", &i) == 1) // valid data
+    if (sscanf(buffer, "0x%x", &i) == 1)
+    {
+        // valid data
         VGMHeader.PSGWhiteNoiseFeedback = i;
-    if (get_int(HeaderWnd,edtPSGSRWidth, &i)) VGMHeader.PSGShiftRegisterWidth = i;
+    }
+    if (get_int(HeaderWnd,edtPSGSRWidth, &i))
+    {
+        VGMHeader.PSGShiftRegisterWidth = i;
+    }
 
     write_vgm_header(Currentfilename, VGMHeader, callback);
 }
@@ -1081,7 +1225,9 @@ void UpdateHeader()
 void ClearGD3Strings()
 {
     for (int i = 0; i < NumGD3Strings; ++i)
+    {
         SetDlgItemText(GD3Wnd, GD3EditControls[i], "");
+    }
 }
 
 void UpdateGD3()
@@ -1094,7 +1240,10 @@ void UpdateGD3()
     wchar_t* AllGD3End = AllGD3Strings;
     int ConversionErrors = 0;
 
-    if (!FileExists(Currentfilename, callback)) return;
+    if (!FileExists(Currentfilename, callback))
+    {
+        return;
+    }
 
     ShowStatus("Updating GD3 tag...");
 
@@ -1122,7 +1271,9 @@ void UpdateGD3()
 
     // Copy everything up to the GD3 tag
     for (i = 0; i < (VGMHeader.GD3Offset ? VGMHeader.GD3Offset + GD3DELTA : VGMHeader.EoFOffset + EOFDELTA); ++i)
+    {
         gzputc(out,gzgetc(in));
+    }
 
     VGMHeader.GD3Offset = gztell(out) - GD3DELTA; // record GD3 position
 
@@ -1137,8 +1288,10 @@ void UpdateGD3()
             GetDlgItemText(GD3Wnd, GD3EditControls[i], s, 1023); // get string
 
             if (MultiByteToWideChar(CP_ACP,MB_PRECOMPOSED + MB_ERR_INVALID_CHARS, s, -1, widestr, 1024) == 0)
+            {
                 // convert to Unicode
                 ConversionErrors++;
+            }
         }
         // parse widestring for HTML-encoded characters
         {
@@ -1182,7 +1335,10 @@ void UpdateGD3()
                 p = widestr + wcslen(widestr); // point to end of string
                 while (p >= widestr)
                 {
-                    if (*p == L'\r') memmove(p, p + 1, wcslen(p) * 2);
+                    if (*p == L'\r')
+                    {
+                        memmove(p, p + 1, wcslen(p) * 2);
+                    }
                     p--;
                 }
                 break;
@@ -1234,24 +1390,40 @@ void Strip(char* filename, char* Outfilename)
     // Set up masks
     unsigned char PSGMask = (1 << NumPSGTypes) - 1;
     for (i = 0; i < NumPSGTypes; i++)
+    {
         if ((IsDlgButtonChecked(StripWnd, PSGCheckBoxes[i])) || (!IsWindowEnabled(
             GetDlgItem(StripWnd, PSGCheckBoxes[i]))))
+        {
             PSGMask ^= (1 << i);
+        }
+    }
     unsigned long YM2413Mask = (1 << NumYM2413Types) - 1;
     for (i = 0; i < NumYM2413Types; i++)
+    {
         if ((IsDlgButtonChecked(StripWnd, YM2413CheckBoxes[i])) || (!IsWindowEnabled(
             GetDlgItem(StripWnd, YM2413CheckBoxes[i]))))
+        {
             YM2413Mask ^= (1 << i);
+        }
+    }
     unsigned char YM2612Mask = (1 << NumYM2612Types) - 1;
     for (i = 0; i < NumYM2612Types; i++)
+    {
         if ((IsDlgButtonChecked(StripWnd, YM2612CheckBoxes[i])) || (!IsWindowEnabled(
             GetDlgItem(StripWnd, YM2612CheckBoxes[i]))))
+        {
             YM2612Mask ^= (1 << i);
+        }
+    }
     unsigned char YM2151Mask = (1 << NumYM2151Types) - 1;
     for (i = 0; i < NumYM2151Types; i++)
+    {
         if ((IsDlgButtonChecked(StripWnd, YM2151CheckBoxes[i])) || (!IsWindowEnabled(
             GetDlgItem(StripWnd, YM2151CheckBoxes[i]))))
+        {
             YM2151Mask ^= (1 << i);
+        }
+    }
 
     gzFile in = gzopen(filename, "rb");
 
@@ -1273,8 +1445,10 @@ void Strip(char* filename, char* Outfilename)
     do
     {
         if ((VGMHeader.LoopOffset) && (gztell(in) == VGMHeader.LoopOffset + LOOPDELTA))
+        {
             NewLoopOffset = gztell(out) -
                 LOOPDELTA;
+        }
         b0 = gzgetc(in);
         switch (b0)
         {
@@ -1288,7 +1462,10 @@ void Strip(char* filename, char* Outfilename)
             break;
         case VGM_PSG: // PSG write (1 byte data)
             b1 = gzgetc(in);
-            if (b1 & 0x80) LatchedChannel = ((b1 >> 5) & 0x03);
+            if (b1 & 0x80)
+            {
+                LatchedChannel = ((b1 >> 5) & 0x03);
+            }
             if (PSGMask & (1 << LatchedChannel))
             {
                 gzputc(out,VGM_PSG);
@@ -1492,10 +1669,22 @@ void Strip(char* filename, char* Outfilename)
     while (b0 != EOF);
 
     // If removed PSG or FM then set the clock appropriately
-    if (!PSGMask) VGMHeader.PSGClock = 0;
-    if (!YM2413Mask) VGMHeader.YM2413Clock = 0;
-    if (!YM2612Mask) VGMHeader.YM2612Clock = 0;
-    if (!YM2151Mask) VGMHeader.YM2151Clock = 0;
+    if (!PSGMask)
+    {
+        VGMHeader.PSGClock = 0;
+    }
+    if (!YM2413Mask)
+    {
+        VGMHeader.YM2413Clock = 0;
+    }
+    if (!YM2612Mask)
+    {
+        VGMHeader.YM2612Clock = 0;
+    }
+    if (!YM2151Mask)
+    {
+        VGMHeader.YM2151Clock = 0;
+    }
 
     // Then copy the GD3 over
     if (VGMHeader.GD3Offset)
@@ -1527,7 +1716,10 @@ void StripChecked(char* filename)
     char Tmpfilename[MAX_PATH + 10], Outfilename[MAX_PATH + 10];
     VGMHeader VGMHeader;
 
-    if (!FileExists(filename, callback)) return;
+    if (!FileExists(filename, callback))
+    {
+        return;
+    }
 
     ShowStatus("Stripping chip data...");
 
@@ -1581,7 +1773,9 @@ void StripChecked(char* filename)
 
     if (ShowQuestion("Stripped VGM data written to\n%s\nDo you want to open it in the associated program?",
         Outfilename) == IDYES)
+    {
         ShellExecute(hWndMain, "open", Outfilename, nullptr, nullptr,SW_NORMAL);
+    }
 }
 
 void ccb(const int CheckBoxes[], const unsigned long WriteCount[], int count, int mode)
@@ -1589,12 +1783,19 @@ void ccb(const int CheckBoxes[], const unsigned long WriteCount[], int count, in
     int i, Cutoff = 0;
     char tempstr[64];
 
-    for (i = 0; i < count; ++i) if (Cutoff < WriteCount[i]) Cutoff = WriteCount[i];
+    for (i = 0; i < count; ++i)
+    {
+        if (Cutoff < WriteCount[i])
+        {
+            Cutoff = WriteCount[i];
+        }
+    }
     Cutoff = Cutoff / 50; // 2% of largest for that chip
 
     for (i = 0; i < count; ++i)
     {
         if (IsWindowEnabled(GetDlgItem(StripWnd, CheckBoxes[i])))
+        {
             switch (mode)
             {
             case 1: // check all
@@ -1611,6 +1812,7 @@ void ccb(const int CheckBoxes[], const unsigned long WriteCount[], int count, in
                 CheckDlgButton(StripWnd, CheckBoxes[i], ((WriteCount[i] < Cutoff) || (strstr(tempstr, "Invalid"))));
                 break;
             }
+        }
     }
 }
 
@@ -1858,13 +2060,19 @@ void CopyLengthsToClipboard()
     GetDlgItemText(GD3Wnd,edtGD3TitleEn, MessageBuffer, 35);
     sprintf(String, "%-35s", MessageBuffer);
     GetDlgItemText(HeaderWnd,edtLengthTotal, MessageBuffer, 5);
-    if (!strlen(MessageBuffer)) return; // quit if no length in box
+    if (!strlen(MessageBuffer))
+    {
+        return; // quit if no length in box
+    }
     sprintf(String, "%s %s", String, MessageBuffer);
     GetDlgItemText(HeaderWnd,edtLengthLoop, MessageBuffer, 5);
     sprintf(String, "%s   %s\r\n", String, MessageBuffer);
 
     int strlength = (strlen(String) + 1) * sizeof(char);
-    if (!OpenClipboard(hWndMain)) return;
+    if (!OpenClipboard(hWndMain))
+    {
+        return;
+    }
     EmptyClipboard();
     HANDLE CopyForClipboard = GlobalAlloc(GMEM_DDESHARE, strlength);
     if (!CopyForClipboard)
@@ -1907,9 +2115,18 @@ void ConvertDroppedFiles(HDROP HDrop)
 
         if (p)
         {
-            if ((_strcmpi(p, ".gym") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::gym, callback)) NumConverted++;
-            else if ((_strcmpi(p, ".ssl") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::ssl, callback)) NumConverted++;
-            else if ((_strcmpi(p, ".cym") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::cym, callback)) NumConverted++;
+            if ((_strcmpi(p, ".gym") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::gym, callback))
+            {
+                NumConverted++;
+            }
+            else if ((_strcmpi(p, ".ssl") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::ssl, callback))
+            {
+                NumConverted++;
+            }
+            else if ((_strcmpi(p, ".cym") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::cym, callback))
+            {
+                NumConverted++;
+            }
             else
             {
                 p = strrchr(DroppedFilename, '\\') + 1;
@@ -2013,7 +2230,10 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     // process messages
     case WM_INITDIALOG: // Initialise dialogue
         {
-            if (hWndMain != nullptr) return FALSE; // nothing for child windows
+            if (hWndMain != nullptr)
+            {
+                return FALSE; // nothing for child windows
+            }
             hWndMain = hWnd; // remember our window handle
             HICON hIcon = LoadIcon(HInst,MAKEINTRESOURCE(MAINICON));
             SendMessage(hWnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
@@ -2046,7 +2266,10 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         PostQuitMessage(0);
         return TRUE;
     case WM_DROPFILES: // File dropped
-        if (hWnd == ConvertWnd) ConvertDroppedFiles((HDROP)wParam);
+        if (hWnd == ConvertWnd)
+        {
+            ConvertDroppedFiles((HDROP)wParam);
+        }
         else
         {
             int FilenameLength = DragQueryFile((HDROP)wParam, 0, nullptr, 0) + 1;
@@ -2077,8 +2300,11 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 BOOL b1, b2, b3 = TRUE;
                 int Start = GetDlgItemInt(TrimWnd,edtTrimStart, &b1,FALSE);
                 int End = GetDlgItemInt(TrimWnd,edtTrimEnd, &b2,FALSE);
-                if (IsDlgButtonChecked(TrimWnd,cbLoop)) // want looping
+                if (IsDlgButtonChecked(TrimWnd,cbLoop))
+                {
+                    // want looping
                     Loop = GetDlgItemInt(TrimWnd,edtTrimLoop, &b3,FALSE);
+                }
 
                 if (!b1 || !b2 || !b3)
                 {
@@ -2099,18 +2325,27 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             LoadFile(Currentfilename);
             break;
         case btnDecompress:
-            if (Decompress(Currentfilename, callback) && FixExt(Currentfilename, callback)) LoadFile(Currentfilename);
+            if (Decompress(Currentfilename, callback) && FixExt(Currentfilename, callback))
+            {
+                LoadFile(Currentfilename);
+            }
             break;
         case btnRoundTimes:
             {
                 BOOL b;
                 const int Edits[3] = {edtTrimStart,edtTrimLoop,edtTrimEnd};
-                if (!CurrentFileVGMHeader.RecordingRate) break; // stop if rate = 0
+                if (!CurrentFileVGMHeader.RecordingRate)
+                {
+                    break; // stop if rate = 0
+                }
                 int FrameLength = 44100 / CurrentFileVGMHeader.RecordingRate;
                 for (int i = 0; i < 3; ++i)
                 {
                     int Time = GetDlgItemInt(TrimWnd, Edits[i], &b,FALSE);
-                    if (b) SetDlgItemInt(TrimWnd, Edits[i],ROUND((double)Time/FrameLength) * FrameLength,FALSE);
+                    if (b)
+                    {
+                        SetDlgItemInt(TrimWnd, Edits[i],ROUND((double)Time/FrameLength) * FrameLength,FALSE);
+                    }
                 }
             }
             break;
@@ -2145,31 +2380,46 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             {
                 const int Checked = IsDlgButtonChecked(StripWnd,cbPSGTone);
                 for (int i = 0; i < 3; ++i)
+                {
                     if (IsWindowEnabled(GetDlgItem(StripWnd, PSGCheckBoxes[i])))
+                    {
                         CheckDlgButton(
                             StripWnd, PSGCheckBoxes[i], Checked);
+                    }
+                }
             }
             break;
         case cbYM2413Tone:
             {
                 const int Checked = IsDlgButtonChecked(StripWnd,cbYM2413Tone);
                 for (int i = 0; i < 9; ++i)
+                {
                     if (IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i])))
+                    {
                         CheckDlgButton(StripWnd, YM2413CheckBoxes[i], Checked);
+                    }
+                }
             }
             break;
         case cbYM2413Percussion:
             {
                 const int Checked = IsDlgButtonChecked(StripWnd,cbYM2413Percussion);
                 for (int i = 9; i < 14; ++i)
+                {
                     if (IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i])))
+                    {
                         CheckDlgButton(StripWnd, YM2413CheckBoxes[i], Checked);
+                    }
+                }
             }
             break;
         case btnRateDetect:
             {
                 int i = detect_rate(Currentfilename, callback);
-                if (i) SetDlgItemInt(HeaderWnd,edtPlaybackRate, i,FALSE);
+                if (i)
+                {
+                    SetDlgItemInt(HeaderWnd,edtPlaybackRate, i,FALSE);
+                }
                 // TODO: make sure VGM version is set high enough when updating header
             }
             break;
@@ -2177,7 +2427,10 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             PasteUnicode();
             break;
         case cbGD3SystemEn:
-            if (HIWORD(wParam) != CBN_SELENDOK) break;
+            if (HIWORD(wParam) != CBN_SELENDOK)
+            {
+                break;
+            }
             switch (SendDlgItemMessage(GD3Wnd,cbGD3SystemEn,CB_GETCURSEL, 0, 0))
             {
             case 0: SetDlgItemText(GD3Wnd,edtGD3SystemJp,
@@ -2221,8 +2474,11 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 BOOL b1, b2, b3 = TRUE;
                 int Start = GetDlgItemInt(TrimWnd,edtTrimStart, &b1,FALSE);
                 int End = GetDlgItemInt(TrimWnd,edtTrimEnd, &b2,FALSE);
-                if (IsDlgButtonChecked(TrimWnd,cbLoop)) // want looping
+                if (IsDlgButtonChecked(TrimWnd,cbLoop))
+                {
+                    // want looping
                     Loop = GetDlgItemInt(TrimWnd,edtTrimLoop, &b3,FALSE);
+                }
 
                 if (!b1 || !b2 || !b3)
                 {
@@ -2231,7 +2487,10 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                     break;
                 }
 
-                if (IsDlgButtonChecked(TrimWnd,cbLogTrims)) log_trim(Currentfilename, Start, Loop, End, callback);
+                if (IsDlgButtonChecked(TrimWnd,cbLogTrims))
+                {
+                    log_trim(Currentfilename, Start, Loop, End, callback);
+                }
 
                 new_trim(Currentfilename, Start, Loop, End, callback);
             }
@@ -2247,8 +2506,11 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 BOOL b1, b2, b3 = TRUE;
                 int Start = GetDlgItemInt(TrimWnd,edtTrimStart, &b1,FALSE);
                 int End = GetDlgItemInt(TrimWnd,edtTrimEnd, &b2,FALSE);
-                if (IsDlgButtonChecked(TrimWnd,cbLoop)) // want looping
+                if (IsDlgButtonChecked(TrimWnd,cbLoop))
+                {
+                    // want looping
                     Loop = GetDlgItemInt(TrimWnd,edtTrimLoop, &b3,FALSE);
+                }
 
                 if (!b1 || !b2 || !b3)
                 {
@@ -2337,7 +2599,10 @@ int APIENTRY WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine
 // ie. the filename must be quote-wrapped and I don't handle anything more than that
 void HandleCommandline(char* commandline)
 {
-    if (!commandline || !*commandline) return; // do nothing for null pointer or empty string
+    if (!commandline || !*commandline)
+    {
+        return; // do nothing for null pointer or empty string
+    }
 
     char* start = strchr(commandline, '"') + 1;
     if (start)
@@ -2346,7 +2611,10 @@ void HandleCommandline(char* commandline)
         if (end)
         {
             *end = 0;
-            if (FileExistsQuiet(start)) LoadFile(start);
+            if (FileExistsQuiet(start))
+            {
+                LoadFile(start);
+            }
         }
     }
 }
@@ -2356,11 +2624,23 @@ void DoCtrlTab(void)
     HWND TabCtrlWnd = GetDlgItem(hWndMain,tcMain);
     int currenttab = TabCtrl_GetCurFocus(TabCtrlWnd);
 
-    if (GetKeyState(VK_SHIFT) < 0) currenttab--;
-    else currenttab++;
+    if (GetKeyState(VK_SHIFT) < 0)
+    {
+        currenttab--;
+    }
+    else
+    {
+        currenttab++;
+    }
 
-    if (currenttab == -1) currenttab = NumTabChildWnds - 1;
-    else if (currenttab == NumTabChildWnds) currenttab = 0;
+    if (currenttab == -1)
+    {
+        currenttab = NumTabChildWnds - 1;
+    }
+    else if (currenttab == NumTabChildWnds)
+    {
+        currenttab = 0;
+    }
 
     TabCtrl_SetCurFocus(TabCtrlWnd, currenttab);
 }
@@ -2392,6 +2672,9 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         }
     }
 
-    if (GD3Strings) free(GD3Strings);
+    if (GD3Strings)
+    {
+        free(GD3Strings);
+    }
     return 0;
 }
