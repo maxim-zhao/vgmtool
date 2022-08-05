@@ -4,8 +4,10 @@
 #include <filesystem>
 #include "utils.h"
 
+#include <fstream>
 #include <stdexcept>
 #include <vector>
+#include <zopfli.h>
 
 #include "IVGMToolCallback.h"
 
@@ -33,6 +35,57 @@ bool Utils::file_exists(const std::string& filename)
 int Utils::file_size(const std::string& filename)
 {
     return static_cast<int>(std::filesystem::file_size(filename));
+}
+
+void Utils::compress(const std::string& filename, int iterations)
+{
+    // Read file into memory
+    auto f = gzopen(filename.c_str(), "rb");
+    if (f == nullptr)
+    {
+        throw std::runtime_error(format("Failed to open \"%s\"", filename.c_str()));
+    }
+    // Read into the vector
+    constexpr int chunkSize = 256 * 1024;
+    std::vector<unsigned char> data;
+    while (!gzeof(f))
+    {
+        // Make space
+        const auto sizeBefore = data.size();
+        data.resize(sizeBefore + chunkSize);
+        // Read into it
+        const auto amountRead = gzread(f, data.data() + sizeBefore, chunkSize);
+        if (amountRead < 0)
+        {
+            int errorNumber;
+            const char* error = gzerror(f, &errorNumber);
+            throw std::runtime_error(format("Error reading/decompressing \"%s\": %d: %s", filename.c_str(), errorNumber, error));
+        }
+        // Resize to fit
+        data.resize(sizeBefore + amountRead);
+    }
+    gzclose(f);
+
+    // Now compress
+    ZopfliOptions options{};
+    ZopfliInitOptions(&options);
+    if (iterations > 0)
+    {
+        // Let the library pick the default (15) if not set
+        options.numiterations = iterations;
+    }
+    unsigned char* out;
+    size_t outSize = 0;
+    ZopfliCompress(&options, ZOPFLI_FORMAT_GZIP, data.data(), data.size(), &out, &outSize);
+
+    // Write to disk, over the original file
+    std::ofstream of;
+    of.open(filename, std::ios::binary | std::ios::trunc | std::ios::out);
+    of.write(reinterpret_cast<const char*>(out), static_cast<std::streamsize>(outSize));
+    of.close();
+
+    // And free
+    free(out);
 }
 
 // makes a unique temp filename out of src
@@ -85,7 +138,7 @@ bool compress(const std::string& filename, const IVGMToolCallback& callback)
 
     callback.show_status("Compressing...");
 
-    auto outFilename = make_temp_filename(filename);
+    const auto outFilename = make_temp_filename(filename);
 
     gzFile out = gzopen(outFilename.c_str(), "wb9");
     gzFile in = gzopen(filename.c_str(), "rb");

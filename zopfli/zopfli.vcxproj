@@ -10,33 +10,11 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="convert.cpp" />
-    <ClCompile Include="gd3.cpp" />
-    <ClCompile Include="optimise.cpp" />
-    <ClCompile Include="trim.cpp" />
-    <ClCompile Include="utils.cpp" />
-    <ClCompile Include="vgm.cpp" />
-    <ClCompile Include="writetotext.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="convert.h" />
-    <ClInclude Include="gd3.h" />
-    <ClInclude Include="IVGMToolCallback.h" />
-    <ClInclude Include="optimise.h" />
-    <ClInclude Include="trim.h" />
-    <ClInclude Include="utils.h" />
-    <ClInclude Include="vgm.h" />
-    <ClInclude Include="writetotext.h" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{9ac351cf-f0ae-43c4-8db2-68257b077f19}</ProjectGuid>
-    <RootNamespace>libvgmtool</RootNamespace>
+    <ProjectGuid>{8e51c57f-708a-4479-829f-d1dcbea596f3}</ProjectGuid>
+    <RootNamespace>zopfli</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -65,34 +43,62 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)zopfli\zopfli\src\zopfli</AdditionalIncludeDirectories>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)zopfli\zopfli\src\zopfli</AdditionalIncludeDirectories>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="zopfli\src\zopfli\blocksplitter.c" />
+    <ClCompile Include="zopfli\src\zopfli\cache.c" />
+    <ClCompile Include="zopfli\src\zopfli\deflate.c" />
+    <ClCompile Include="zopfli\src\zopfli\gzip_container.c" />
+    <ClCompile Include="zopfli\src\zopfli\hash.c" />
+    <ClCompile Include="zopfli\src\zopfli\katajainen.c" />
+    <ClCompile Include="zopfli\src\zopfli\lz77.c" />
+    <ClCompile Include="zopfli\src\zopfli\squeeze.c" />
+    <ClCompile Include="zopfli\src\zopfli\tree.c" />
+    <ClCompile Include="zopfli\src\zopfli\util.c" />
+    <ClCompile Include="zopfli\src\zopfli\zlib_container.c" />
+    <ClCompile Include="zopfli\src\zopfli\zopfli_lib.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="zopfli\src\zopfli\blocksplitter.h" />
+    <ClInclude Include="zopfli\src\zopfli\cache.h" />
+    <ClInclude Include="zopfli\src\zopfli\deflate.h" />
+    <ClInclude Include="zopfli\src\zopfli\gzip_container.h" />
+    <ClInclude Include="zopfli\src\zopfli\hash.h" />
+    <ClInclude Include="zopfli\src\zopfli\katajainen.h" />
+    <ClInclude Include="zopfli\src\zopfli\lz77.h" />
+    <ClInclude Include="zopfli\src\zopfli\squeeze.h" />
+    <ClInclude Include="zopfli\src\zopfli\symbols.h" />
+    <ClInclude Include="zopfli\src\zopfli\tree.h" />
+    <ClInclude Include="zopfli\src\zopfli\util.h" />
+    <ClInclude Include="zopfli\src\zopfli\zlib_container.h" />
+    <ClInclude Include="zopfli\src\zopfli\zopfli.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets" Condition="Exists('..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" />
   </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
-  </Target>
 </Project>

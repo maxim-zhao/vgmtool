@@ -1,0 +1,4 @@
+[submodule "zopfli/zopfli"]
+	path = zopfli/zopfli
+	url = https://github.com/google/zopfli.git
+	branch = master

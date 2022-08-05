@@ -9,9 +9,9 @@ class IVGMToolCallback;
 
 bool file_exists(const std::string& filename, const IVGMToolCallback& callback);
 
-bool compress(const std::string& filename, const IVGMToolCallback& callback);
-
 bool decompress(char* filename, const IVGMToolCallback& callback);
+
+bool compress(const std::string& filename, const IVGMToolCallback& callback);
 
 void change_ext(char* filename, const char* ext);
 
@@ -32,6 +32,7 @@ public:
 
     static bool file_exists(const std::string& filename);
     static int file_size(const std::string& filename);
+    static void compress(const std::string& filename, int iterations);
 
     static int make_word(int b1, int b2);
 };

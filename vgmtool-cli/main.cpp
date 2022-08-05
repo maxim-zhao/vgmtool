@@ -3,6 +3,7 @@
 #include <trim.h>
 #include <writetotext.h>
 
+#include "utils.h"
 #include "vgm.h"
 
 class Callback : public IVGMToolCallback
@@ -48,7 +49,7 @@ int main(int argc, const char** argv)
            ->set_help_all_flag("--help-all", "Show all subcommands help");
         app.add_flag("-v, --verbose", callback.is_verbose, "Print messages while working");
 
-        auto* toTextVerb = app.add_subcommand("totext", "Emits a text file conversion of the VGM file");
+        const auto* toTextVerb = app.add_subcommand("totext", "Emits a text file conversion of the VGM file");
 
         auto* trimVerb = app.add_subcommand("trim", "Trim the file");
         int start;
@@ -61,7 +62,12 @@ int main(int argc, const char** argv)
         trimVerb->add_option("--end", end, "Trim end point in samples")->required()->check(CLI::NonNegativeNumber);
         trimVerb->add_flag("--log", logTrim, "Log trim points to editpoints.txt");
 
-        auto* checkVerb = app.add_subcommand("check", "Check the VGM file(s) for errors");
+        const auto* checkVerb = app.add_subcommand("check", "Check the VGM file(s) for errors");
+
+        auto* compressVerb = app.add_subcommand("compress", "Compress VGM file(s)");
+        int compressionIterations;
+        compressVerb->add_option("--iterations", compressionIterations, "Zopfli compression iterations")
+                    ->default_val(15);
 
         std::vector<std::string> filenames;
         app.add_option("filename", filenames, "The file(s) to process")
@@ -85,6 +91,11 @@ int main(int argc, const char** argv)
             if (checkVerb->parsed())
             {
                 check_lengths(filename, true, callback);
+            }
+
+            if (compressVerb->parsed())
+            {
+                Utils::compress(filename, compressionIterations);
             }
         }
 
