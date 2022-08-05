@@ -2,15 +2,6 @@ name: MSBuild
 
 on: [push, pull_request]
 
-env:
-  # Path to the solution file relative to the root of the project.
-  SOLUTION_FILE_PATH: .
-
-  # Configuration type to build.
-  # You can convert this to a build matrix if you need coverage of multiple configuration types.
-  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-  BUILD_CONFIGURATION: Release
-
 jobs:
   build:
     runs-on: windows-latest
@@ -25,21 +16,23 @@ jobs:
 
     - name: Restore NuGet packages
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: nuget restore ${{env.SOLUTION_FILE_PATH}}
+      run: nuget restore VGMTool.sln
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Version=0.${{env.GITHUB_RUN_NUMBER}}+${{github.sha}} ${{env.SOLUTION_FILE_PATH}}
+      run: msbuild /m /p:Configuration=Release /p:Version=0.${{env.GITHUB_RUN_NUMBER}}+${{github.sha}} VGMTool.sln
 
     - name: Zip
       shell: cmd
+      working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
+        set
         7z a "vgmtool-b${{env.GITHUB_RUN_NUMBER}}.zip" .\x64\Release\*.exe vgmtool.txt
 
     - name: Create release
-      if: github.ref == 'refs/heads/master'
+      if: github.ref == 'refs/heads/masterXXXX'
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{secrets.GITHUB_TOKEN}}"
