@@ -23,11 +23,6 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Build Number Generator
-      uses: einaregilsson/build-number@v3
-      with:
-        token: ${{secrets.GITHUB_TOKEN}}  
-
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
 
@@ -44,15 +39,15 @@ jobs:
     - name: Zip
       shell: cmd
       run: |
-        7z a "vgmtool-b${{env.BUILD_NUMBER}}.zip" .\x64\Release\*.exe vgmtool.txt
+        7z a "vgmtool-b${{env.GITHUB_RUN_NUMBER}}.zip" .\x64\Release\*.exe vgmtool.txt
 
     - name: Create release
       if: github.ref == 'refs/heads/master'
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{secrets.GITHUB_TOKEN}}"
-        automatic_release_tag: "b${{env.BUILD_NUMBER}}"
+        automatic_release_tag: "b${{env.GITHUB_RUN_NUMBER}}"
         prerelease: false
-        title: "Automatic build #${{env.BUILD_NUMBER}}"
+        title: "Automatic build #${{env.GITHUB_RUN_NUMBER}}"
         files: |
           *.zip
