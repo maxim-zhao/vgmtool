@@ -163,7 +163,7 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
 
     callback.show_status("Updating VGM header...");
 
-    char* outfilename = make_temp_filename(filename);
+    const char* outfilename = make_temp_filename(filename).c_str();
 
     gzFile in = gzopen(filename, "rb");
     gzFile out = gzopen(outfilename, "wb0");
@@ -190,8 +190,6 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
     gzclose(out);
 
     replace_file(filename, outfilename);
-
-    free(outfilename);
 
     callback.show_status("VGM header update complete");
 }

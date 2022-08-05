@@ -9,13 +9,13 @@ class IVGMToolCallback;
 
 bool file_exists(const std::string& filename, const IVGMToolCallback& callback);
 
-bool compress(const char* filename, const IVGMToolCallback& callback);
+bool compress(const std::string& filename, const IVGMToolCallback& callback);
 
 bool decompress(char* filename, const IVGMToolCallback& callback);
 
 void change_ext(char* filename, const char* ext);
 
-char* make_temp_filename(const char* src);
+std::string make_temp_filename(const std::string& src);
 char* make_suffixed_filename(const char* src, const char* suffix, const IVGMToolCallback& callback);
 
 void replace_file(const char* filetoreplace, const char* with);

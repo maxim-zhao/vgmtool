@@ -33,7 +33,7 @@ bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
     const auto oldLoopOffset = static_cast<int>(VGMHeader.LoopOffset + LOOPDELTA);
 
     // Make the output filename...
-    char* outfilename = make_temp_filename(filename);
+    const char* outfilename = make_temp_filename(filename).c_str();
 
     // ...open it...
     gzFile out = gzopen(outfilename, "wb0");
@@ -165,8 +165,6 @@ bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
 
     replace_file(filename, outfilename);
 
-    free(outfilename);
-
     return true;
 }
 
@@ -203,7 +201,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
 
     gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
-    char* outfilename = make_temp_filename(filename);
+    const char* outfilename = make_temp_filename(filename).c_str();
 
     gzFile out = gzopen(outfilename, "wb0"); // No compression, since I'll recompress it later
 
@@ -416,8 +414,6 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
 
     // Overwrite original with the new one
     replace_file(filename, outfilename);
-
-    free(outfilename);
 
     return NumOffsetsRemoved;
 }
@@ -710,7 +706,7 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     memset(PausePositions, 0, sizeof(int)*numbuckets);
 
     // Make the output filename...
-    char* outfilename = make_temp_filename(filename);
+    //const char* outfilename = make_temp_filename(filename).c_str();
 
     // ...open it...
     //  out=gzopen(outfilename, "wb0");
@@ -865,8 +861,6 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     gzclose(in);
 
     //  ReplaceFile(filename, outfilename);
-
-    free(outfilename);
 
     return true;
 }

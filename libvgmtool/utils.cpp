@@ -35,26 +35,20 @@ int Utils::file_size(const std::string& filename)
     return static_cast<int>(std::filesystem::file_size(filename));
 }
 
-// makes a unique temp filename out of src, mallocing the space for the result
-// so don't forget to free it when you're done
+// makes a unique temp filename out of src
 // it will probably choke with weird parameters, real writable filenames should be OK
-char* make_temp_filename(const char* src)
+std::string make_temp_filename(const std::string& src)
 {
-    int i = 0;
+    auto directory = std::filesystem::canonical(src).parent_path();
 
-    auto dest = static_cast<char*>(malloc(strlen(src) + 4)); // just in case it has no extension, some extra space
-    strcpy(dest, src);
-    char* p = strrchr(dest, '\\');
-    p++;
-    do
+    for (int i = 0; ; ++i)
     {
-        sprintf(p, "%d.tmp", i++);
+        auto testPath = directory / Utils::format("%d.tmp", i);
+        if (!Utils::file_exists(testPath.string()))
+        {
+            return testPath.string();
+        }
     }
-    while (Utils::file_exists(dest)); // keep trying integers until one doesn't exist
-
-    //  ShowMessage("Made a temp filename:\n%s\nfrom:\n%s", dest, src); // debugging
-
-    return dest;
 }
 
 //----------------------------------------------------------------------------------------------
@@ -80,9 +74,9 @@ char* make_suffixed_filename(const char* src, const char* suffix, const IVGMTool
 
 // compresses the file with GZip compression
 // to a temp file, then overwrites the original file with the temp
-bool compress(const char* filename, const IVGMToolCallback& callback)
+bool compress(const std::string& filename, const IVGMToolCallback& callback)
 {
-    int AmtRead;
+    int amtRead;
 
     if (!file_exists(filename, callback))
     {
@@ -91,51 +85,35 @@ bool compress(const char* filename, const IVGMToolCallback& callback)
 
     callback.show_status("Compressing...");
 
-    // Check filesize since big files take ages to compress
-    /*
-    if (
-        (FileSize(filename) > 1024 * 1024 * 1) &&
-        (ShowQuestion(
-            "This uncompressed VGM is over 1MB so it'll take a while to compress.\n"
-            "Do you want to skip compressing it?\n"
-            "(You can compress it later using the \"compress file\" button on the Misc tab.)"
-        ) == IDYES)
-    )
-    {
-        ShowStatus("Compression skipped");
-        return FALSE;
-    }*/
+    auto outFilename = make_temp_filename(filename);
 
-    char* outfilename = make_temp_filename(filename);
-
-    gzFile out = gzopen(outfilename, "wb9");
-    gzFile in = gzopen(filename, "rb");
+    gzFile out = gzopen(outFilename.c_str(), "wb9");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     auto copybuffer = static_cast<char*>(malloc(BUFFER_SIZE));
 
     do
     {
-        AmtRead = gzread(in, copybuffer, BUFFER_SIZE);
-        if (gzwrite(out, copybuffer, AmtRead) != AmtRead)
+        amtRead = gzread(in, copybuffer, BUFFER_SIZE);
+        if (gzwrite(out, copybuffer, amtRead) != amtRead)
         {
             // Error copying file
-            callback.show_error(Utils::format("Error copying data to temporary file %s!", outfilename));
+            callback.show_error(Utils::format("Error copying data to temporary file %s!", outFilename.c_str()));
             free(copybuffer);
             gzclose(in);
             gzclose(out);
-            std::filesystem::remove(outfilename);
+            std::filesystem::remove(outFilename);
             return false;
         }
     }
-    while (AmtRead > 0);
+    while (amtRead > 0);
 
     free(copybuffer);
     gzclose(in);
     gzclose(out);
 
-    replace_file(filename, outfilename);
+    replace_file(filename.c_str(), outFilename.c_str());
 
-    free(outfilename);
     callback.show_status("Compression complete");
     return true;
 }
@@ -151,7 +129,7 @@ bool decompress(char* filename, const IVGMToolCallback& callback)
 
     callback.show_status("Decompressing...");
 
-    char* outFilename = make_temp_filename(filename);
+    const char* outFilename = make_temp_filename(filename).c_str();
 
     FILE* out = fopen(outFilename, "wb");
     gzFile in = gzopen(filename, "rb");
@@ -181,7 +159,6 @@ bool decompress(char* filename, const IVGMToolCallback& callback)
 
     replace_file(filename, outFilename);
 
-    free(outFilename);
     callback.show_status("Decompression complete");
     return true;
 }
