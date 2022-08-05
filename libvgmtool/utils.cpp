@@ -182,9 +182,9 @@ bool decompress(char* filename, const IVGMToolCallback& callback)
 
     callback.show_status("Decompressing...");
 
-    const char* outFilename = make_temp_filename(filename).c_str();
+    const std::string outFilename = make_temp_filename(filename);
 
-    FILE* out = fopen(outFilename, "wb");
+    FILE* out = fopen(outFilename.c_str(), "wb");
     gzFile in = gzopen(filename, "rb");
 
     const auto copyBuffer = malloc(BUFFER_SIZE);
@@ -196,7 +196,7 @@ bool decompress(char* filename, const IVGMToolCallback& callback)
         if (static_cast<int>(amountWritten) != amountRead)
         {
             // Error copying file
-            callback.show_error(Utils::format("Error copying data to temporary file %s!", outFilename));
+            callback.show_error(Utils::format("Error copying data to temporary file %s!", outFilename.c_str()));
             free(copyBuffer);
             gzclose(in);
             fclose(out);
@@ -210,7 +210,7 @@ bool decompress(char* filename, const IVGMToolCallback& callback)
     gzclose(in);
     fclose(out);
 
-    replace_file(filename, outFilename);
+    replace_file(filename, outFilename.c_str());
 
     callback.show_status("Decompression complete");
     return true;
@@ -279,7 +279,7 @@ void replace_file(const char* filetoreplace, const char* with)
     {
         std::filesystem::remove(filetoreplace);
     }
-    std::filesystem::rename(filetoreplace, with);
+    std::filesystem::rename(with, filetoreplace);
 }
 
 std::string Utils::format(const char* format, ...)

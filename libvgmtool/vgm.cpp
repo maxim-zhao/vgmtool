@@ -163,10 +163,10 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
 
     callback.show_status("Updating VGM header...");
 
-    const char* outfilename = make_temp_filename(filename).c_str();
+    const auto outfilename = make_temp_filename(filename);
 
     gzFile in = gzopen(filename, "rb");
-    gzFile out = gzopen(outfilename, "wb0");
+    gzFile out = gzopen(outfilename.c_str(), "wb0");
 
     gzwrite(out, &VGMHeader, sizeof(VGMHeader));
     gzseek(in, sizeof(VGMHeader), SEEK_SET);
@@ -177,7 +177,7 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
         if (gzwrite(out, copybuffer, AmtRead) != AmtRead)
         {
             // Error copying file
-            callback.show_error(Utils::format("Error copying data to temporary file %s!", outfilename));
+            callback.show_error(Utils::format("Error copying data to temporary file %s!", outfilename.c_str()));
             gzclose(in);
             gzclose(out);
             std::filesystem::remove(outfilename);
@@ -189,7 +189,7 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
     gzclose(in);
     gzclose(out);
 
-    replace_file(filename, outfilename);
+    replace_file(filename, outfilename.c_str());
 
     callback.show_status("VGM header update complete");
 }

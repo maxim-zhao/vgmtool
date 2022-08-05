@@ -1739,7 +1739,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             }
             break;
         case btnCompress:
-            compress(Currentfilename, callback);
+            Utils::compress(Currentfilename);
             LoadFile(Currentfilename);
             break;
         case btnNewTrim:

@@ -32,7 +32,7 @@ public:
 
     static bool file_exists(const std::string& filename);
     static int file_size(const std::string& filename);
-    static void compress(const std::string& filename, int iterations);
+    static void compress(const std::string& filename, int iterations = -1);
 
     static int make_word(int b1, int b2);
 };
