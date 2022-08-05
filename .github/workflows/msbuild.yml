@@ -22,22 +22,22 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild /m /p:Configuration=Release /p:Version=0.${{env.GITHUB_RUN_NUMBER}}+${{github.sha}} VGMTool.sln
+      run: msbuild /m /p:Configuration=Release /p:Version=0.${{github.run_number}}+${{github.sha}} VGMTool.sln
 
     - name: Zip
       shell: cmd
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
         set
-        7z a "vgmtool-b${{env.GITHUB_RUN_NUMBER}}.zip" .\x64\Release\*.exe vgmtool.txt
+        7z a "vgmtool-b${{github.run_number}}.zip" .\x64\Release\*.exe vgmtool.txt
 
     - name: Create release
-      if: github.ref == 'refs/heads/masterXXXX'
+      if: github.ref == 'refs/heads/master'
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{secrets.GITHUB_TOKEN}}"
-        automatic_release_tag: "b${{env.GITHUB_RUN_NUMBER}}"
+        automatic_release_tag: "b${{github.run_number}}"
         prerelease: false
-        title: "Automatic build #${{env.GITHUB_RUN_NUMBER}}"
+        title: "Automatic build #${{github.run_number}}"
         files: |
           *.zip
