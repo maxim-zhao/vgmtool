@@ -55,4 +55,5 @@ jobs:
         automatic_release_tag: "b${{env.BUILD_NUMBER}}"
         prerelease: false
         title: "Automatic build #${{env.BUILD_NUMBER}}"
-        files: *.zip
+        files: |
+          *.zip
