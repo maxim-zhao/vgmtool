@@ -76,7 +76,7 @@ void spread_dac(gzFile in, gzFile out)
         {
         case 0x01:
             {
-                gzputc(out,VGM_YM2612_0);
+                gzputc(out, VGM_YM2612_0);
                 const auto address = gzgetc(in); // 2a for DAC, etc
                 gzputc(out, address);
                 gzputc(out, gzgetc(in));
@@ -93,12 +93,12 @@ void spread_dac(gzFile in, gzFile out)
                 break;
             }
         case 0x02:
-            gzputc(out,VGM_YM2612_1);
+            gzputc(out, VGM_YM2612_1);
             gzputc(out, gzgetc(in));
             gzputc(out, gzgetc(in));
             break;
         case 0x03:
-            gzputc(out,VGM_PSG);
+            gzputc(out, VGM_PSG);
             gzputc(out, gzgetc(in));
             break;
         default:
@@ -112,7 +112,7 @@ void spread_dac(gzFile in, gzFile out)
 
 bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGMToolCallback& callback)
 {
-    if (!FileExists(filename.c_str(), callback))
+    if (!file_exists(filename, callback))
     {
         return false;
     }
@@ -190,7 +190,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
                 switch (b1)
                 {
                 case 0: // Wait 1/60s
-                    gzputc(out,VGM_PAUSE_60TH);
+                    gzputc(out, VGM_PAUSE_60TH);
                     vgmHeader.TotalLength += LEN60TH;
                     break;
                 case 1: // YM2612 port 0
@@ -204,7 +204,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
                     }
                     else
                     {
-                        gzputc(out,VGM_YM2612_0);
+                        gzputc(out, VGM_YM2612_0);
                         gzputc(out, b1);
                         b1 = gzgetc(in);
                         gzputc(out, b1);
@@ -212,7 +212,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
                     vgmHeader.YM2612Clock = 7670454; // 3579545*15/7
                     break;
                 case 2: // YM2612 port 1
-                    gzputc(out,VGM_YM2612_1);
+                    gzputc(out, VGM_YM2612_1);
                     b1 = gzgetc(in);
                     gzputc(out, b1);
                     b1 = gzgetc(in);
@@ -220,7 +220,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
                     vgmHeader.YM2612Clock = 7670454;
                     break;
                 case 3: // PSG
-                    gzputc(out,VGM_PSG);
+                    gzputc(out, VGM_PSG);
                     b1 = gzgetc(in);
                     gzputc(out, b1);
                     vgmHeader.PSGClock = 3579545;
@@ -256,11 +256,11 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
                 switch (b1)
                 {
                 case 0: // Wait 1/60s
-                    gzputc(out,VGM_PAUSE_60TH);
+                    gzputc(out, VGM_PAUSE_60TH);
                     vgmHeader.TotalLength += LEN60TH;
                     break;
                 case 3: // PSG
-                    gzputc(out,VGM_PSG);
+                    gzputc(out, VGM_PSG);
                     b1 = gzgetc(in);
                     gzputc(out, b1);
                     vgmHeader.PSGClock = 3579545;
@@ -268,7 +268,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
                     vgmHeader.PSGWhiteNoiseFeedback = 0x0009;
                     break;
                 case 4: // GG stereo
-                    gzputc(out,VGM_GGST);
+                    gzputc(out, VGM_GGST);
                     b1 = gzgetc(in);
                     gzputc(out, b1);
                     break;
@@ -276,7 +276,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
                     ym2413Address = gzgetc(in);
                     break;
                 case 6: // YM2413 data
-                    gzputc(out,VGM_YM2413);
+                    gzputc(out, VGM_YM2413);
                     gzputc(out, ym2413Address);
                     b1 = gzgetc(in);
                     gzputc(out, b1);
@@ -299,13 +299,13 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
             switch (b1)
             {
             case 0: // Wait 1/60s
-                gzputc(out,VGM_PAUSE_60TH);
+                gzputc(out, VGM_PAUSE_60TH);
                 vgmHeader.TotalLength += LEN60TH;
                 break;
             case EOF: // Needs specific handling this time
                 break;
             default: // Other data
-                gzputc(out,VGM_YM2151);
+                gzputc(out, VGM_YM2151);
                 gzputc(out, b1);
                 b1 = gzgetc(in);
                 gzputc(out, b1);
@@ -317,7 +317,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
         break;
     }
 
-    gzputc(out,VGM_END);
+    gzputc(out, VGM_END);
 
     // Fill in more of the VGM header
     vgmHeader.EoFOffset = gztell(out) - EOFDELTA;
@@ -331,7 +331,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
     compress(outFilename.c_str(), callback);
 
     // Report
-    callback.show_conversion_progress(Utils::format("Converted \"%s\" to \"%s\"", filename.c_str(), outFilename.c_str()));
+    callback.show_conversion_progress(Utils::format(R"(Converted "%s" to "%s")", filename.c_str(), outFilename.c_str()));
     return true;
 }
 

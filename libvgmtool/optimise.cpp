@@ -10,12 +10,12 @@
 //----------------------------------------------------------------------------------------------
 // Pause optimiser
 //----------------------------------------------------------------------------------------------
-bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
+bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     int pauseLength = 0;
 
-    if (!FileExists(filename, callback))
+    if (!file_exists(filename, callback))
     {
         return false;
     }
@@ -39,8 +39,8 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
     gzFile out = gzopen(outfilename, "wb0");
 
     // ...skip to the data section...
-    gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
-    gzseek(out,VGM_DATA_OFFSET,SEEK_SET);
+    gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
+    gzseek(out, VGM_DATA_OFFSET, SEEK_SET);
 
     // ...and parse the input file
     // Go through the file; if it's a pause, add it to the total; if it's data, write the current total and zero it
@@ -137,18 +137,18 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
 
     // At end:
     // 1. Write EOF mrker
-    gzputc(out,VGM_END);
+    gzputc(out, VGM_END);
     // 2. Copy GD3 tag
     if (VGMHeader.GD3Offset)
     {
         TGD3Header GD3Header{};
         const int newGd3Offset = gztell(out) - GD3DELTA;
-        gzseek(in, static_cast<long>(VGMHeader.GD3Offset) + GD3DELTA,SEEK_SET);
+        gzseek(in, static_cast<long>(VGMHeader.GD3Offset) + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
         for (auto i = 0u; i < GD3Header.length; ++i)
         {
-            gzputc(out,gzgetc(in));
+            gzputc(out, gzgetc(in));
         }
         VGMHeader.GD3Offset = newGd3Offset;
     }
@@ -163,7 +163,7 @@ bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback)
     // Clean up
     gzclose(in);
 
-    MyReplaceFile(filename, outfilename);
+    replace_file(filename, outfilename);
 
     free(outfilename);
 
@@ -179,7 +179,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     signed int b0, b1, b2;
-    bool SilencedChannels[3] = {false,false,false};
+    bool SilencedChannels[3] = {false, false, false};
     unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
     int PSGLatchedRegister = 0;
 
@@ -187,7 +187,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
     int NumOffsetsRemoved = 0;
     int NoiseCh2 = 0;
 
-    if (!FileExists(filename, callback))
+    if (!file_exists(filename, callback))
     {
         return 0;
     }
@@ -201,7 +201,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
         return false;
     }
 
-    gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
+    gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
     char* outfilename = make_temp_filename(filename);
 
@@ -209,7 +209,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
 
     // copy header... update it later
     gzwrite(out, &VGMHeader, sizeof(VGMHeader));
-    gzseek(out,VGM_DATA_OFFSET,SEEK_SET);
+    gzseek(out, VGM_DATA_OFFSET, SEEK_SET);
 
     // Process file
     do
@@ -224,7 +224,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
         case VGM_GGST: // GG stereo (1 byte data)
             // Just pass it through
             b1 = gzgetc(in);
-            gzputc(out,VGM_GGST);
+            gzputc(out, VGM_GGST);
             gzputc(out, b1);
             break;
         case VGM_PSG: // PSG write (1 byte data)
@@ -269,16 +269,16 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
                     {
                         // If channel hasn't already been silenced
                         ++NumOffsetsRemoved;
-                        gzputc(out,VGM_PSG);
+                        gzputc(out, VGM_PSG);
                         gzputc(out, static_cast<char>(0x9f | // %10011111
                                 (PSGLatchedRegister & 0x6) << 4) // %0cc00000
                         );
                         // Remember I've done it
                         SilencedChannels[PSGLatchedRegister / 2] = true;
                         // Output zero frequency
-                        gzputc(out,VGM_PSG);
+                        gzputc(out, VGM_PSG);
                         gzputc(out, static_cast<char>(0x80 | (PSGLatchedRegister << 4)));
-                        gzputc(out,VGM_PSG);
+                        gzputc(out, VGM_PSG);
                         gzputc(out, 0);
                     }
                 }
@@ -289,7 +289,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
                     {
                         // If I've previously silenced this channel
                         // then restore the volume
-                        gzputc(out,VGM_PSG);
+                        gzputc(out, VGM_PSG);
                         gzputc(out, static_cast<char>(0x90 | // %10010000
                                 (PSGLatchedRegister & 0x6) << 4) | // %0cc00000
                             PSGRegisters[PSGLatchedRegister + 1] // %0000vvvv
@@ -297,10 +297,10 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
                         SilencedChannels[PSGLatchedRegister / 2] = false;
                     }
                     // Write the frequency bytes
-                    gzputc(out,VGM_PSG);
-                    gzputc(out,
+                    gzputc(out, VGM_PSG);
+                    gzputc(out, 
                         static_cast<char>(0x80 | (PSGLatchedRegister << 4) | PSGRegisters[PSGLatchedRegister] & 0xf));
-                    gzputc(out,VGM_PSG);
+                    gzputc(out, VGM_PSG);
                     gzputc(out, static_cast<char>(PSGRegisters[PSGLatchedRegister] >> 4));
                 }
                 break;
@@ -308,7 +308,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
                 // Detect if it's ch2 noise
                 NoiseCh2 = ((PSGRegisters[6] & 0x3) == 0x3);
             // Pass through
-                gzputc(out,VGM_PSG);
+                gzputc(out, VGM_PSG);
                 gzputc(out, b1);
                 break;
             default: // Volume
@@ -319,7 +319,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
                     break; // Don't write
                 }
             // Pass through
-                gzputc(out,VGM_PSG);
+                gzputc(out, VGM_PSG);
                 gzputc(out, b1);
                 break;
             } // end switch
@@ -348,20 +348,20 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
         case VGM_PAUSE_WORD: // Wait n samples
             b1 = gzgetc(in);
             b2 = gzgetc(in);
-            gzputc(out,VGM_PAUSE_WORD);
+            gzputc(out, VGM_PAUSE_WORD);
             gzputc(out, b1);
             gzputc(out, b2);
             break;
         case VGM_PAUSE_60TH: // Wait 1/60 s
-            gzputc(out,VGM_PAUSE_60TH);
+            gzputc(out, VGM_PAUSE_60TH);
             break;
         case VGM_PAUSE_50TH: // Wait 1/50 s
-            gzputc(out,VGM_PAUSE_50TH);
+            gzputc(out, VGM_PAUSE_50TH);
             break;
         //    case VGM_PAUSE_BYTE:  // Wait n samples
         //      b1=gzgetc(in);
-        //      gzputc(out,VGM_PAUSE_BYTE);
-        //      gzputc(out,b1);
+        //      gzputc(out, VGM_PAUSE_BYTE);
+        //      gzputc(out, b1);
         //      break;
         case 0x70:
         case 0x71:
@@ -382,7 +382,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
             gzputc(out, b0);
             break;
         case VGM_END: // End of sound data
-            gzputc(out,VGM_END);
+            gzputc(out, VGM_END);
             break;
         default:
             break;
@@ -395,13 +395,13 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
     {
         TGD3Header GD3Header;
         int NewGD3Offset = gztell(out) - GD3DELTA;
-        gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
+        gzseek(in, VGMHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
         for (auto i = 0u; i < GD3Header.length; ++i)
         {
             // Copy strings
-            gzputc(out,gzgetc(in));
+            gzputc(out, gzgetc(in));
         }
         VGMHeader.GD3Offset = NewGD3Offset;
     }
@@ -415,7 +415,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
     write_vgm_header(outfilename, VGMHeader, callback);
 
     // Overwrite original with the new one
-    MyReplaceFile(filename, outfilename);
+    replace_file(filename, outfilename);
 
     free(outfilename);
 
@@ -437,7 +437,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
 
   Maybe further segment it with a function like
 
-  AddPSGWrite(struct &current,char data)
+  AddPSGWrite(struct &current, char data)
   AddYM2413Write(etc)
 
   The struct will contain all the state information the chip needs, eg. latched register
@@ -459,37 +459,37 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
 // TODO: optimise 1-byte PSG frequency changes (where the change is only in the high 4 bits)
 // Test: Golvellius - Dina near the start
 BOOL OptimiseVGMData(char *filename) {
-  gzFile in,out;
+  gzFile in, out;
   struct VGMHeader VGMHeader;
   struct TSystemState CurrentState;
   struct TSystemState LastWrittenState;
   char *Outfilename;
-  int b0,b1,b2;
+  int b0, b1, b2;
   long int OldLoopOffset;
-  int i,PauseLength=0;
+  int i, PauseLength=0;
   BOOL NoiseUpdated=FALSE;
 
   if (!FileExists(filename)) return FALSE;
 
   // Open input file
-  in=gzopen(filename,"rb");
+  in=gzopen(filename, "rb");
 
   // Read its VGM header
-  gzread(in,&VGMHeader,sizeof(VGMHeader));
+  gzread(in, &VGMHeader, sizeof(VGMHeader));
   OldLoopOffset=VGMHeader.LoopOffset+LOOPDELTA;
 
   // Parse input file to see what chips are used
-  GetUsedChips(in,&CurrentState.UsesPSG,&CurrentState.UsesYM2413,&CurrentState.UsesYM2612,&CurrentState.UsesYM2151,&CurrentState.UsesReserved);
+  GetUsedChips(in, &CurrentState.UsesPSG, &CurrentState.UsesYM2413, &CurrentState.UsesYM2612, &CurrentState.UsesYM2151, &CurrentState.UsesReserved);
 
   // It's OK then. Let's make the output filename...
-  Outfilename=MakeSuffixedFilename(filename,"optimised");
+  Outfilename=MakeSuffixedFilename(filename, "optimised");
   
   // ...open it...
-  out=gzopen(Outfilename,"wb0");
+  out=gzopen(Outfilename, "wb0");
 
   // ...skip to the data section...
-  gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
-  gzseek(out,VGM_DATA_OFFSET,SEEK_SET);
+  gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
+  gzseek(out, VGM_DATA_OFFSET, SEEK_SET);
 
   // ...initialise state to default values...
   ResetState(&CurrentState);
@@ -527,9 +527,9 @@ BOOL OptimiseVGMData(char *filename) {
       b1=gzgetc(in);
       b2=gzgetc(in);
       // TODO: keep track of states for these chips
-      gzputc(out,b0);
-      gzputc(out,b1);
-      gzputc(out,b2);
+      gzputc(out, b0);
+      gzputc(out, b1);
+      gzputc(out, b2);
       break;
     case 0x55:  // Reserved up to 0x5f
     case 0x56:  // All have 2 bytes of data
@@ -548,7 +548,7 @@ BOOL OptimiseVGMData(char *filename) {
     case VGM_PAUSE_WORD:  // Wait n samples
       b1=gzgetc(in);
       b2=gzgetc(in);
-      PauseLength=MAKEWORD(b1,b2);
+      PauseLength=MAKEWORD(b1, b2);
       break;
     case VGM_PAUSE_60TH:  // Wait 1/60 s
       PauseLength=LEN60TH;
@@ -580,31 +580,31 @@ BOOL OptimiseVGMData(char *filename) {
         // Write in groups, not register order
         // 1. Tone channel frequencies
         for (i=0;i<5;i+=2) if ((CurrentState.PSGState.Registers[i]!=LastWrittenState.PSGState.Registers[i])||FirstState) {
-          gzputc(out,VGM_PSG);
-          gzputc(out,
+          gzputc(out, VGM_PSG);
+          gzputc(out, 
             0x80|                    // Marker    %1-------
             (i<<4)|                    // Channel/type  %-cct---- (t=0)
             (CurrentState.PSGState.Registers[i]&0x0f)  // Data      %----dddd
           );
-          gzputc(out,VGM_PSG);
-          gzputc(out,
+          gzputc(out, VGM_PSG);
+          gzputc(out, 
             (CurrentState.PSGState.Registers[i]>>4)&0x3f  // Data    %0-dddddd
           );
         }
         // 2. Noise
         if (NoiseUpdated||FirstState) {
-          gzputc(out,VGM_PSG);
-          gzputc(out,0xe0|(CurrentState.PSGState.Registers[6]&0x07));
+          gzputc(out, VGM_PSG);
+          gzputc(out, 0xe0|(CurrentState.PSGState.Registers[6]&0x07));
         }
-        // 3. Volumes (regs 1,3,5,7)
+        // 3. Volumes (regs 1, 3, 5, 7)
         for (i=1;i<8;i+=2) if ((CurrentState.PSGState.Registers[i]!=LastWrittenState.PSGState.Registers[i])||FirstState) {
-          gzputc(out,VGM_PSG);
-          gzputc(out,0x80|(i<<4)|(CurrentState.PSGState.Registers[i]&0x0f));
+          gzputc(out, VGM_PSG);
+          gzputc(out, 0x80|(i<<4)|(CurrentState.PSGState.Registers[i]&0x0f));
         }
         // 4. GG stereo
         if ((CurrentState.PSGState.GGStereo!=LastWrittenState.PSGState.GGStereo)||FirstState) {
-          gzputc(out,VGM_GGST);
-          gzputc(out,CurrentState.PSGState.GGStereo);
+          gzputc(out, VGM_GGST);
+          gzputc(out, CurrentState.PSGState.GGStereo);
         }
       }
 
@@ -619,15 +619,15 @@ BOOL OptimiseVGMData(char *filename) {
           )&&
           (YM2413ValidBits[i])
         ) {
-          gzputc(out,VGM_YM2413);
-          gzputc(out,i);
-          gzputc(out,CurrentState.YM2413Regs[i]);
+          gzputc(out, VGM_YM2413);
+          gzputc(out, i);
+          gzputc(out, CurrentState.YM2413Regs[i]);
         }
       }
       // Write pause in a very unoptimised way
-      gzputc(out,VGM_PAUSE_WORD);
-      gzputc(out,LOBYTE(PauseLength));
-      gzputc(out,HIBYTE(PauseLength));
+      gzputc(out, VGM_PAUSE_WORD);
+      gzputc(out, LOBYTE(PauseLength));
+      gzputc(out, HIBYTE(PauseLength));
       // Reset PauseLength
       PauseLength=0;
       // Switch off noise-update bool
@@ -641,15 +641,15 @@ BOOL OptimiseVGMData(char *filename) {
 
   // At end:
   // 1. Write EOF mrker
-  gzputc(out,VGM_END);
+  gzputc(out, VGM_END);
   // 2. Copy GD3 tag
   if (VGMHeader.GD3Offset) {
     struct TGD3Header GD3Header;
     int NewGD3Offset=gztell(out)-GD3DELTA;
-    gzseek(in,VGMHeader.GD3Offset+GD3DELTA,SEEK_SET);
-    gzread(in,&GD3Header,sizeof(GD3Header));
-    gzwrite(out,&GD3Header,sizeof(GD3Header));
-    for (i=0; i<GD3Header.Length; ++i) gzputc(out,gzgetc(in));
+    gzseek(in, VGMHeader.GD3Offset+GD3DELTA, SEEK_SET);
+    gzread(in, &GD3Header, sizeof(GD3Header));
+    gzwrite(out, &GD3Header, sizeof(GD3Header));
+    for (i=0; i<GD3Header.Length; ++i) gzputc(out, gzgetc(in));
     VGMHeader.GD3Offset=NewGD3Offset;
   }
   // 3. Fill in VGM header
@@ -658,7 +658,7 @@ BOOL OptimiseVGMData(char *filename) {
 
   gzclose(out);
 
-  WriteVGMHeader(Outfilename,VGMHeader);
+  WriteVGMHeader(Outfilename, VGMHeader);
 
   // Clean up
   gzclose(in);
@@ -676,7 +676,7 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     int bucketsize = 1; // how many samples per bucket for counting
     int framelength;
 
-    if (!FileExists(filename, callback))
+    if (!file_exists(filename, callback))
     {
         return false;
     }
@@ -713,11 +713,11 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     char* outfilename = make_temp_filename(filename);
 
     // ...open it...
-    //  out=gzopen(outfilename,"wb0");
+    //  out=gzopen(outfilename, "wb0");
 
     // ...skip to the data section...
-    gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
-    //  gzseek(out,VGM_DATA_OFFSET,SEEK_SET);
+    gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
+    //  gzseek(out, VGM_DATA_OFFSET, SEEK_SET);
 
     // ...parse the input file to find pause alignment
     // Go through the file; if it's a pause, add it to the total; if it's data, write the current total and zero it
@@ -736,8 +736,8 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
                 // increment the corresponding counter
                 PauseLength %= framelength;
                 /*auto b1 = */gzgetc(in);
-                //      gzputc(out,b0);
-                //      gzputc(out,b1);
+                //      gzputc(out, b0);
+                //      gzputc(out, b1);
                 break;
             }
         case VGM_YM2413: // YM2413
@@ -764,9 +764,9 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
                 PauseLength %= framelength;
                 /*auto b1 = */gzgetc(in);
                 /*auto b2 = */gzgetc(in);
-                //      gzputc(out,b0);
-                //      gzputc(out,b1);
-                //      gzputc(out,b2);
+                //      gzputc(out, b0);
+                //      gzputc(out, b1);
+                //      gzputc(out, b2);
                 break;
             }
         case VGM_PAUSE_WORD: // Wait n samples
@@ -842,15 +842,15 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     /*
     // At end:
     // 1. Write EOF mrker
-    gzputc(out,VGM_END);
+    gzputc(out, VGM_END);
     // 2. Copy GD3 tag
     if (VGMHeader.GD3Offset) {
       struct TGD3Header GD3Header;
       int NewGD3Offset=gztell(out)-GD3DELTA;
-      gzseek(in,VGMHeader.GD3Offset+GD3DELTA,SEEK_SET);
-      gzread(in,&GD3Header,sizeof(GD3Header));
-      gzwrite(out,&GD3Header,sizeof(GD3Header));
-      for (i=0; i<GD3Header.Length; ++i) gzputc(out,gzgetc(in));
+      gzseek(in, VGMHeader.GD3Offset+GD3DELTA, SEEK_SET);
+      gzread(in, &GD3Header, sizeof(GD3Header));
+      gzwrite(out, &GD3Header, sizeof(GD3Header));
+      for (i=0; i<GD3Header.Length; ++i) gzputc(out, gzgetc(in));
       VGMHeader.GD3Offset=NewGD3Offset;
     }
     // 3. Fill in VGM header
@@ -859,12 +859,12 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
   */
     //  gzclose(out);
 
-    //  WriteVGMHeader(outfilename,VGMHeader);
+    //  WriteVGMHeader(outfilename, VGMHeader);
 
     // Clean up
     gzclose(in);
 
-    //  ReplaceFile(filename,outfilename);
+    //  ReplaceFile(filename, outfilename);
 
     free(outfilename);
 

@@ -4,7 +4,7 @@
 
 class IVGMToolCallback;
 
-bool optimise_vgm_pauses(char* filename, const IVGMToolCallback& callback);
+bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback);
 
 int remove_offset(char* filename, const IVGMToolCallback& callback);
 

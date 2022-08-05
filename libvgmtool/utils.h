@@ -7,23 +7,18 @@
 
 class IVGMToolCallback;
 
-bool FileExists(const char* filename, const IVGMToolCallback& callback);
-bool FileExistsQuiet(const char* filename);
-
-unsigned long int FileSize(const char* filename);
+bool file_exists(const std::string& filename, const IVGMToolCallback& callback);
 
 bool compress(const char* filename, const IVGMToolCallback& callback);
 
-bool Decompress(char* filename, const IVGMToolCallback& callback);
+bool decompress(char* filename, const IVGMToolCallback& callback);
 
-bool FixExt(char* FileName, const IVGMToolCallback& callback);
-
-void ChangeExt(char* filename, const char* ext);
+void change_ext(char* filename, const char* ext);
 
 char* make_temp_filename(const char* src);
-char* MakeSuffixedFilename(const char* src, const char* suffix, const IVGMToolCallback& callback);
+char* make_suffixed_filename(const char* src, const char* suffix, const IVGMToolCallback& callback);
 
-void MyReplaceFile(const char* filetoreplace, const char* with);
+void replace_file(const char* filetoreplace, const char* with);
 
 #define ROUND(x) ((int)(x>0?x+0.5:x-0.5))
 
@@ -34,6 +29,9 @@ public:
     [[gnu::format(printf, 1, 2)]]
 #endif
     static std::string format(const char* format, ...);
+
+    static bool file_exists(const std::string& filename);
+    static int file_size(const std::string& filename);
 
     static int make_word(int b1, int b2);
 };

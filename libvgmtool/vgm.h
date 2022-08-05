@@ -71,50 +71,50 @@ public:
 // Most are order-dependent for integer-based references, so don't mess with them
 enum PSGTypes
 {
-    PSGTone0,
-    PSGTone1,
-    PSGTone2,
-    PSGNoise,
-    PSGGGst,
+    PSGTone0, 
+    PSGTone1, 
+    PSGTone2, 
+    PSGNoise, 
+    PSGGGst, 
     NumPSGTypes
 };
 
 enum YM2413Types
 {
-    YM2413Tone1,
-    YM2413Tone2,
-    YM2413Tone3,
-    YM2413Tone4,
-    YM2413Tone5,
-    YM2413Tone6,
-    YM2413Tone7,
-    YM2413Tone8,
-    YM2413Tone9,
-    YM2413PercHH,
-    YM2413PercCym,
-    YM2413PercTT,
-    YM2413PercSD,
-    YM2413PercBD,
-    YM2413UserInst,
-    YM2413Invalid,
+    YM2413Tone1, 
+    YM2413Tone2, 
+    YM2413Tone3, 
+    YM2413Tone4, 
+    YM2413Tone5, 
+    YM2413Tone6, 
+    YM2413Tone7, 
+    YM2413Tone8, 
+    YM2413Tone9, 
+    YM2413PercHH, 
+    YM2413PercCym, 
+    YM2413PercTT, 
+    YM2413PercSD, 
+    YM2413PercBD, 
+    YM2413UserInst, 
+    YM2413Invalid, 
     NumYM2413Types
 };
 
 enum YM2612Types
 {
-    YM2612All,
+    YM2612All, 
     NumYM2612Types
 };
 
 enum YM2151Types
 {
-    YM2151All,
+    YM2151All, 
     NumYM2151Types
 };
 
 enum ReservedTypes
 {
-    ReservedAll,
+    ReservedAll, 
     NumReservedTypes
 };
 
@@ -166,14 +166,14 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
 
 void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612, bool* UsesYM2151, bool* UsesReserved);
 
-void check_lengths(char* filename, bool showResults, const IVGMToolCallback& callback);
+void check_lengths(const std::string& filename, bool showResults, const IVGMToolCallback& callback);
 
 int detect_rate(char* filename, const IVGMToolCallback& callback);
 
 bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback);
 
-void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
-                    unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],
+void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types], 
+                    unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types], 
                     unsigned long reservedwrites[NumReservedTypes], const IVGMToolCallback& callback);
 
 

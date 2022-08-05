@@ -11,7 +11,7 @@
 void remove_gd3(const char* filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
-    if (!FileExists(filename, callback))
+    if (!file_exists(filename, callback))
     {
         return;
     }
@@ -47,7 +47,7 @@ void remove_gd3(const char* filename, const IVGMToolCallback& callback)
 
     write_vgm_header(outFilename, VGMHeader, callback); // Write changed header
 
-    MyReplaceFile(filename, outFilename);
+    replace_file(filename, outFilename);
 
     free(outFilename);
 

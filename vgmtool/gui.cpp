@@ -18,7 +18,7 @@ void ShowError(const char* format, ...)
     va_start(args, format); // varargs start after format
     _vsnprintf(buffer, 1024, format, args);
     va_end(args); // clean things up before leaving
-    MessageBox(hWndMain, buffer, ProgName,MB_ICONERROR + MB_OK);
+    MessageBox(hWndMain, buffer, ProgName, MB_ICONERROR + MB_OK);
 }
 
 void ShowMessage(const char* format, ...)
@@ -38,7 +38,7 @@ int ShowQuestion(const char* format, ...)
     va_start(args, format); // varargs start after format
     _vsnprintf(buffer, 1024, format, args);
     va_end(args); // clean things up before leaving
-    return MessageBox(hWndMain, buffer, ProgName,MB_ICONQUESTION + MB_YESNO);
+    return MessageBox(hWndMain, buffer, ProgName, MB_ICONQUESTION + MB_YESNO);
 }
 
 
@@ -49,7 +49,7 @@ void ShowStatus(const char* format, ...)
     va_start(args, format); // varargs start after format
     _vsnprintf(buffer, 1024, format, args);
     va_end(args); // clean things up before leaving
-    SetDlgItemText(hWndMain,txtStatusBar, buffer);
+    SetDlgItemText(hWndMain, txtStatusBar, buffer);
 }
 
 void add_convert_text(const char* format, ...)
@@ -60,15 +60,15 @@ void add_convert_text(const char* format, ...)
     _vsnprintf(buffer, 1024, format, args);
     va_end(args); // clean things up before leaving
 
-    const auto length = SendDlgItemMessage(ConvertWnd,edtConvertResults,WM_GETTEXTLENGTH, 0, 0); // Get length
-    SendDlgItemMessage(ConvertWnd,edtConvertResults,EM_SETSEL, length, length); // move caret to end of text
-    SendDlgItemMessage(ConvertWnd,edtConvertResults,EM_REPLACESEL,FALSE, reinterpret_cast<LPARAM>(buffer)); // insert text there
+    const auto length = SendDlgItemMessage(ConvertWnd, edtConvertResults, WM_GETTEXTLENGTH, 0, 0); // Get length
+    SendDlgItemMessage(ConvertWnd, edtConvertResults, EM_SETSEL, length, length); // move caret to end of text
+    SendDlgItemMessage(ConvertWnd, edtConvertResults, EM_REPLACESEL, FALSE, reinterpret_cast<LPARAM>(buffer)); // insert text there
 }
 
 bool get_int(HWND hDlg, int item, int* result)
 {
     BOOL success;
-    const auto value = GetDlgItemInt(hDlg, item, &success,FALSE);
+    const auto value = GetDlgItemInt(hDlg, item, &success, FALSE);
     if (success == TRUE || value != 0)
     {
         // success == TRUE -> no errors

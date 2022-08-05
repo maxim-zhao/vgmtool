@@ -41,7 +41,7 @@ const int YM2612ValidBits[YM2612NumRegs] = {
     //Unused-------------------------------------------------------------------------
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 0x01x
     //Unused--- LFO  Unused         Timer B   Keys      DAC------ Unused-------------
-    //                    Timer A--      Timers,3/6 mode
+    //                    Timer A--      Timers, 3/6 mode
     //                                             Unused
     0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x00, 0xc0, 0xf7, 0x00, 0xff, 0x80, 0x00, 0x00, 0x00, 0x00, // 0x02x
     //Detune/mutiple      --------------      --------------      --------------
@@ -60,7 +60,7 @@ const int YM2612ValidBits[YM2612NumRegs] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 0x09x
     // F-num LSB          Bl, F-num MSB       Ch3 special mode    --------------
     0xff, 0xff, 0xff, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0xff, 0xff, 0xff, 0x00, 0x7f, 0x7f, 0x7f, 0x00, // 0x0ax
-    // Feedback,algorithm Stereo,LFO          Invalid!
+    // Feedback, algorithm Stereo, LFO          Invalid!
     0x3f, 0x3f, 0x3f, 0x00, 0xef, 0xef, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 0x0bx
     // Above 0xb7 is invalid
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 0x0cx
@@ -87,7 +87,7 @@ const int YM2612ValidBits[YM2612NumRegs] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 0x19x
     // F-num LSB          Bl, F-num MSB       Ch3 special mode    --------------
     0xff, 0xff, 0xff, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0xff, 0xff, 0xff, 0x00, 0x7f, 0x7f, 0x7f, 0x00, // 0x1ax
-    // Feedback,algorithm Stereo,LFO
+    // Feedback, algorithm Stereo, LFO
     0x3f, 0x3f, 0x3f, 0x00, 0xef, 0xef, 0xef // 0x1bx
 };
 
@@ -109,7 +109,7 @@ void write_pause(gzFile out, long int pauselength)
     while (pauselength > 0xffff)
     {
         // If over 0xffff, write 0xffffs
-        gzputc(out,VGM_PAUSE_WORD);
+        gzputc(out, VGM_PAUSE_WORD);
         gzputc(out, 0xff);
         gzputc(out, 0xff);
         pauselength -= 0xffff;
@@ -117,28 +117,28 @@ void write_pause(gzFile out, long int pauselength)
     switch (pauselength)
     {
     case (LEN60TH * 2):
-        gzputc(out,VGM_PAUSE_60TH);
+        gzputc(out, VGM_PAUSE_60TH);
     // fall through
     case LEN60TH:
-        gzputc(out,VGM_PAUSE_60TH);
+        gzputc(out, VGM_PAUSE_60TH);
         break;
     case (LEN50TH * 2):
-        gzputc(out,VGM_PAUSE_50TH);
+        gzputc(out, VGM_PAUSE_50TH);
     // fall through
     case LEN50TH:
-        gzputc(out,VGM_PAUSE_50TH);
+        gzputc(out, VGM_PAUSE_50TH);
         break;
     default:
         if (pauselength <= 16)
         {
             gzputc(out, 0x70 + pauselength - 1); // 1-byte pause 1..16
             //      } else if(pauselength<256) {
-            //        gzputc(out,VGM_PAUSE_BYTE);         // 2-byte pause 1..255
-            //        gzputc(out,pauselength);
+            //        gzputc(out, VGM_PAUSE_BYTE);         // 2-byte pause 1..255
+            //        gzputc(out, pauselength);
         }
         else
         {
-            gzputc(out,VGM_PAUSE_WORD);
+            gzputc(out, VGM_PAUSE_WORD);
             gzputc(out, (pauselength & 0xff)); // 3-byte pause 1..65535
             gzputc(out, (pauselength >> 8));
         }
@@ -156,7 +156,7 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
     char copybuffer[BUFFER_SIZE];
     int AmtRead;
 
-    if (!FileExists(filename, callback))
+    if (!file_exists(filename, callback))
     {
         return;
     }
@@ -169,11 +169,11 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
     gzFile out = gzopen(outfilename, "wb0");
 
     gzwrite(out, &VGMHeader, sizeof(VGMHeader));
-    gzseek(in, sizeof(VGMHeader),SEEK_SET);
+    gzseek(in, sizeof(VGMHeader), SEEK_SET);
 
     do
     {
-        AmtRead = gzread(in, copybuffer,BUFFER_SIZE);
+        AmtRead = gzread(in, copybuffer, BUFFER_SIZE);
         if (gzwrite(out, copybuffer, AmtRead) != AmtRead)
         {
             // Error copying file
@@ -189,7 +189,7 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
     gzclose(in);
     gzclose(out);
 
-    MyReplaceFile(filename, outfilename);
+    replace_file(filename, outfilename);
 
     free(outfilename);
 
@@ -223,7 +223,7 @@ void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612
         *UsesReserved = false;
     }
 
-    gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
+    gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
     for (bool atEnd = false; !atEnd;)
     {
         auto b0 = gzgetc(in);
@@ -320,23 +320,19 @@ void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612
 // Corrects header if necessary
 // TODO: rewrite as a CheckHeader() function to check everything at once
 //----------------------------------------------------------------------------------------------
-void check_lengths(char* filename, bool showResults, const IVGMToolCallback& callback)
+void check_lengths(const std::string& filename, bool showResults, const IVGMToolCallback& callback)
 {
-    uint32_t sampleCount = 0;
-    uint32_t loopSampleCount = 0;
-    VGMHeader vgmHeader;
-    int b0, b1, b2;
-
-    if (!FileExists(filename, callback))
+    if (!file_exists(filename, callback))
     {
         return;
     }
 
     callback.show_status("Counting samples...");
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
+    VGMHeader vgmHeader;
     gzread(in, &vgmHeader, sizeof(vgmHeader));
 
     if (!vgmHeader.is_valid())
@@ -344,18 +340,19 @@ void check_lengths(char* filename, bool showResults, const IVGMToolCallback& cal
         // no VGM marker
         callback.show_error("File is not a VGM file! (no \"Vgm \")");
         gzclose(in);
-        callback.show_status("");
         return;
     }
 
-    do
+    int sampleCount = 0;
+    int loopSampleCount = 0;
+
+    for (auto atEnd = false; !atEnd;)
     {
         if (gztell(in) == static_cast<int>(vgmHeader.LoopOffset) + LOOPDELTA)
         {
             loopSampleCount = sampleCount;
         }
-        b0 = gzgetc(in);
-        switch (b0)
+        switch (gzgetc(in))
         {
         case VGM_GGST: // GG stereo (1 byte data)
         case VGM_PSG: // PSG write (1 byte data)
@@ -380,19 +377,18 @@ void check_lengths(char* filename, bool showResults, const IVGMToolCallback& cal
             gzgetc(in);
             break;
         case VGM_PAUSE_WORD: // Wait n samples
-            b1 = gzgetc(in);
-            b2 = gzgetc(in);
-            sampleCount += b1 | (b2 << 8);
-            break;
+            {
+                const auto b1 = gzgetc(in);
+                const auto b2 = gzgetc(in);
+                sampleCount += Utils::make_word(b1, b2);
+                break;
+            }
         case VGM_PAUSE_60TH: // Wait 1/60 s
             sampleCount += LEN60TH;
             break;
         case VGM_PAUSE_50TH: // Wait 1/50 s
             sampleCount += LEN50TH;
             break;
-        //    case VGM_PAUSE_BYTE: // Wait n samples (1 byte)
-        //      SampleCount+=gzgetc(in);
-        //      break;
         case 0x70:
         case 0x71:
         case 0x72:
@@ -409,7 +405,7 @@ void check_lengths(char* filename, bool showResults, const IVGMToolCallback& cal
         case 0x7d:
         case 0x7e:
         case 0x7f: // Wait 1-16 samples
-            sampleCount += (b0 & 0xf) + 1;
+            sampleCount += ((gzgetc(in)) & 0xf) + 1;
             break;
         case VGM_END: // End of sound data... report
             if (loopSampleCount == -1)
@@ -417,11 +413,10 @@ void check_lengths(char* filename, bool showResults, const IVGMToolCallback& cal
                 loopSampleCount = sampleCount;
             }
             loopSampleCount = sampleCount - loopSampleCount;
-        // Change its meaning! Now it's the number of samples in the loop
+            // Change its meaning! Now it's the number of samples in the loop
 
             if (showResults)
             {
-                callback.show_status("Displaying results...");
                 callback.show_message(Utils::format(
                     "Lengths:\n"
                     "In file:\n"
@@ -442,8 +437,8 @@ void check_lengths(char* filename, bool showResults, const IVGMToolCallback& cal
             }
             gzclose(in);
             if (
-                (sampleCount != vgmHeader.TotalLength) ||
-                (loopSampleCount != vgmHeader.LoopLength)
+                (sampleCount != static_cast<int>(vgmHeader.TotalLength)) ||
+                (loopSampleCount != static_cast<int>(vgmHeader.LoopLength))
             )
             {
                 // Need to repair header
@@ -454,13 +449,12 @@ void check_lengths(char* filename, bool showResults, const IVGMToolCallback& cal
                 {
                     vgmHeader.LoopOffset = 0;
                 }
-                write_vgm_header(filename, vgmHeader, callback);
+                write_vgm_header(filename.c_str(), vgmHeader, callback);
             }
-            b0 = EOF;
+            atEnd = true;
+            break;
         }
     }
-    while (b0 != EOF);
-    callback.show_status("Sample count complete");
 }
 
 
@@ -472,7 +466,7 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
     VGMHeader VGMHeader;
     int b0, b1, b2;
 
-    if (!FileExists(filename, callback))
+    if (!file_exists(filename, callback))
     {
         return 0;
     }
@@ -489,7 +483,7 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
         return 0;
     }
 
-    gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
+    gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
     int Speed = 0;
     do
@@ -499,7 +493,7 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
         {
         case VGM_GGST: // GG stereo
         case VGM_PSG: // PSG write
-            gzseek(in, 1,SEEK_CUR);
+            gzseek(in, 1, SEEK_CUR);
             break;
         case VGM_YM2413: // YM2413
         case VGM_YM2612_0: // YM2612 port 0
@@ -542,7 +536,7 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
             b0 = EOF;
             break;
         //    case VGM_PAUSE_BYTE:
-        //      gzseek(in,1,SEEK_CUR);
+        //      gzseek(in, 1, SEEK_CUR);
         //      break;
         case 0x70:
         case 0x71:
@@ -599,7 +593,7 @@ bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback
     return true;
 }
 
-// Count how many writes there are to each chip/channel,
+// Count how many writes there are to each chip/channel, 
 // expecting that this and the chip/channel stripper
 // ought to be equally capable
 void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
@@ -618,7 +612,7 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
     memset(YM2151writes, 0, sizeof(int) * NumYM2151Types);
     memset(reservedwrites, 0, sizeof(int) * NumReservedTypes);
 
-    if (!filename || !FileExists(filename, callback))
+    if (!filename || !file_exists(filename, callback))
     {
         return;
     }
@@ -635,7 +629,7 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
 
     callback.show_status("Scanning for chip data...");
 
-    gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
+    gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
     do
     {
@@ -643,7 +637,7 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
         switch (b0)
         {
         case VGM_GGST: // GG stereo
-            gzseek(in, 1,SEEK_CUR);
+            gzseek(in, 1, SEEK_CUR);
             ++PSGwrites[PSGGGst];
             break;
         case VGM_PSG: // PSG write (1 byte data)
@@ -725,11 +719,11 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
         case VGM_YM2612_0: // YM2612 port 0
         case VGM_YM2612_1: // YM2612 port 1
             ++YM2612writes[YM2612All];
-            gzseek(in, 2,SEEK_CUR);
+            gzseek(in, 2, SEEK_CUR);
             break;
         case VGM_YM2151: // YM2151
             ++YM2151writes[YM2151All];
-            gzseek(in, 2,SEEK_CUR);
+            gzseek(in, 2, SEEK_CUR);
             break;
         case 0x55: // Reserved up to 0x5f
         case 0x56: // All have 2 bytes of data
@@ -743,16 +737,16 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
         case 0x5e:
         case 0x5f:
             ++reservedwrites[ReservedAll];
-            gzseek(in, 2,SEEK_CUR);
+            gzseek(in, 2, SEEK_CUR);
             break;
         case VGM_PAUSE_WORD: // Wait n samples
-            gzseek(in, 2,SEEK_CUR);
+            gzseek(in, 2, SEEK_CUR);
             break;
         case VGM_PAUSE_60TH: // Wait 1/60 s
         case VGM_PAUSE_50TH: // Wait 1/50 s
             break;
         //    case VGM_PAUSE_BYTE:  // Wait n samples
-        //      gzseek(in,1,SEEK_CUR);
+        //      gzseek(in, 1, SEEK_CUR);
         //      break;
         case 0x70:
         case 0x71:
@@ -803,9 +797,9 @@ void ResetState(TSystemState* State)
     }
     State->PSGState.LatchedRegister = 0;
 
-    memset(State->YM2413State.Registers, 0,YM2413NumRegs);
+    memset(State->YM2413State.Registers, 0, YM2413NumRegs);
 
-    memset(State->YM2612State.Registers, 0,YM2612NumRegs);
+    memset(State->YM2612State.Registers, 0, YM2612NumRegs);
 
     // TODO: YM2151
 }
@@ -931,30 +925,30 @@ void WriteStateToFile(gzFile out, TSystemState* State, bool WriteKeys)
     if (State->UsesPSG)
     {
         // Write in groups, not register order
-        // 1. Tone channel frequencies (regs 0,2,4)
+        // 1. Tone channel frequencies (regs 0, 2, 4)
         for (i = 0; i < 5; i += 2)
         {
-            gzputc(out,VGM_PSG);
+            gzputc(out, VGM_PSG);
             gzputc(out, // 1st byte
                 0x80 | // Marker  %1-------
                 (i << 4) | // Channel %-cct----
                 State->PSGState.Registers[i] & 0x0f // Data    %----dddd
             );
-            gzputc(out,VGM_PSG);
+            gzputc(out, VGM_PSG);
             gzputc(out, // 2nd byte
                 (State->PSGState.Registers[i] >> 4) & 0x3f // Data    %0-dddddd
             );
         }
         // 2. Noise
-        gzputc(out,VGM_PSG);
+        gzputc(out, VGM_PSG);
         gzputc(out,
             0xe0 | // %1110----
             (State->PSGState.Registers[6] & 0x07) // %----dddd
         );
-        // 3. Volumes (regs 1,3,5,7)
+        // 3. Volumes (regs 1, 3, 5, 7)
         for (i = 1; i < 8; i += 2)
         {
-            gzputc(out,VGM_PSG);
+            gzputc(out, VGM_PSG);
             gzputc(out,
                 0x80 | // Marker  %1-------
                 (i << 4) | // Channel %-cct----
@@ -962,7 +956,7 @@ void WriteStateToFile(gzFile out, TSystemState* State, bool WriteKeys)
             );
         }
         // 4. GG stereo
-        gzputc(out,VGM_GGST);
+        gzputc(out, VGM_GGST);
         gzputc(out, State->PSGState.GGStereo);
     }
 
@@ -973,7 +967,7 @@ void WriteStateToFile(gzFile out, TSystemState* State, bool WriteKeys)
         {
             if (YM2413ValidBits[i])
             {
-                gzputc(out,VGM_YM2413);
+                gzputc(out, VGM_YM2413);
                 gzputc(out, i);
                 gzputc(out,
                     State->YM2413State.Registers[i] & YM2413ValidBits[i] & (WriteKeys ? 0xff : (~YM2413KeyBits[i])));
@@ -991,11 +985,11 @@ void WriteStateToFile(gzFile out, TSystemState* State, bool WriteKeys)
             {
                 if (i < 0x100)
                 {
-                    gzputc(out,VGM_YM2612_0);
+                    gzputc(out, VGM_YM2612_0);
                 }
                 else
                 {
-                    gzputc(out,VGM_YM2612_1);
+                    gzputc(out, VGM_YM2612_1);
                 }
                 gzputc(out, (i & 0xff));
                 // key bit handling

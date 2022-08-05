@@ -20,7 +20,7 @@
 
 #include "IVGMToolCallback.h"
 
-class Callback: public IVGMToolCallback
+class Callback : public IVGMToolCallback
 {
 public:
     void show_message(const std::string& message) const override
@@ -32,6 +32,7 @@ public:
     {
         ShowStatus("%s", message.c_str());
     }
+
     void show_conversion_progress(const std::string& message) const override
     {
         add_convert_text("%s\r\n", message.c_str());
@@ -43,7 +44,7 @@ public:
     }
 } callback;
 
-#pragma comment(linker,"\"/manifestdependency:type='win32' \
+#pragma comment(linker, "\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
@@ -60,8 +61,8 @@ VGMHeader CurrentFileVGMHeader;
 const char* ProgName = "VGMTool 2 release 5";
 
 const int GD3EditControls[NumGD3Strings] = {
-    edtGD3TitleEn,edtGD3TitleJp,edtGD3GameEn,edtGD3GameJp,cbGD3SystemEn,edtGD3SystemJp,edtGD3AuthorEn,edtGD3AuthorJp,
-    edtGD3Date,edtGD3Creator,edtGD3Notes
+    edtGD3TitleEn, edtGD3TitleJp, edtGD3GameEn, edtGD3GameJp, cbGD3SystemEn, edtGD3SystemJp, edtGD3AuthorEn, edtGD3AuthorJp, 
+    edtGD3Date, edtGD3Creator, edtGD3Notes
 };
 
 #define NumPSGTypes 5
@@ -76,10 +77,10 @@ unsigned long int YM2612Writes[NumYM2612Types] = {0}; // Unsupported
 unsigned long int YM2151Writes[NumYM2151Types] = {0}; // Unsupported
 unsigned long int ReservedWrites[NumReservedTypes] = {0}; // reserved chips
 
-const int PSGCheckBoxes[NumPSGTypes] = {cbPSG0,cbPSG1,cbPSG2,cbPSGNoise,cbPSGGGSt};
+const int PSGCheckBoxes[NumPSGTypes] = {cbPSG0, cbPSG1, cbPSG2, cbPSGNoise, cbPSGGGSt};
 const int YM2413CheckBoxes[NumYM2413Types] = {
-    cbYM24130,cbYM24131,cbYM24132,cbYM24133,cbYM24134,cbYM24135,cbYM24136,cbYM24137,cbYM24138,cbYM2413HiHat,
-    cbYM2413Cymbal,cbYM2413TomTom,cbYM2413SnareDrum,cbYM2413BassDrum,cbYM2413UserInst,cbYM2413InvalidRegs
+    cbYM24130, cbYM24131, cbYM24132, cbYM24133, cbYM24134, cbYM24135, cbYM24136, cbYM24137, cbYM24138, cbYM2413HiHat, 
+    cbYM2413Cymbal, cbYM2413TomTom, cbYM2413SnareDrum, cbYM2413BassDrum, cbYM2413UserInst, cbYM2413InvalidRegs
 };
 const int YM2612CheckBoxes[NumYM2612Types] = {cbYM2612};
 const int YM2151CheckBoxes[NumYM2151Types] = {cbYM2151};
@@ -100,760 +101,6 @@ HWND TabChildWnds[NumTabChildWnds]; // Holds child windows' HWnds
 
 #define BUFFER_SIZE 1024
 
-struct TPSGState
-{
-    uint8_t GGStereo; // GG stereo byte
-    uint16_t ToneFreqs[3];
-    uint8_t NoiseByte;
-    uint8_t Volumes[4];
-    uint8_t PSGFrequencyLowBits, Channel;
-    bool NoiseUpdated;
-};
-
-const int YM2413StateRegWriteFlags[YM2413NumRegs] = {
-    //  Chooses bits when writing states (start/loop)
-    //  Regs:
-    //  0    1    2    3    4    5    6    7    8    9    a    b    c    d    e    f
-    //  00-07: user-definable tone channel - left at 0xff for now
-    //  0E:    rhythm mode control - only bit 5 since rest are unused/keys
-    //         Was 0x20, now 0x00 (bugfix?)
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //  10-18: tone F-number low bits - want all bits
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //  20-28: tone F-number high bit, octave set, "key" & sustain
-    //  0x3f = all
-    //  0x2f = all but key
-    //  0x1f = all but sustain
-    //  0x0f = all but key and sustain
-    0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //  30-38: instrument number/volume - want all bits
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-};
-
-const int YM2413RegWriteFlags[YM2413NumRegs] = {
-    //  Chooses bits when copying data -> want everything
-    //  Regs:
-    //  0    1    2    3    4    5    6    7    8    9    a    b    c    d    e    f
-    //  00-07: user-definable tone channel - left at 0xff for now
-    //  0E:    rhythm mode control - all (bits 0-5)
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0x00,
-    //  10-18: tone F-number low bits - want all bits
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //  20-28: tone F-number high bit, octave set, "key" & sustain
-    //  0x3f = all (bits 0-5)
-    0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //  30-38: instrument number/volume - want all bits
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-};
-
-TPSGState LastWrittenPSGState = {
-    0xff, // GG stereo - all on
-    {0, 0, 0}, // Tone channels - off
-    0xe5, // Noise byte - white, medium
-    {15, 15, 15, 15}, // Volumes - all off
-    0, 4 // PSG low bits, channel - 4 so no values needed
-};
-
-unsigned char LastWrittenYM2413Regs[YM2413NumRegs] = ""; // zeroes it
-
-// The game could have moved a key from on to off to on within 1
-// frame/pause... so I need to keep a check on that >:(
-// Bits
-// 0-4 = percussion bits
-// 5-13 = tone channels
-int
-    KeysLifted = 0,
-    KeysPressed = 0;
-int NoiseChanged = 0;
-
-void WriteVGMInfo(gzFile out, long* pauselength, TPSGState* PSGState, unsigned char YM2413Regs[YM2413NumRegs])
-{
-    int i;
-    if (!*pauselength)
-    {
-        return;
-    }
-    // If pause=zero do nothing so only the last write to each register before a pause is written
-    // Write PSG stuff
-    if (PSGState->GGStereo != LastWrittenPSGState.GGStereo)
-    {
-        // GG stereo
-        gzputc(out,VGM_GGST);
-        gzputc(out, PSGState->GGStereo);
-    }
-    for (i = 0; i < 3; ++i)
-    {
-        // Tone channel frequencies
-        if (PSGState->ToneFreqs[i] != LastWrittenPSGState.ToneFreqs[i])
-        {
-            gzputc(out,VGM_PSG);
-            gzputc(out,
-                0x80 | // bit 7 = 1, 4 = 0 -> PSG tone byte 1
-                (i << 5) | // bits 5 and 6 -> select channel
-                (PSGState->ToneFreqs[i] & 0xf) // bits 0 to 3 -> low 4 bits of freq
-            );
-            gzputc(out,VGM_PSG);
-            gzputc(out,
-                // bits 6 and 7 = 0 -> PSG tone byte 2
-                (PSGState->ToneFreqs[i] >> 4) // bits 0 to 5 -> high 6 bits of freq
-            );
-        }
-    }
-    if (NoiseChanged)
-    {
-        // Writing to the noise register resets the LFSR so I have to always repeat writes
-        gzputc(out,VGM_PSG); // 1-stage write
-        gzputc(out, PSGState->NoiseByte);
-        NoiseChanged = 0;
-    }
-    for (i = 0; i < 4; ++i)
-    {
-        // All 4 channels volumes
-        if (PSGState->Volumes[i] != LastWrittenPSGState.Volumes[i])
-        {
-            gzputc(out,VGM_PSG);
-            gzputc(out,
-                0x90 | // bits 4 and 7 = 1 -> volume
-                (i << 5) | // bits 5 and 6 -> select channel
-                PSGState->Volumes[i] // bits 0 to 4 -> volume
-            );
-        }
-    }
-    // Write YM2413 stuff
-    for (i = 0; i < YM2413NumRegs; ++i)
-    {
-        if (YM2413RegWriteFlags[i])
-        {
-            if (
-                ((YM2413Regs[i] & YM2413RegWriteFlags[i]) != LastWrittenYM2413Regs[i]) &&
-                (i != 0x0e) // not percussion
-            )
-            {
-                gzputc(out,VGM_YM2413); // YM2413
-                gzputc(out, i); // Register
-                gzputc(out, (YM2413Regs[i] & YM2413RegWriteFlags[i])); // Value
-                LastWrittenYM2413Regs[i] = YM2413Regs[i] & YM2413RegWriteFlags[i];
-            }
-        }
-    }
-    // Percussion after tone
-    if (LastWrittenYM2413Regs[0x0e] != (YM2413Regs[0x0e] & YM2413RegWriteFlags[0x0e]))
-    {
-        gzputc(out,VGM_YM2413); // YM2413
-        gzputc(out, 0x0e); // Register
-        gzputc(out, (YM2413Regs[0x0e] & YM2413RegWriteFlags[0x0e])); // Value
-        LastWrittenYM2413Regs[0x0e] = YM2413Regs[0x0e] & YM2413RegWriteFlags[0x0e];
-    }
-    // Now we have to handle keys which have gone from lifted to
-    // pressed since the last write - if they were pressed at the last
-    // write, that means they've gone Down-Up-Down, and we need to tell
-    // the YM2413 this since it would otherwise be missed by the
-    // optimiser
-    if (KeysLifted & KeysPressed)
-    {
-        // At least one key was lifted and pressed
-        // First the percussion - find which keys have done DUD
-        char PercussionKeysDUD = LastWrittenYM2413Regs[0x0e] & 0x1f // 1 for each inst currently set to on
-            & KeysLifted & KeysPressed; // 1 for each inst on-off-on
-        int ToneKeysUD = KeysLifted & KeysPressed & 0x1fe0;
-        if (ToneKeysUD)
-        {
-            // At least one tone key went from up to down. So look to
-            // see if any of them were D before because if so, they've
-            // gone DUD
-            for (i = 0; i < 9; ++i)
-            {
-                // for each tone channel
-                if (
-                    (ToneKeysUD & (1 << (5 + i))) && // if it's gone UD
-                    (LastWrittenYM2413Regs[0x20 + i] & 0x10) // and was D before
-                )
-                {
-                    // debug marker
-                    //          gzputc(out,0x00);gzputc(out,0x00);gzputc(out,0x00);gzputc(out,0x00);gzputc(out,0x00);gzputc(out,0x00);gzputc(out,0x00);gzputc(out,0x00);gzputc(out,0x00);
-                    gzputc(out,VGM_YM2413); // YM2413
-                    gzputc(out, 0x20 + i); // Register
-                    gzputc(out,
-                        (LastWrittenYM2413Regs[0x20 + i] & 0x2f) // Turn off the key
-                    ); // Value
-                    gzputc(out,VGM_YM2413); // YM2413
-                    gzputc(out, 0x20 + i); // Register
-                    gzputc(out, LastWrittenYM2413Regs[0x20 + i]);
-                }
-            }
-        }
-        // Do percussion last in case any ch6-8 writes changed it
-        if (
-            (PercussionKeysDUD) && // At least one key has gone UDU
-            (LastWrittenYM2413Regs[0x0e] & 0x20) // Percussion is on
-        )
-        {
-            gzputc(out,VGM_YM2413); // YM2413
-            gzputc(out, 0x0e); // Register
-            gzputc(out,
-                (LastWrittenYM2413Regs[0x0e] ^ PercussionKeysDUD) // Turn off the ones I want
-                | 0x20
-            ); // Value
-            gzputc(out,VGM_YM2413); // YM2413
-            gzputc(out, 0x0e); // Register
-            gzputc(out, LastWrittenYM2413Regs[0x0e]);
-        }
-    }
-    KeysLifted = 0;
-    KeysPressed = 0;
-    // then pause
-    write_pause(out, *pauselength);
-    *pauselength = 0; // maybe not needed
-    // and record what we've done
-    LastWrittenPSGState = *PSGState;
-}
-
-void WriteYM2413State(gzFile out, unsigned char YM2413Regs[YM2413NumRegs], int IsStart)
-{
-    for (int i = 0; i < YM2413NumRegs; ++i)
-    {
-        if (YM2413StateRegWriteFlags[i])
-        {
-            gzputc(out,VGM_YM2413); // YM2413
-            gzputc(out, i); // Register
-            gzputc(out, (YM2413Regs[i] & YM2413StateRegWriteFlags[i])); // Value
-            LastWrittenYM2413Regs[i] = YM2413Regs[i] & YM2413StateRegWriteFlags[i];
-        }
-    }
-
-    if (IsStart)
-    {
-        // Write percussion
-        gzputc(out,VGM_YM2413);
-        gzputc(out, 0x0e);
-        gzputc(out, YM2413Regs[0x0e] & YM2413RegWriteFlags[0x0e]);
-        LastWrittenYM2413Regs[0x0e] = YM2413Regs[0x0e] & YM2413RegWriteFlags[0x0e];
-    }
-    /*
-      // Bugfix - turn off rhythm mode before writing state (?)
-      gzputc(out,VGM_YM2413);
-      gzputc(out,0x0e);
-      gzputc(out,0x00);
-    
-      for (i=0;i<YM2413NumRegs;++i) if (YM2413StateRegWriteFlags[i]) {
-        gzputc(out,VGM_YM2413);  // YM2413
-        gzputc(out,i);    // Register
-        gzputc(out,(YM2413Regs[i] & YM2413StateRegWriteFlags[i]));  // Value
-        LastWrittenYM2413Regs[i]=YM2413Regs[i] & YM2413StateRegWriteFlags[i];
-      }
-    
-      // Put percussion last
-      gzputc(out,VGM_YM2413);
-      gzputc(out,0x0e);
-      gzputc(out,YM2413Regs[0x0e]&0x20);
-      LastWrittenYM2413Regs[0x0e]=YM2413Regs[0x0e] & YM2413RegWriteFlags[0x0e];
-    */
-}
-
-void WritePSGState(gzFile out, TPSGState PSGState)
-{
-    int i;
-    // GG stereo
-    gzputc(out,VGM_GGST);
-    gzputc(out, PSGState.GGStereo);
-    // Tone channel frequencies
-    for (i = 0; i < 3; ++i)
-    {
-        gzputc(out,VGM_PSG);
-        gzputc(out,
-            0x80 | // bit 7 = 1, 4 = 0 -> PSG tone byte 1
-            (i << 5) | // bits 5 and 6 -> select channel
-            (PSGState.ToneFreqs[i] & 0xf) // bits 0 to 3 -> low 4 bits of freq
-        );
-        gzputc(out,VGM_PSG);
-        gzputc(out,
-            // bits 6 and 7 = 0 -> PSG tone byte 2
-            (PSGState.ToneFreqs[i] >> 4) // bits 0 to 5 -> high 6 bits of freq
-        );
-    }
-    // Noise
-    gzputc(out,VGM_PSG); // 1-stage write
-    gzputc(out, PSGState.NoiseByte);
-    NoiseChanged = 0;
-
-    // All 4 channels volumes
-    for (i = 0; i < 4; ++i)
-    {
-        gzputc(out,VGM_PSG);
-        gzputc(out,
-            0x90 | // bits 4 and 7 = 1 -> volume
-            (i << 5) | // bits 5 and 6 -> select channel
-            PSGState.Volumes[i] // bits 0 to 4 -> volume
-        );
-    }
-    LastWrittenPSGState = PSGState;
-}
-
-void CheckWriteCounts(char* filename);
-
-// Merges data by storing writes to a buffer
-// When it gets to a pause, it writes every value that has changed since
-// the last write (at the last pause, or state write), and stores the
-// current state for comparison next time.
-void Trim(char* filename, int start, int loop, int end, BOOL OverWrite, BOOL PromptToPlay)
-{
-    gzFile in, out;
-    VGMHeader VGMHeader;
-    char* Outfilename;
-    char* p;
-    int b0, b1, b2;
-    long SampleCount = 0;
-    long PauseLength = 0;
-    long FileSizeBefore, FileSizeAfter;
-
-    char LastFirstByteWritten = 0;
-    char WrittenStart = 0, WrittenLoop = 0;
-
-    TPSGState CurrentPSGState = {
-        0xff, // GG stereo - all on
-        {0, 0, 0}, // Tone channels - off
-        0xe5, // Noise byte - white, medium
-        {15, 15, 15, 15}, // Volumes - all off
-        0, 4 // PSG low bits, channel - 4 so no values needed
-    };
-
-    uint8_t YM2413Regs[YM2413NumRegs];
-
-    if (!FileExists(filename, callback))
-    {
-        return;
-    }
-
-    if (IsDlgButtonChecked(TrimWnd,cbLogTrims))
-    {
-        log_trim(Currentfilename, start, loop, end, callback);
-    }
-
-    CheckWriteCounts(filename);
-
-    memset(YM2413Regs, 0, sizeof(YM2413Regs));
-
-    if ((start > end) || (loop > end) || ((loop > -1) && (loop < start)))
-    {
-        ShowError("Impossible edit points!");
-        return;
-    }
-
-    in = gzopen(filename, "rb");
-
-    // Read header
-    if (!ReadVGMHeader(in, &VGMHeader, callback))
-    {
-        gzclose(in);
-        return;
-    }
-
-    FileSizeBefore = VGMHeader.EoFOffset + EOFDELTA;
-    gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
-
-    ShowStatus("Trimming VGM data...");
-
-    Outfilename = static_cast<char*>(malloc(strlen(filename) + 15));
-    strcpy(Outfilename, filename);
-    for (p = Outfilename + strlen(Outfilename) - 1; p >= Outfilename; --p)
-    {
-        if (*p == '.')
-        {
-            strcpy(p, " (trimmed).vgz");
-            break;
-        }
-    }
-
-    out = gzopen(Outfilename, "wb0"); // No compression, since I'll recompress it later
-
-    // Write header (update it later)
-    gzwrite(out, &VGMHeader, sizeof(VGMHeader));
-    gzseek(out,VGM_DATA_OFFSET,SEEK_SET);
-
-    if (end > static_cast<int>(VGMHeader.TotalLength))
-    {
-        ShowMessage(
-            "End point (%d samples) beyond end of file!\nUsing maximum value of %d samples instead",
-            end,
-            VGMHeader.TotalLength);
-        end = static_cast<int>(VGMHeader.TotalLength);
-    }
-
-    do
-    {
-        b0 = gzgetc(in);
-        switch (b0)
-        {
-        case VGM_GGST: // GG stereo (1 byte data)
-            b1 = gzgetc(in);
-            if (b1 != CurrentPSGState.GGStereo)
-            {
-                // Do not copy it if the current stereo state is the same
-                CurrentPSGState.GGStereo = static_cast<uint8_t>(b1);
-                if ((WrittenStart) && (VGMHeader.PSGClock))
-                {
-                    WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-                }
-            }
-            break;
-        case VGM_PSG: // PSG write (1 byte data)
-            b1 = gzgetc(in);
-            switch (b1 & 0x90)
-            {
-            case 0x00: // fall through
-            case 0x10: // second frequency byte
-                if (CurrentPSGState.Channel > 3)
-                {
-                    break;
-                }
-                if (CurrentPSGState.Channel == 3)
-                {
-                    // 2nd noise byte (Micro Machines title screen)
-                    // Always write
-                    NoiseChanged = 1;
-                    CurrentPSGState.NoiseByte = (b1 & 0xf) | 0xe0;
-                    if ((WrittenStart) && (VGMHeader.PSGClock))
-                    {
-                        WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-                    }
-                }
-                else
-                {
-                    int freq = (b1 & 0x3F) << 4 | CurrentPSGState.PSGFrequencyLowBits;
-                    if (freq < PSGCutoff)
-                    {
-                        freq = 0;
-                    }
-                    if (CurrentPSGState.ToneFreqs[CurrentPSGState.Channel] != freq)
-                    {
-                        // Changes the freq
-                        char FirstByte = 0x80 | (CurrentPSGState.Channel << 5) | CurrentPSGState.PSGFrequencyLowBits;
-                        // 1st byte needed for this freq
-                        if (FirstByte != LastFirstByteWritten)
-                        {
-                            // If necessary, write 1st byte
-                            if ((WrittenStart) && (VGMHeader.PSGClock))
-                            {
-                                WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-                            }
-                            LastFirstByteWritten = FirstByte;
-                        }
-                        // Don't write if volume is off
-                        if ((WrittenStart) && (VGMHeader.PSGClock)
-                            /*&& (CurrentPSGState.Volumes[CurrentPSGState.Channel])*/)
-                        {
-                            WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-                        }
-                        CurrentPSGState.ToneFreqs[CurrentPSGState.Channel] = static_cast<uint16_t>(freq); // Write 2nd byte
-                    }
-                }
-                break;
-            case 0x80:
-                if ((b1 & 0x60) == 0x60)
-                {
-                    // noise
-                    // No "does it change" because writing resets the LFSR (ie. has an effect)
-                    NoiseChanged = 1;
-                    CurrentPSGState.NoiseByte = static_cast<uint8_t>(b1);
-                    CurrentPSGState.Channel = 3;
-                    if ((WrittenStart) && (VGMHeader.PSGClock))
-                    {
-                        WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-                    }
-                }
-                else
-                {
-                    // First frequency byte
-                    CurrentPSGState.Channel = (b1 & 0x60) >> 5;
-                    CurrentPSGState.PSGFrequencyLowBits = b1 & 0xF;
-                }
-                break;
-            case 0x90: // set volume
-                {
-                    char chan = (b1 & 0x60) >> 5;
-                    char vol = b1 & 0xF;
-                    if (CurrentPSGState.Volumes[chan] != vol)
-                    {
-                        CurrentPSGState.Volumes[chan] = vol;
-                        CurrentPSGState.Channel = 4;
-                        // Only write volume change if we've got to the start and PSG is turned on
-                        if ((WrittenStart) && (VGMHeader.PSGClock))
-                        {
-                            WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-                        }
-                    }
-                }
-                break;
-            } // end case
-            break;
-        case VGM_YM2413: // YM2413
-            b1 = gzgetc(in);
-            b2 = gzgetc(in);
-            if ((b1 >= YM2413NumRegs) || !(YM2413RegWriteFlags[b1]))
-            {
-                break; // Discard invalid register numbers
-            }
-            YM2413Regs[b1] = static_cast<uint8_t>(b2);
-
-        // Check for percussion keys lifted or pressed
-            if (b1 == 0x0e)
-            {
-                KeysLifted |= (b2 ^ 0x1f) & 0x1f;
-                // OR the percussion keys with the inverse of the perc.
-                // keys to get a 1 stored there if the key has been lifted
-                KeysPressed |= (b2 & 0x1f);
-                // Do similar with the non-inverse to get the keys pressed
-            }
-        // Check for tone keys lifted or pressed
-            if ((b1 >= 0x20) && (b1 <= 0x28))
-            {
-                if (b2 & 0x10)
-                {
-                    // Key was pressed
-                    KeysPressed |= 1 << (b1 - 0x20 + 5);
-                }
-                else
-                {
-                    KeysLifted |= 1 << (b1 - 0x20 + 5);
-                }
-                if (
-                    (KeysLifted & KeysPressed & (1 << (b1 - 0x20 + 5))) // the key has gone UD
-                    &&
-                    (LastWrittenYM2413Regs[b1] & 0x10) // 0x10 == 00010000 == YM2413 tone key bit
-                    // ie. the key was D before UD
-                )
-                {
-                    KeysLifted = KeysLifted;
-                }
-            }
-
-            if ((WrittenStart) && (VGMHeader.YM2413Clock))
-            {
-                WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-            }
-            break;
-        case VGM_YM2612_0: // YM2612 port 0
-        case VGM_YM2612_1: // YM2612 port 1
-        case VGM_YM2151: // YM2151
-            b1 = gzgetc(in);
-            b2 = gzgetc(in);
-            gzputc(out, b0);
-            gzputc(out, b1);
-            gzputc(out, b2);
-            break;
-        case 0x55: // Reserved up to 0x5f
-        case 0x56: // All have 2 bytes of data
-        case 0x57: // which I discard :)
-        case 0x58:
-        case 0x59:
-        case 0x5a:
-        case 0x5b:
-        case 0x5c:
-        case 0x5d:
-        case 0x5e:
-        case 0x5f:
-            b1 = gzgetc(in);
-            b2 = gzgetc(in);
-            break;
-        case VGM_PAUSE_WORD: // Wait n samples
-            b1 = gzgetc(in);
-            b2 = gzgetc(in);
-            SampleCount += b1 | (b2 << 8);
-            PauseLength += b1 | (b2 << 8);
-            if ((WrittenStart) && ((SampleCount <= loop) || (loop == -1) || (WrittenLoop)) && (SampleCount <= end))
-            {
-                WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-            }
-            break;
-        case VGM_PAUSE_60TH: // Wait 1/60 s
-            SampleCount += LEN60TH;
-            PauseLength += LEN60TH;
-            if ((WrittenStart) && ((SampleCount <= loop) || (loop == -1) || (WrittenLoop)) && (SampleCount <= end))
-            {
-                WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-            }
-            break;
-        case VGM_PAUSE_50TH: // Wait 1/50 s
-            SampleCount += LEN50TH;
-            PauseLength += LEN50TH;
-            if ((WrittenStart) && ((SampleCount <= loop) || (loop == -1) || (WrittenLoop)) && (SampleCount <= end))
-            {
-                WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-            }
-            break;
-        //    case VGM_PAUSE_BYTE:  // Wait n samples
-        //      b1=gzgetc(in);
-        //      SampleCount+=b1;
-        //      PauseLength+=b1;
-        //      if ((WrittenStart) && ((SampleCount<=loop) || (loop==-1) || (WrittenLoop)) && (SampleCount<=end) ) WriteVGMInfo(out,&PauseLength,&CurrentPSGState,YM2413Regs);
-        //      break;
-        case 0x70:
-        case 0x71:
-        case 0x72:
-        case 0x73:
-        case 0x74:
-        case 0x75:
-        case 0x76:
-        case 0x77:
-        case 0x78:
-        case 0x79:
-        case 0x7a:
-        case 0x7b:
-        case 0x7c:
-        case 0x7d:
-        case 0x7e:
-        case 0x7f: // Wait 1-16 samples
-            b1 = (b0 & 0xf) + 1;
-            SampleCount += b1;
-            PauseLength += b1;
-            if ((WrittenStart) && ((SampleCount <= loop) || (loop == -1) || (WrittenLoop)) && (SampleCount <= end))
-            {
-                WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-            }
-            break;
-        case VGM_END: // End of sound data
-            gzclose(in);
-            gzclose(out);
-            free(Outfilename);
-            ShowError("Reached end of VGM data! There must be something wrong - try fixing the lengths for this file");
-            return;
-        default:
-            break;
-        }
-
-        // Loop point
-        if ((!WrittenLoop) && (loop != -1) && (SampleCount >= loop))
-        {
-            if (WrittenStart)
-            {
-                PauseLength = loop - (SampleCount - PauseLength); // Write any remaining pause up to the edit point
-                WriteVGMInfo(out, &PauseLength, &CurrentPSGState, YM2413Regs);
-            }
-            PauseLength = SampleCount - loop; // and remember any left over
-            // Remember offset
-            VGMHeader.LoopOffset = gztell(out) - LOOPDELTA;
-            // Write loop point initialisation... unless start = loop
-            // because then the start initialisation will work
-            if (loop != start)
-            {
-                if (IsWindowEnabled(GetDlgItem(StripWnd,gbPSG)))
-                {
-                    CurrentPSGState.NoiseByte &= 0xf7;
-                    WritePSGState(out, CurrentPSGState);
-                }
-                if (IsWindowEnabled(GetDlgItem(StripWnd,gbYM2413)))
-                {
-                    WriteYM2413State(out, YM2413Regs,FALSE);
-                }
-            }
-            WrittenLoop = 1;
-        }
-        // Start point
-        if ((!WrittenStart) && (SampleCount > start))
-        {
-            if (IsWindowEnabled(GetDlgItem(StripWnd,gbPSG)))
-            {
-                CurrentPSGState.NoiseByte &= 0xf7;
-                WritePSGState(out, CurrentPSGState);
-            }
-            if (IsWindowEnabled(GetDlgItem(StripWnd,gbYM2413)))
-            {
-                WriteYM2413State(out, YM2413Regs,TRUE);
-            }
-            // Remember any needed delay
-            PauseLength = SampleCount - start;
-            WrittenStart = 1;
-        }
-
-        // End point
-        if (SampleCount >= end)
-        {
-            // Write remaining delay
-            PauseLength -= SampleCount - end;
-            write_pause(out, PauseLength);
-            PauseLength = 0; // maybe not needed
-            // End of VGM data
-            gzputc(out,VGM_END);
-            break;
-        }
-    }
-    while (b0 != EOF);
-
-    // Copy GD3 tag
-    if (VGMHeader.GD3Offset)
-    {
-        TGD3Header GD3Header;
-        int NewGD3Offset = gztell(out) - GD3DELTA;
-        ShowStatus("Copying GD3 tag...");
-        gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
-        gzread(in, &GD3Header, sizeof(GD3Header));
-        gzwrite(out, &GD3Header, sizeof(GD3Header));
-        for (auto i = 0u; i < GD3Header.length; ++i)
-        {
-            // Copy strings
-            gzputc(out,gzgetc(in));
-        }
-        VGMHeader.GD3Offset = NewGD3Offset;
-    }
-    VGMHeader.EoFOffset = gztell(out) - EOFDELTA;
-    gzclose(in);
-    gzclose(out);
-
-    // Update header
-    VGMHeader.TotalLength = end - start;
-    if (loop > -1)
-    {
-        // looped
-        VGMHeader.LoopLength = end - loop;
-        // Already rememebered offset
-    }
-    else
-    {
-        // not looped
-        VGMHeader.LoopLength = 0;
-        VGMHeader.LoopOffset = 0;
-    }
-
-    // Amend it with the updated header
-    write_vgm_header(Outfilename, VGMHeader, callback);
-
-    optimise_vgm_pauses(Outfilename, callback);
-
-    compress(Outfilename, callback);
-
-    if (OverWrite == TRUE)
-    {
-        DeleteFile(filename);
-        MoveFile(Outfilename, filename);
-        strcpy(Outfilename, filename);
-    }
-
-    // Get output file size
-    in = gzopen(Outfilename, "rb");
-    gzread(in, &VGMHeader, sizeof(VGMHeader));
-    FileSizeAfter = VGMHeader.EoFOffset + EOFDELTA;
-    gzclose(in);
-
-    ShowStatus("Trimming complete");
-
-    if (PromptToPlay)
-    {
-        if (ShowQuestion(
-            "File %s to\n%s\nUncompressed file size %d -> %d bytes (%+.2f%%)\nDo you want to open it in the associated program?",
-            (OverWrite == TRUE ? "optimised" : "trimmed"),
-            Outfilename,
-            FileSizeBefore,
-            FileSizeAfter,
-            (static_cast<double>(FileSizeAfter) - FileSizeBefore) * 100 / FileSizeBefore
-        ) == IDYES)
-        {
-            ShellExecute(hWndMain, "Play", Outfilename, nullptr, nullptr,SW_NORMAL);
-        }
-    }
-
-    free(Outfilename);
-}
-
 void Optimize(char* filename)
 {
     VGMHeader VGMHeader;
@@ -865,10 +112,10 @@ void Optimize(char* filename)
     long FileSizeBefore = VGMHeader.EoFOffset + EOFDELTA;
 
     // Make sure lengths are correct
-    check_lengths(filename,FALSE, callback);
+    check_lengths(filename, FALSE, callback);
 
     // Remove PSG offsets if selected
-    if ((VGMHeader.PSGClock) && IsDlgButtonChecked(TrimWnd,cbRemoveOffset))
+    if ((VGMHeader.PSGClock) && IsDlgButtonChecked(TrimWnd, cbRemoveOffset))
     {
         NumOffsetsRemoved = remove_offset(filename, callback);
     }
@@ -876,11 +123,12 @@ void Optimize(char* filename)
     // Trim (using the existing edit points), also merges pauses
     if (VGMHeader.LoopLength)
     {
-        Trim(filename, 0, VGMHeader.TotalLength - VGMHeader.LoopLength, VGMHeader.TotalLength,TRUE,FALSE);
+        trim(filename, 0, static_cast<int>(VGMHeader.TotalLength - VGMHeader.LoopLength), 
+            static_cast<int>(VGMHeader.TotalLength), true, false, callback);
     }
     else
     {
-        Trim(filename, 0, -1, VGMHeader.TotalLength,TRUE,FALSE);
+        trim(filename, 0, -1, static_cast<int>(VGMHeader.TotalLength), true, false, callback);
     }
 
     in = gzopen(filename, "rb");
@@ -888,22 +136,20 @@ void Optimize(char* filename)
     gzclose(in);
     long FileSizeAfter = VGMHeader.EoFOffset + EOFDELTA;
 
-    FixExt(filename, callback);
-
     if (ShowQuestion(
         "File optimised to\n"
         "%s\n"
-        "%d offsets/silent PSG writes removed,\n"
+        "%d offsets/silent PSG writes removed, \n"
         "Uncompressed file size %d -> %d bytes (%+.2f%%)\n"
-        "Do you want to open it in the associated program?",
-        filename,
-        NumOffsetsRemoved,
-        FileSizeBefore,
-        FileSizeAfter,
+        "Do you want to open it in the associated program?", 
+        filename, 
+        NumOffsetsRemoved, 
+        FileSizeBefore, 
+        FileSizeAfter, 
         (FileSizeAfter - FileSizeBefore) * 100.0 / FileSizeBefore
     ) == IDYES)
     {
-        ShellExecute(hWndMain, "Play", filename, nullptr, nullptr,SW_NORMAL);
+        ShellExecute(hWndMain, "Play", filename, nullptr, nullptr, SW_NORMAL);
     }
 }
 
@@ -942,11 +188,11 @@ void CheckWriteCounts(char* filename)
     int i, j;
     GetWriteCounts(filename, PSGWrites, YM2413Writes, YM2612Writes, YM2151Writes, ReservedWrites, callback);
 
-    UpdateWriteCount(PSGCheckBoxes, PSGWrites,NumPSGTypes);
-    UpdateWriteCount(YM2413CheckBoxes, YM2413Writes,NumYM2413Types);
-    UpdateWriteCount(YM2612CheckBoxes, YM2612Writes,NumYM2612Types);
-    UpdateWriteCount(YM2151CheckBoxes, YM2151Writes,NumYM2151Types);
-    UpdateWriteCount(ReservedCheckboxes, ReservedWrites,NumReservedTypes);
+    UpdateWriteCount(PSGCheckBoxes, PSGWrites, NumPSGTypes);
+    UpdateWriteCount(YM2413CheckBoxes, YM2413Writes, NumYM2413Types);
+    UpdateWriteCount(YM2612CheckBoxes, YM2612Writes, NumYM2612Types);
+    UpdateWriteCount(YM2151CheckBoxes, YM2151Writes, NumYM2151Types);
+    UpdateWriteCount(ReservedCheckboxes, ReservedWrites, NumReservedTypes);
 
     // Sum stuff for group checkboxes and other stuff:
     // PSG tone channels
@@ -956,9 +202,9 @@ void CheckWriteCounts(char* filename)
     }
     if (!j)
     {
-        CheckDlgButton(StripWnd,cbPSGTone, 0); // if >0, initialise unchecked
+        CheckDlgButton(StripWnd, cbPSGTone, 0); // if >0, initialise unchecked
     }
-    EnableWindow(GetDlgItem(StripWnd,cbPSGTone), (j > 0)); // enabled = (>0)
+    EnableWindow(GetDlgItem(StripWnd, cbPSGTone), (j > 0)); // enabled = (>0)
     // YM2413 tone channels
     for (i = j = 0; i < 9; ++i)
     {
@@ -966,9 +212,9 @@ void CheckWriteCounts(char* filename)
     }
     if (!j)
     {
-        CheckDlgButton(StripWnd,cbYM2413Tone, 0);
+        CheckDlgButton(StripWnd, cbYM2413Tone, 0);
     }
-    EnableWindow(GetDlgItem(StripWnd,cbYM2413Tone), (j > 0));
+    EnableWindow(GetDlgItem(StripWnd, cbYM2413Tone), (j > 0));
     // YM2413 percussion
     for (i = 9, j = 0; i < 14; ++i)
     {
@@ -976,21 +222,21 @@ void CheckWriteCounts(char* filename)
     }
     if (!j)
     {
-        CheckDlgButton(StripWnd,cbYM2413Percussion, 0);
+        CheckDlgButton(StripWnd, cbYM2413Percussion, 0);
     }
-    EnableWindow(GetDlgItem(StripWnd,cbYM2413Percussion), (j > 0));
+    EnableWindow(GetDlgItem(StripWnd, cbYM2413Percussion), (j > 0));
     // PSG anything
     for (i = j = 0; i < NumPSGTypes; ++i)
     {
         j += PSGWrites[i];
     }
-    EnableWindow(GetDlgItem(StripWnd,gbPSG), (j != 0));
+    EnableWindow(GetDlgItem(StripWnd, gbPSG), (j != 0));
     // YM2413 anything
     for (i = j = 0; i < NumYM2413Types; ++i)
     {
         j += YM2413Writes[i];
     }
-    EnableWindow(GetDlgItem(StripWnd,gbYM2413), (j != 0));
+    EnableWindow(GetDlgItem(StripWnd, gbYM2413), (j != 0));
 
     ShowStatus("Scan for chip data complete");
 }
@@ -1003,7 +249,7 @@ void LoadFile(char* filename)
     TGD3Header GD3Header;
     int FileHasGD3 = 0;
 
-    if (!FileExists(filename, callback))
+    if (!file_exists(filename, callback))
     {
         return;
     }
@@ -1019,18 +265,18 @@ void LoadFile(char* filename)
         ShowError(
             "File is not a VGM file!\nIt will not be opened.\n\nMaybe you want to convert GYM, CYM and SSL files to VGM?\nClick on the \"Conversion\" tab.");
         strcpy(Currentfilename, "");
-        SetDlgItemText(hWndMain,edtFileName, "Drop a file onto the window to load");
+        SetDlgItemText(hWndMain, edtFileName, "Drop a file onto the window to load");
         ShowStatus("");
         return;
     }
 
     strcpy(Currentfilename, filename); // Remember it
-    SetDlgItemText(hWndMain,edtFileName, filename); // Put it in the box
+    SetDlgItemText(hWndMain, edtFileName, filename); // Put it in the box
 
     if (CurrentFileVGMHeader.GD3Offset)
     {
         // GD3 tag exists
-        gzseek(in, CurrentFileVGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
+        gzseek(in, CurrentFileVGMHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         if (
             (strncmp(GD3Header.id_string, "Gd3 ", 4) == 0) && // Has valid marker
@@ -1050,13 +296,13 @@ void LoadFile(char* filename)
     gzclose(in);
 
     // Rate
-    SetDlgItemInt(HeaderWnd,edtPlaybackRate, CurrentFileVGMHeader.RecordingRate,FALSE);
+    SetDlgItemInt(HeaderWnd, edtPlaybackRate, CurrentFileVGMHeader.RecordingRate, FALSE);
 
     // Lengths
     int Mins = ROUND(CurrentFileVGMHeader.TotalLength/44100.0) / 60;
     int Secs = ROUND(CurrentFileVGMHeader.TotalLength/44100.0-Mins*60);
     sprintf(buffer, "%d:%02d", Mins, Secs);
-    SetDlgItemText(HeaderWnd,edtLengthTotal, buffer);
+    SetDlgItemText(HeaderWnd, edtLengthTotal, buffer);
     if (CurrentFileVGMHeader.LoopLength)
     {
         Mins = ROUND(CurrentFileVGMHeader.LoopLength/44100.0) / 60;
@@ -1067,22 +313,22 @@ void LoadFile(char* filename)
     {
         strcpy(buffer, "-");
     }
-    SetDlgItemText(HeaderWnd,edtLengthLoop, buffer);
+    SetDlgItemText(HeaderWnd, edtLengthLoop, buffer);
 
     // Version
     sprintf(buffer, "%x.%02x", CurrentFileVGMHeader.Version >> 8, CurrentFileVGMHeader.Version & 0xff);
-    SetDlgItemText(HeaderWnd,edtVersion, buffer);
+    SetDlgItemText(HeaderWnd, edtVersion, buffer);
 
     // Clock speeds
-    SetDlgItemInt(HeaderWnd,edtPSGClock, CurrentFileVGMHeader.PSGClock,FALSE);
-    SetDlgItemInt(HeaderWnd,edtYM2413Clock, CurrentFileVGMHeader.YM2413Clock,FALSE);
-    SetDlgItemInt(HeaderWnd,edtYM2612Clock, CurrentFileVGMHeader.YM2612Clock,FALSE);
-    SetDlgItemInt(HeaderWnd,edtYM2151Clock, CurrentFileVGMHeader.YM2151Clock,FALSE);
+    SetDlgItemInt(HeaderWnd, edtPSGClock, CurrentFileVGMHeader.PSGClock, FALSE);
+    SetDlgItemInt(HeaderWnd, edtYM2413Clock, CurrentFileVGMHeader.YM2413Clock, FALSE);
+    SetDlgItemInt(HeaderWnd, edtYM2612Clock, CurrentFileVGMHeader.YM2612Clock, FALSE);
+    SetDlgItemInt(HeaderWnd, edtYM2151Clock, CurrentFileVGMHeader.YM2151Clock, FALSE);
 
     // PSG settings
     sprintf(buffer, "0x%04x", CurrentFileVGMHeader.PSGWhiteNoiseFeedback);
-    SetDlgItemText(HeaderWnd,edtPSGFeedback, buffer);
-    SetDlgItemInt(HeaderWnd,edtPSGSRWidth, CurrentFileVGMHeader.PSGShiftRegisterWidth,FALSE);
+    SetDlgItemText(HeaderWnd, edtPSGFeedback, buffer);
+    SetDlgItemInt(HeaderWnd, edtPSGSRWidth, CurrentFileVGMHeader.PSGShiftRegisterWidth, FALSE);
 
     // GD3 tag
     if (GD3Strings)
@@ -1166,7 +412,7 @@ void UpdateHeader()
     int i, j;
     VGMHeader VGMHeader;
 
-    if (!FileExists(Currentfilename, callback))
+    if (!file_exists(Currentfilename, callback))
     {
         return;
     }
@@ -1175,12 +421,12 @@ void UpdateHeader()
     gzread(in, &VGMHeader, sizeof(VGMHeader));
     gzclose(in);
 
-    if (get_int(HeaderWnd,edtPlaybackRate, &i))
+    if (get_int(HeaderWnd, edtPlaybackRate, &i))
     {
         VGMHeader.RecordingRate = i;
     }
 
-    GetDlgItemText(HeaderWnd,edtVersion, buffer, 64);
+    GetDlgItemText(HeaderWnd, edtVersion, buffer, 64);
     if (sscanf(buffer, "%d.%d", &i, &j) == 2)
     {
         // valid data
@@ -1191,30 +437,30 @@ void UpdateHeader()
             (j % 10); // minor units
     }
 
-    if (get_int(HeaderWnd,edtPSGClock, &i))
+    if (get_int(HeaderWnd, edtPSGClock, &i))
     {
         VGMHeader.PSGClock = i;
     }
-    if (get_int(HeaderWnd,edtYM2413Clock, &i))
+    if (get_int(HeaderWnd, edtYM2413Clock, &i))
     {
         VGMHeader.YM2413Clock = i;
     }
-    if (get_int(HeaderWnd,edtYM2612Clock, &i))
+    if (get_int(HeaderWnd, edtYM2612Clock, &i))
     {
         VGMHeader.YM2612Clock = i;
     }
-    if (get_int(HeaderWnd,edtYM2151Clock, &i))
+    if (get_int(HeaderWnd, edtYM2151Clock, &i))
     {
         VGMHeader.YM2151Clock = i;
     }
 
-    GetDlgItemText(HeaderWnd,edtPSGFeedback, buffer, 64);
+    GetDlgItemText(HeaderWnd, edtPSGFeedback, buffer, 64);
     if (sscanf(buffer, "0x%x", &i) == 1)
     {
         // valid data
         VGMHeader.PSGWhiteNoiseFeedback = static_cast<uint16_t>(i);
     }
-    if (get_int(HeaderWnd,edtPSGSRWidth, &i))
+    if (get_int(HeaderWnd, edtPSGSRWidth, &i))
     {
         VGMHeader.PSGShiftRegisterWidth = static_cast<uint8_t>(i);
     }
@@ -1238,7 +484,7 @@ void UpdateGD3()
     wchar_t* AllGD3End = AllGD3Strings;
     int ConversionErrors = 0;
 
-    if (!FileExists(Currentfilename, callback))
+    if (!file_exists(Currentfilename, callback))
     {
         return;
     }
@@ -1268,9 +514,11 @@ void UpdateGD3()
     gzFile out = gzopen(Outfilename, "wb0");
 
     // Copy everything up to the GD3 tag
-    for (auto i = 0; i < static_cast<int>(VGMHeader.GD3Offset > 0 ? VGMHeader.GD3Offset + GD3DELTA : VGMHeader.EoFOffset + EOFDELTA); ++i)
+    for (auto i = 0; i < static_cast<int>(VGMHeader.GD3Offset > 0
+                                              ? VGMHeader.GD3Offset + GD3DELTA
+                                              : VGMHeader.EoFOffset + EOFDELTA); ++i)
     {
-        gzputc(out,gzgetc(in));
+        gzputc(out, gzgetc(in));
     }
 
     VGMHeader.GD3Offset = gztell(out) - GD3DELTA; // record GD3 position
@@ -1285,7 +533,7 @@ void UpdateGD3()
 
             GetDlgItemText(GD3Wnd, GD3EditControls[i], s, 1023); // get string
 
-            if (MultiByteToWideChar(CP_ACP,MB_PRECOMPOSED + MB_ERR_INVALID_CHARS, s, -1, widestr, 1024) == 0)
+            if (MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED + MB_ERR_INVALID_CHARS, s, -1, widestr, 1024) == 0)
             {
                 // convert to Unicode
                 ConversionErrors++;
@@ -1370,7 +618,7 @@ void UpdateGD3()
     if (ConversionErrors)
     {
         ShowError(
-            "There were %d error(s) when converting the GD3 tag to Unicode. Some fields may be truncated or incorrect.",
+            "There were %d error(s) when converting the GD3 tag to Unicode. Some fields may be truncated or incorrect.", 
             ConversionErrors);
     }
     ShowStatus("GD3 tag updated");
@@ -1430,13 +678,13 @@ void Strip(char* filename, char* Outfilename)
         gzclose(in);
         return;
     }
-    gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
+    gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
     gzFile out = gzopen(Outfilename, "wb0"); // No compression, since I'll recompress it later
 
     // Write header... update it later
     gzwrite(out, &VGMHeader, sizeof(VGMHeader));
-    gzseek(out,VGM_DATA_OFFSET,SEEK_SET);
+    gzseek(out, VGM_DATA_OFFSET, SEEK_SET);
 
     // process file
     do
@@ -1453,7 +701,7 @@ void Strip(char* filename, char* Outfilename)
             b1 = gzgetc(in);
             if (PSGMask & (1 << 4))
             {
-                gzputc(out,VGM_GGST);
+                gzputc(out, VGM_GGST);
                 gzputc(out, b1);
             }
             break;
@@ -1465,7 +713,7 @@ void Strip(char* filename, char* Outfilename)
             }
             if (PSGMask & (1 << LatchedChannel))
             {
-                gzputc(out,VGM_PSG);
+                gzputc(out, VGM_PSG);
                 gzputc(out, b1);
             }
             break;
@@ -1488,7 +736,7 @@ void Strip(char* filename, char* Outfilename)
                 case 0x07:
                     if (YM2413Mask & (1 << 14))
                     {
-                        gzputc(out,VGM_YM2413);
+                        gzputc(out, VGM_YM2413);
                         gzputc(out, b1);
                         gzputc(out, b2);
                     }
@@ -1500,14 +748,14 @@ void Strip(char* filename, char* Outfilename)
                     // Mask        00110101 = (YM2413Mask>>9)&0x1f|0x20
                     // Result      00110100
                     b2 &= (YM2413Mask >> 9) & 0x1f | 0x20;
-                    gzputc(out,VGM_YM2413);
+                    gzputc(out, VGM_YM2413);
                     gzputc(out, b1);
                     gzputc(out, b2);
                     break;
                 default:
                     if (YM2413Mask & (1 << 15))
                     {
-                        gzputc(out,VGM_YM2413);
+                        gzputc(out, VGM_YM2413);
                         gzputc(out, b1);
                         gzputc(out, b2);
                     }
@@ -1519,7 +767,7 @@ void Strip(char* filename, char* Outfilename)
                 {
                     if (YM2413Mask & (1 << 15))
                     {
-                        gzputc(out,VGM_YM2413);
+                        gzputc(out, VGM_YM2413);
                         gzputc(out, b1);
                         gzputc(out, b2);
                     }
@@ -1529,7 +777,7 @@ void Strip(char* filename, char* Outfilename)
                     if ((YM2413Mask & (1 << (b1 & 0xf))) || // if channel is on
                         ((b1 >= 0x16) && (YM2413Mask & 0x3e00))) // or last 3 channels AND percussion is wanted
                     {
-                        gzputc(out,VGM_YM2413);
+                        gzputc(out, VGM_YM2413);
                         gzputc(out, b1);
                         gzputc(out, b2);
                     }
@@ -1540,7 +788,7 @@ void Strip(char* filename, char* Outfilename)
                 {
                     if (YM2413Mask & (1 << 15))
                     {
-                        gzputc(out,VGM_YM2413);
+                        gzputc(out, VGM_YM2413);
                         gzputc(out, b1);
                         gzputc(out, b2);
                     }
@@ -1551,7 +799,7 @@ void Strip(char* filename, char* Outfilename)
                         ((b1 >= 0x26) && (YM2413Mask & 0x3e00) /*&& !(b1&0x10)*/))
                     // or last 3 channels AND percussion is wanted AND key is off
                     {
-                        gzputc(out,VGM_YM2413);
+                        gzputc(out, VGM_YM2413);
                         gzputc(out, b1);
                         gzputc(out, b2);
                     }
@@ -1562,7 +810,7 @@ void Strip(char* filename, char* Outfilename)
                 {
                     if (YM2413Mask & (1 << 15))
                     {
-                        gzputc(out,VGM_YM2413);
+                        gzputc(out, VGM_YM2413);
                         gzputc(out, b1);
                         gzputc(out, b2);
                     }
@@ -1572,7 +820,7 @@ void Strip(char* filename, char* Outfilename)
                     if ((YM2413Mask & (1 << (b1 & 0xf))) || // if channel is on
                         ((b1 >= 0x36) && (YM2413Mask & 0x3e00))) // or last 3 channels AND percussion is on
                     {
-                        gzputc(out,VGM_YM2413);
+                        gzputc(out, VGM_YM2413);
                         gzputc(out, b1);
                         gzputc(out, b2);
                     }
@@ -1581,7 +829,7 @@ void Strip(char* filename, char* Outfilename)
             default:
                 if (YM2413Mask & (1 << 15))
                 {
-                    gzputc(out,VGM_YM2413);
+                    gzputc(out, VGM_YM2413);
                     gzputc(out, b1);
                     gzputc(out, b2);
                 }
@@ -1620,7 +868,7 @@ void Strip(char* filename, char* Outfilename)
         case 0x5d:
         case 0x5e:
         case 0x5f:
-            gzseek(in, 2,SEEK_CUR);
+            gzseek(in, 2, SEEK_CUR);
             break;
         case VGM_PAUSE_WORD: // Wait n samples
             b1 = gzgetc(in);
@@ -1635,7 +883,7 @@ void Strip(char* filename, char* Outfilename)
             break;
         //    case VGM_PAUSE_BYTE:  // Wait n samples
         //      b1=gzgetc(in);
-        //      gzputc(out,b0);gzputc(out,b1);
+        //      gzputc(out, b0);gzputc(out, b1);
         //      break;
         case 0x70:
         case 0x71:
@@ -1688,13 +936,13 @@ void Strip(char* filename, char* Outfilename)
     {
         TGD3Header GD3Header;
         int NewGD3Offset = gztell(out) - GD3DELTA;
-        gzseek(in, VGMHeader.GD3Offset + GD3DELTA,SEEK_SET);
+        gzseek(in, VGMHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
         for (auto i = 0u; i < GD3Header.length; ++i)
         {
             // Copy strings
-            gzputc(out,gzgetc(in));
+            gzputc(out, gzgetc(in));
         }
         VGMHeader.GD3Offset = NewGD3Offset;
     }
@@ -1713,7 +961,7 @@ void StripChecked(char* filename)
     char Tmpfilename[MAX_PATH + 10], Outfilename[MAX_PATH + 10];
     VGMHeader VGMHeader;
 
-    if (!FileExists(filename, callback))
+    if (!file_exists(filename, callback))
     {
         return;
     }
@@ -1756,11 +1004,11 @@ void StripChecked(char* filename)
     Strip(filename, Outfilename);
     /*
       // Optimise output file
-      if (VGMHeader.LoopLength) Trim(Tmpfilename,0,VGMHeader.TotalLength-VGMHeader.LoopLength,VGMHeader.TotalLength,TRUE,FALSE);
-      else Trim(Tmpfilename,0,-1,VGMHeader.TotalLength,TRUE,FALSE);
+      if (VGMHeader.LoopLength) Trim(Tmpfilename, 0, VGMHeader.TotalLength-VGMHeader.LoopLength, VGMHeader.TotalLength, TRUE, FALSE);
+      else Trim(Tmpfilename, 0, -1, VGMHeader.TotalLength, TRUE, FALSE);
     
       // Strip data again because optimiser added it back
-      Strip(Tmpfilename,Outfilename);
+      Strip(Tmpfilename, Outfilename);
       
       // Clean up
       DeleteFile(Tmpfilename);
@@ -1768,10 +1016,10 @@ void StripChecked(char* filename)
 
     ShowStatus("Data stripping complete");
 
-    if (ShowQuestion("Stripped VGM data written to\n%s\nDo you want to open it in the associated program?",
+    if (ShowQuestion("Stripped VGM data written to\n%s\nDo you want to open it in the associated program?", 
         Outfilename) == IDYES)
     {
-        ShellExecute(hWndMain, "open", Outfilename, nullptr, nullptr,SW_NORMAL);
+        ShellExecute(hWndMain, "open", Outfilename, nullptr, nullptr, SW_NORMAL);
     }
 }
 
@@ -1817,33 +1065,33 @@ void ccb(const int CheckBoxes[], const unsigned long WriteCount[], int count, in
 
 void ChangeCheckBoxes(int mode)
 {
-    ccb(PSGCheckBoxes, PSGWrites,NumPSGTypes, mode);
-    ccb(YM2413CheckBoxes, YM2413Writes,NumYM2413Types, mode);
-    ccb(YM2612CheckBoxes, YM2612Writes,NumYM2612Types, mode);
-    ccb(YM2151CheckBoxes, YM2151Writes,NumYM2151Types, mode);
+    ccb(PSGCheckBoxes, PSGWrites, NumPSGTypes, mode);
+    ccb(YM2413CheckBoxes, YM2413Writes, NumYM2413Types, mode);
+    ccb(YM2612CheckBoxes, YM2612Writes, NumYM2612Types, mode);
+    ccb(YM2151CheckBoxes, YM2151Writes, NumYM2151Types, mode);
 }
 
 /*
 // Go through file, convert 50<->60Hz
 void ConvertRate(char *filename) {
-  gzFile in,*out;
+  gzFile in, *out;
   struct VGMHeader VGMHeader;
   char *Outfilename;
   char *p;
-  int b0,b1,b2;
+  int b0, b1, b2;
   long PauseLength=0;
-  int BytesAdded=0,BytesAddedBeforeLoop=0;  // for when I have to expand wait nnnn commands
+  int BytesAdded=0, BytesAddedBeforeLoop=0;  // for when I have to expand wait nnnn commands
 
   if (!FileExists(filename)) return;
 
-  in=gzopen(filename,"rb");
+  in=gzopen(filename, "rb");
 
   // Read header
-  gzread(in,&VGMHeader,sizeof(VGMHeader));
-  gzseek(in,VGM_DATA_OFFSET,SEEK_SET);
+  gzread(in, &VGMHeader, sizeof(VGMHeader));
+  gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
-  if (strncmp(VGMHeader.VGMIdent,"Vgm ",4)!=0) {  // no VGM marker
-    sprintf(MessageBuffer,"File is not a VGM file! (no \"Vgm \")");
+  if (strncmp(VGMHeader.VGMIdent, "Vgm ", 4)!=0) {  // no VGM marker
+    sprintf(MessageBuffer, "File is not a VGM file! (no \"Vgm \")");
     ShowMessage();
     gzclose(in);
     return;
@@ -1858,27 +1106,27 @@ void ConvertRate(char *filename) {
       ShowStatus("Converting rate from 50 to 60Hz...");
       break;
     default:
-      sprintf(MessageBuffer,"Cannot convert this file because its recording rate is not set");
+      sprintf(MessageBuffer, "Cannot convert this file because its recording rate is not set");
       ShowMessage();
       gzclose(in);
       return;
   }
 
   Outfilename=malloc(strlen(filename)+40);
-  strcpy(Outfilename,filename);
+  strcpy(Outfilename, filename);
   for (p=Outfilename+strlen(Outfilename); p>=Outfilename; --p) {
     if (*p=='.') {
-      sprintf(MessageBuffer," (converted to %dHz).vgz",(VGMHeader.RecordingRate==50?60:50));
-      strcpy(p,MessageBuffer);
+      sprintf(MessageBuffer, " (converted to %dHz).vgz", (VGMHeader.RecordingRate==50?60:50));
+      strcpy(p, MessageBuffer);
       break;
     }
   }
 
-  out=gzopen(Outfilename,"wb0");  // No compression, since I'll recompress it later
+  out=gzopen(Outfilename, "wb0");  // No compression, since I'll recompress it later
 
   // Write header... update it later
-  gzwrite(out,&VGMHeader,sizeof(VGMHeader));
-  gzseek(out,VGM_DATA_OFFSET,SEEK_SET);
+  gzwrite(out, &VGMHeader, sizeof(VGMHeader));
+  gzseek(out, VGM_DATA_OFFSET, SEEK_SET);
 
   do {
     if (gztell(in)==VGMHeader.LoopOffset+LOOPDELTA) {  // Check to see if it's the loop point
@@ -1890,8 +1138,8 @@ void ConvertRate(char *filename) {
     case VGM_GGST:  // GG stereo
     case VGM_PSG:  // PSG write
       b1=gzgetc(in);
-      gzputc(out,b0);
-      gzputc(out,b1);
+      gzputc(out, b0);
+      gzputc(out, b1);
       break;
     case VGM_YM2413:  // YM2413
     case VGM_YM2612_0:  // YM2612 port 0
@@ -1899,9 +1147,9 @@ void ConvertRate(char *filename) {
     case VGM_YM2151:  // YM2151
       b1=gzgetc(in);
       b2=gzgetc(in);
-      gzputc(out,b0);
-      gzputc(out,b1);
-      gzputc(out,b2);
+      gzputc(out, b0);
+      gzputc(out, b1);
+      gzputc(out, b2);
       break;
     case 0x55:  // Reserved up to 0x5f
     case 0x56:  // All have 2 bytes of data
@@ -1931,29 +1179,29 @@ void ConvertRate(char *filename) {
 
       // Write
       while (PauseLength>65535) {
-        gzputc(out,VGM_PAUSE_WORD);
-        gzputc(out,0xff);
-        gzputc(out,0xff);
+        gzputc(out, VGM_PAUSE_WORD);
+        gzputc(out, 0xff);
+        gzputc(out, 0xff);
         BytesAdded+=3;
         PauseLength-=65535;
       }
-      gzputc(out,VGM_PAUSE_WORD);
-      gzputc(out,(PauseLength & 0xff));
-      gzputc(out,(PauseLength >> 8));
+      gzputc(out, VGM_PAUSE_WORD);
+      gzputc(out, (PauseLength & 0xff));
+      gzputc(out, (PauseLength >> 8));
       break;
 
     
     case VGM_PAUSE_60TH:  // Wait 1/60 s
-      if (VGMHeader.RecordingRate==60) gzputc(out,VGM_PAUSE_50TH);
+      if (VGMHeader.RecordingRate==60) gzputc(out, VGM_PAUSE_50TH);
       else {
-        sprintf(MessageBuffer,"Wait 1/60th command found in 50Hz file!");
+        sprintf(MessageBuffer, "Wait 1/60th command found in 50Hz file!");
         ShowMessage();
       }
       break;
     case VGM_PAUSE_50TH:  // Wait 1/50 s
-      if (VGMHeader.RecordingRate==50) gzputc(out,VGM_PAUSE_60TH);
+      if (VGMHeader.RecordingRate==50) gzputc(out, VGM_PAUSE_60TH);
       else {
-        sprintf(MessageBuffer,"Wait 1/50th command found in 60Hz file!");
+        sprintf(MessageBuffer, "Wait 1/50th command found in 60Hz file!");
         ShowMessage();
       }
       break;
@@ -1964,7 +1212,7 @@ void ConvertRate(char *filename) {
       break;
     }
   } while (b0!=EOF);
-  gzputc(out,VGM_END);
+  gzputc(out, VGM_END);
 
   // Copy GD3 tag
   if (VGMHeader.GD3Offset) {
@@ -1972,11 +1220,11 @@ void ConvertRate(char *filename) {
     int i;
     int NewGD3Offset=gztell(out)-GD3DELTA;
     ShowStatus("Copying GD3 tag...");
-    gzseek(in,VGMHeader.GD3Offset+GD3DELTA,SEEK_SET);
-    gzread(in,&GD3Header,sizeof(GD3Header));
-    gzwrite(out,&GD3Header,sizeof(GD3Header));
+    gzseek(in, VGMHeader.GD3Offset+GD3DELTA, SEEK_SET);
+    gzread(in, &GD3Header, sizeof(GD3Header));
+    gzwrite(out, &GD3Header, sizeof(GD3Header));
     for (i=0; i<GD3Header.Length; ++i) {  // Copy strings
-      gzputc(out,gzgetc(in));
+      gzputc(out, gzgetc(in));
     }
     VGMHeader.GD3Offset=NewGD3Offset;
   }
@@ -1996,15 +1244,15 @@ void ConvertRate(char *filename) {
   }
 
   // Amend it with the updated header
-  WriteVGMHeader(Outfilename,VGMHeader);
+  WriteVGMHeader(Outfilename, VGMHeader);
 
-  CountLength(Outfilename,0);  // fix lengths
+  CountLength(Outfilename, 0);  // fix lengths
 
   compress(Currentfilename);
 
   ShowStatus("Rate conversion complete");
 
-  sprintf(MessageBuffer,"File converted to\n%s",Outfilename);
+  sprintf(MessageBuffer, "File converted to\n%s", Outfilename);
   ShowMessage();
 
   free(Outfilename);
@@ -2047,7 +1295,7 @@ void PasteUnicode()
 
         CloseClipboard();
     }
-    SetDlgItemText(GD3Wnd,edtPasteUnicode, textbuffer);
+    SetDlgItemText(GD3Wnd, edtPasteUnicode, textbuffer);
 }
 
 void CopyLengthsToClipboard()
@@ -2055,15 +1303,15 @@ void CopyLengthsToClipboard()
     char String[64] = "";
     char MessageBuffer[1024];
 
-    GetDlgItemText(GD3Wnd,edtGD3TitleEn, MessageBuffer, 35);
+    GetDlgItemText(GD3Wnd, edtGD3TitleEn, MessageBuffer, 35);
     sprintf(String, "%-35s", MessageBuffer);
-    GetDlgItemText(HeaderWnd,edtLengthTotal, MessageBuffer, 5);
+    GetDlgItemText(HeaderWnd, edtLengthTotal, MessageBuffer, 5);
     if (!strlen(MessageBuffer))
     {
         return; // quit if no length in box
     }
     sprintf(String, "%s %s", String, MessageBuffer);
-    GetDlgItemText(HeaderWnd,edtLengthLoop, MessageBuffer, 5);
+    GetDlgItemText(HeaderWnd, edtLengthLoop, MessageBuffer, 5);
     sprintf(String, "%s   %s\r\n", String, MessageBuffer);
 
     auto strlength = (strlen(String) + 1) * sizeof(char);
@@ -2134,7 +1382,7 @@ void ConvertDroppedFiles(HDROP HDrop)
         free(DroppedFilename); // deallocate buffer
     }
 
-    add_convert_text("%d of %d file(s) successfully converted in %dms\r\n", NumConverted, NumFiles,
+    add_convert_text("%d of %d file(s) successfully converted in %dms\r\n", NumConverted, NumFiles, 
         GetTickCount() - Timer);
 
     DragFinish(HDrop);
@@ -2146,10 +1394,10 @@ void make_tabbed_dialogue()
 {
     // Load images for tabs
     InitCommonControls(); // required before doing imagelist stuff
-    HIMAGELIST il = ImageList_LoadImage(HInst, (LPCSTR)tabimages, 16, 0,RGB(255, 0, 255),IMAGE_BITMAP,
+    HIMAGELIST il = ImageList_LoadImage(HInst, (LPCSTR)tabimages, 16, 0, RGB(255, 0, 255), IMAGE_BITMAP, 
         LR_CREATEDIBSECTION);
 
-    HWND tabCtrlWnd = GetDlgItem(hWndMain,tcMain);
+    HWND tabCtrlWnd = GetDlgItem(hWndMain, tcMain);
     TabCtrl_SetImageList(tabCtrlWnd, il);
     // Add tabs
     TC_ITEM newTab;
@@ -2195,12 +1443,12 @@ void make_tabbed_dialogue()
     {
         EnableThemeDialogTexture(tabChildWnd, ETDT_ENABLETAB);
 
-        SetWindowPos(tabChildWnd,HWND_TOP, tabDisplayRect.left, tabDisplayRect.top,
-            tabDisplayRect.right - tabDisplayRect.left, tabDisplayRect.bottom - tabDisplayRect.top,
+        SetWindowPos(tabChildWnd, HWND_TOP, tabDisplayRect.left, tabDisplayRect.top, 
+            tabDisplayRect.right - tabDisplayRect.left, tabDisplayRect.bottom - tabDisplayRect.top, 
             SWP_HIDEWINDOW);
     }
     // Show the first one, though
-    SetWindowPos(TabChildWnds[0],HWND_TOP, 0, 0, 0, 0,SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW);
+    SetWindowPos(TabChildWnds[0], HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW);
 }
 
 
@@ -2214,7 +1462,7 @@ void FillComboBox(HWND parent, int id, const char* items, const char* separators
 
     while (p)
     {
-        SendDlgItemMessage(parent, id,CB_ADDSTRING, 0, (LPARAM)p);
+        SendDlgItemMessage(parent, id, CB_ADDSTRING, 0, (LPARAM)p);
         p = strtok(nullptr, separators);
     }
 
@@ -2233,28 +1481,28 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 return FALSE; // nothing for child windows
             }
             hWndMain = hWnd; // remember our window handle
-            HICON hIcon = LoadIcon(HInst,MAKEINTRESOURCE(MAINICON));
+            HICON hIcon = LoadIcon(HInst, MAKEINTRESOURCE(MAINICON));
             SendMessage(hWnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
             SendMessage(hWnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
-            SetDlgItemText(hWndMain,edtFileName, "Drop a file onto the window to load");
+            SetDlgItemText(hWndMain, edtFileName, "Drop a file onto the window to load");
             SetWindowText(hWndMain, ProgName);
             make_tabbed_dialogue();
             // Fill combo box - see below for Japanese translations
-            FillComboBox(GD3Wnd,cbGD3SystemEn,
-                "Sega Master System,Sega Game Gear,Sega Master System / Game Gear,Sega Mega Drive / Genesis,Sega Game 1000,Sega Computer 3000,Sega System 16,Capcom Play System 1,Colecovision,BBC Model B,BBC Model B+,BBC Master 128,Custom...",
-                ",");
-            FillComboBox(HeaderWnd,edtPlaybackRate, "0 (unknown),50 (PAL),60 (NTSC)", ",");
-            FillComboBox(HeaderWnd,edtPSGClock, "0 (disabled),3546893 (PAL),3579545 (NTSC),4000000 (BBC)", ",");
-            FillComboBox(HeaderWnd,edtYM2413Clock, "0 (disabled),3546893 (PAL),3579545 (NTSC)", ",");
-            FillComboBox(HeaderWnd,edtYM2612Clock, "0 (disabled),7600489 (PAL),7670453 (NTSC)", ",");
-            FillComboBox(HeaderWnd,edtYM2151Clock, "0 (disabled),7670453 (NTSC)", ",");
+            FillComboBox(GD3Wnd, cbGD3SystemEn, 
+                "Sega Master System, Sega Game Gear, Sega Master System / Game Gear, Sega Mega Drive / Genesis, Sega Game 1000, Sega Computer 3000, Sega System 16, Capcom Play System 1, Colecovision, BBC Model B, BBC Model B+, BBC Master 128, Custom...", 
+                ", ");
+            FillComboBox(HeaderWnd, edtPlaybackRate, "0 (unknown), 50 (PAL), 60 (NTSC)", ", ");
+            FillComboBox(HeaderWnd, edtPSGClock, "0 (disabled), 3546893 (PAL), 3579545 (NTSC), 4000000 (BBC)", ", ");
+            FillComboBox(HeaderWnd, edtYM2413Clock, "0 (disabled), 3546893 (PAL), 3579545 (NTSC)", ", ");
+            FillComboBox(HeaderWnd, edtYM2612Clock, "0 (disabled), 7600489 (PAL), 7670453 (NTSC)", ", ");
+            FillComboBox(HeaderWnd, edtYM2151Clock, "0 (disabled), 7670453 (NTSC)", ", ");
 
-            FillComboBox(HeaderWnd,edtPSGFeedback, "0 (disabled),0x0009 (Sega VDP),0x0003 (discrete chip)", ",");
-            FillComboBox(HeaderWnd,edtPSGSRWidth, "0 (disabled),16 (Sega VDP),15 (discrete chip)", ",");
+            FillComboBox(HeaderWnd, edtPSGFeedback, "0 (disabled), 0x0009 (Sega VDP), 0x0003 (discrete chip)", ", ");
+            FillComboBox(HeaderWnd, edtPSGSRWidth, "0 (disabled), 16 (Sega VDP), 15 (discrete chip)", ", ");
 
             // Focus 1st control
             SetActiveWindow(hWndMain);
-            SetFocus(GetDlgItem(hWndMain,edtFileName));
+            SetFocus(GetDlgItem(hWndMain, edtFileName));
             return TRUE;
         }
     case WM_CLOSE: // Window is being asked to close ([x], Alt+F4, etc)
@@ -2285,7 +1533,6 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         case btnUpdateHeader:
             UpdateHeader();
             compress(Currentfilename, callback);
-            FixExt(Currentfilename, callback); // in case I've VGM-VGZed
             LoadFile(Currentfilename);
             break;
         case btnCheckLengths:
@@ -2294,14 +1541,14 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case btnTrim:
             {
-                int Loop = -1;
+                int loop = -1;
                 BOOL b1, b2, b3 = TRUE;
-                int Start = GetDlgItemInt(TrimWnd,edtTrimStart, &b1,FALSE);
-                int End = GetDlgItemInt(TrimWnd,edtTrimEnd, &b2,FALSE);
-                if (IsDlgButtonChecked(TrimWnd,cbLoop))
+                const int start = static_cast<int>(GetDlgItemInt(TrimWnd, edtTrimStart, &b1, FALSE));
+                const int end = static_cast<int>(GetDlgItemInt(TrimWnd, edtTrimEnd, &b2, FALSE));
+                if (IsDlgButtonChecked(TrimWnd, cbLoop))
                 {
                     // want looping
-                    Loop = GetDlgItemInt(TrimWnd,edtTrimLoop, &b3,FALSE);
+                    loop = static_cast<int>(GetDlgItemInt(TrimWnd, edtTrimLoop, &b3, FALSE));
                 }
 
                 if (!b1 || !b2 || !b3)
@@ -2310,7 +1557,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                     ShowError("Invalid edit points!");
                     break;
                 }
-                Trim(Currentfilename, Start, Loop, End,FALSE,TRUE);
+                trim(Currentfilename, start, loop, end, false, IsDlgButtonChecked(TrimWnd, cbLogTrims), callback);
             }
             break;
         case btnWriteToText:
@@ -2319,11 +1566,10 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         case btnOptimise:
             Optimize(Currentfilename);
             compress(Currentfilename, callback);
-            FixExt(Currentfilename, callback);
             LoadFile(Currentfilename);
             break;
         case btnDecompress:
-            if (Decompress(Currentfilename, callback) && FixExt(Currentfilename, callback))
+            if (decompress(Currentfilename, callback))
             {
                 LoadFile(Currentfilename);
             }
@@ -2331,7 +1577,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         case btnRoundTimes:
             {
                 BOOL b;
-                const int Edits[3] = {edtTrimStart,edtTrimLoop,edtTrimEnd};
+                const int Edits[3] = {edtTrimStart, edtTrimLoop, edtTrimEnd};
                 if (!CurrentFileVGMHeader.RecordingRate)
                 {
                     break; // stop if rate = 0
@@ -2339,21 +1585,20 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 int FrameLength = 44100 / CurrentFileVGMHeader.RecordingRate;
                 for (int i = 0; i < 3; ++i)
                 {
-                    int Time = GetDlgItemInt(TrimWnd, Edits[i], &b,FALSE);
+                    int Time = GetDlgItemInt(TrimWnd, Edits[i], &b, FALSE);
                     if (b)
                     {
-                        SetDlgItemInt(TrimWnd, Edits[i],ROUND((double)Time/FrameLength) * FrameLength,FALSE);
+                        SetDlgItemInt(TrimWnd, Edits[i], ROUND((double)Time/FrameLength) * FrameLength, FALSE);
                     }
                 }
             }
             break;
         case btnPlayFile:
-            ShellExecute(hWndMain, "Play", Currentfilename, nullptr, nullptr,SW_NORMAL);
+            ShellExecute(hWndMain, "Play", Currentfilename, nullptr, nullptr, SW_NORMAL);
             break;
         case btnUpdateGD3:
             UpdateGD3();
             compress(Currentfilename, callback);
-            FixExt(Currentfilename, callback); // in case I've VGM-VGZed
             LoadFile(Currentfilename);
             break;
         case btnGD3Clear:
@@ -2376,7 +1621,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case cbPSGTone:
             {
-                const int Checked = IsDlgButtonChecked(StripWnd,cbPSGTone);
+                const int Checked = IsDlgButtonChecked(StripWnd, cbPSGTone);
                 for (int i = 0; i < 3; ++i)
                 {
                     if (IsWindowEnabled(GetDlgItem(StripWnd, PSGCheckBoxes[i])))
@@ -2389,7 +1634,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case cbYM2413Tone:
             {
-                const int Checked = IsDlgButtonChecked(StripWnd,cbYM2413Tone);
+                const int Checked = IsDlgButtonChecked(StripWnd, cbYM2413Tone);
                 for (int i = 0; i < 9; ++i)
                 {
                     if (IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i])))
@@ -2401,7 +1646,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case cbYM2413Percussion:
             {
-                const int Checked = IsDlgButtonChecked(StripWnd,cbYM2413Percussion);
+                const int Checked = IsDlgButtonChecked(StripWnd, cbYM2413Percussion);
                 for (int i = 9; i < 14; ++i)
                 {
                     if (IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i])))
@@ -2416,7 +1661,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 int i = detect_rate(Currentfilename, callback);
                 if (i)
                 {
-                    SetDlgItemInt(HeaderWnd,edtPlaybackRate, i,FALSE);
+                    SetDlgItemInt(HeaderWnd, edtPlaybackRate, i, FALSE);
                 }
                 // TODO: make sure VGM version is set high enough when updating header
             }
@@ -2429,20 +1674,20 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             {
                 break;
             }
-            switch (SendDlgItemMessage(GD3Wnd,cbGD3SystemEn,CB_GETCURSEL, 0, 0))
+            switch (SendDlgItemMessage(GD3Wnd, cbGD3SystemEn, CB_GETCURSEL, 0, 0))
             {
-            case 0: SetDlgItemText(GD3Wnd,edtGD3SystemJp,
+            case 0: SetDlgItemText(GD3Wnd, edtGD3SystemJp, 
                     "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0;");
                 break; // Sega Master System
-            case 1: SetDlgItemText(GD3Wnd,edtGD3SystemJp, "&#x30bb;&#x30ac;&#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
+            case 1: SetDlgItemText(GD3Wnd, edtGD3SystemJp, "&#x30bb;&#x30ac;&#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
                 break; // Sega Game Gear
-            case 2: SetDlgItemText(GD3Wnd,edtGD3SystemJp,
+            case 2: SetDlgItemText(GD3Wnd, edtGD3SystemJp, 
                     "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0; / &#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
                 break; // Sega Master System / Game Gear
-            case 3: SetDlgItemText(GD3Wnd,edtGD3SystemJp,
+            case 3: SetDlgItemText(GD3Wnd, edtGD3SystemJp, 
                     "&#x30bb;&#x30ac;&#x30e1;&#x30ac;&#x30c9;&#x30e9;&#x30a4;&#x30d6;");
                 break; // Sega Megadrive (Japanese name)
-            default: SetDlgItemText(GD3Wnd,edtGD3SystemJp, "");
+            default: SetDlgItemText(GD3Wnd, edtGD3SystemJp, "");
                 break;
             }
             break;
@@ -2470,12 +1715,12 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             {
                 int Loop = -1;
                 BOOL b1, b2, b3 = TRUE;
-                int Start = GetDlgItemInt(TrimWnd,edtTrimStart, &b1,FALSE);
-                int End = GetDlgItemInt(TrimWnd,edtTrimEnd, &b2,FALSE);
-                if (IsDlgButtonChecked(TrimWnd,cbLoop))
+                int Start = GetDlgItemInt(TrimWnd, edtTrimStart, &b1, FALSE);
+                int End = GetDlgItemInt(TrimWnd, edtTrimEnd, &b2, FALSE);
+                if (IsDlgButtonChecked(TrimWnd, cbLoop))
                 {
                     // want looping
-                    Loop = GetDlgItemInt(TrimWnd,edtTrimLoop, &b3,FALSE);
+                    Loop = GetDlgItemInt(TrimWnd, edtTrimLoop, &b3, FALSE);
                 }
 
                 if (!b1 || !b2 || !b3)
@@ -2485,7 +1730,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                     break;
                 }
 
-                if (IsDlgButtonChecked(TrimWnd,cbLogTrims))
+                if (IsDlgButtonChecked(TrimWnd, cbLogTrims))
                 {
                     log_trim(Currentfilename, Start, Loop, End, callback);
                 }
@@ -2495,19 +1740,18 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case btnCompress:
             compress(Currentfilename, callback);
-            FixExt(Currentfilename, callback);
             LoadFile(Currentfilename);
             break;
         case btnNewTrim:
             {
                 int Loop = -1;
                 BOOL b1, b2, b3 = TRUE;
-                int Start = GetDlgItemInt(TrimWnd,edtTrimStart, &b1,FALSE);
-                int End = GetDlgItemInt(TrimWnd,edtTrimEnd, &b2,FALSE);
-                if (IsDlgButtonChecked(TrimWnd,cbLoop))
+                int Start = GetDlgItemInt(TrimWnd, edtTrimStart, &b1, FALSE);
+                int End = GetDlgItemInt(TrimWnd, edtTrimEnd, &b2, FALSE);
+                if (IsDlgButtonChecked(TrimWnd, cbLoop))
                 {
                     // want looping
-                    Loop = GetDlgItemInt(TrimWnd,edtTrimLoop, &b3,FALSE);
+                    Loop = GetDlgItemInt(TrimWnd, edtTrimLoop, &b3, FALSE);
                 }
 
                 if (!b1 || !b2 || !b3)
@@ -2539,7 +1783,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 Checked += IsDlgButtonChecked(StripWnd, PSGCheckBoxes[i]);
                 Total += IsWindowEnabled(GetDlgItem(StripWnd, PSGCheckBoxes[i]));
             }
-            CheckDlgButton(StripWnd,cbPSGTone, (Checked == Total) && Total);
+            CheckDlgButton(StripWnd, cbPSGTone, (Checked == Total) && Total);
             Checked = 0;
             Total = 0;
             for (i = 0; i < 9; ++i)
@@ -2547,7 +1791,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 Checked += IsDlgButtonChecked(StripWnd, YM2413CheckBoxes[i]);
                 Total += IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i]));
             }
-            CheckDlgButton(StripWnd,cbYM2413Tone, (Checked == Total) && Total);
+            CheckDlgButton(StripWnd, cbYM2413Tone, (Checked == Total) && Total);
             Checked = 0;
             Total = 0;
             for (i = 9; i < 14; ++i)
@@ -2555,7 +1799,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 Checked += IsDlgButtonChecked(StripWnd, YM2413CheckBoxes[i]);
                 Total += IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i]));
             }
-            CheckDlgButton(StripWnd,cbYM2413Percussion, (Checked == Total) && Total);
+            CheckDlgButton(StripWnd, cbYM2413Percussion, (Checked == Total) && Total);
         }
         return TRUE; // WM_COMMAND handled
     case WM_NOTIFY:
@@ -2565,13 +1809,13 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             switch (((LPNMHDR)lParam)->code)
             {
             case TCN_SELCHANGING: // hide current window
-                SetWindowPos(TabChildWnds[TabCtrl_GetCurSel(GetDlgItem(hWndMain,tcMain))],HWND_TOP, 0, 0, 0, 0,
+                SetWindowPos(TabChildWnds[TabCtrl_GetCurSel(GetDlgItem(hWndMain, tcMain))], HWND_TOP, 0, 0, 0, 0, 
                     SWP_NOMOVE | SWP_NOSIZE | SWP_HIDEWINDOW);
                 break;
             case TCN_SELCHANGE: // show current window
                 {
-                    int i = TabCtrl_GetCurSel(GetDlgItem(hWndMain,tcMain));
-                    SetWindowPos(TabChildWnds[i],HWND_TOP, 0, 0, 0, 0,SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                    int i = TabCtrl_GetCurSel(GetDlgItem(hWndMain, tcMain));
+                    SetWindowPos(TabChildWnds[i], HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
                     SetFocus(TabChildWnds[i]);
                 }
                 break;
@@ -2584,9 +1828,9 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 }
 
 /* // Old method, using Windows' built-in message handlers
-int APIENTRY WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,int nCmdShow) {
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
   HInst=hInstance;
-  DialogBox(hInstance,(LPCTSTR) MAINDIALOGUE,NULL,DialogProc);  // Open dialog
+  DialogBox(hInstance, (LPCTSTR) MAINDIALOGUE, NULL, DialogProc);  // Open dialog
   if (GD3Strings) free(GD3Strings);
   return 0;
 }*/
@@ -2609,7 +1853,7 @@ void HandleCommandline(char* commandline)
         if (end)
         {
             *end = 0;
-            if (FileExistsQuiet(start))
+            if (Utils::file_exists(start))
             {
                 LoadFile(start);
             }
@@ -2617,30 +1861,30 @@ void HandleCommandline(char* commandline)
     }
 }
 
-void DoCtrlTab(void)
+void DoCtrlTab()
 {
-    HWND TabCtrlWnd = GetDlgItem(hWndMain,tcMain);
-    int currenttab = TabCtrl_GetCurFocus(TabCtrlWnd);
+    const HWND tabCtrlWnd = GetDlgItem(hWndMain, tcMain);
+    int currentTab = TabCtrl_GetCurFocus(tabCtrlWnd);
 
     if (GetKeyState(VK_SHIFT) < 0)
     {
-        currenttab--;
+        --currentTab;
     }
     else
     {
-        currenttab++;
+        ++currentTab;
     }
 
-    if (currenttab == -1)
+    if (currentTab == -1)
     {
-        currenttab = NumTabChildWnds - 1;
+        currentTab = NumTabChildWnds - 1;
     }
-    else if (currenttab == NumTabChildWnds)
+    else if (currentTab == NumTabChildWnds)
     {
-        currenttab = 0;
+        currentTab = 0;
     }
 
-    TabCtrl_SetCurFocus(TabCtrlWnd, currenttab);
+    TabCtrl_SetCurFocus(tabCtrlWnd, currentTab);
 }
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR lpCmdLine, int nCmdShow)
