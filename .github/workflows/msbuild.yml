@@ -28,8 +28,7 @@ jobs:
       shell: cmd
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
-        set
-        7z a "vgmtool-b${{github.run_number}}.zip" .\x64\Release\*.exe vgmtool.txt
+        7z a "vgmtool-v0.${{github.run_number}}.zip" .\x64\Release\*.exe vgmtool.txt
 
     - name: Create release
       if: github.ref == 'refs/heads/master'
