@@ -1,6 +1,6 @@
 VGMTool
 =======
 
-This is the source to VGMTool, my first ever C/C++ project! Thus, it is full of horrors.
+This is the source to VGMTool, my first ever C/C++ project! Thus, it is full of horrors. I am slowly modernising it and converting to mild C++.
 
-The project lives on at https://github.com/vgmtool/vgmtool, this is really just for historical purposes - notice the commit times.
+See https://www.smspower.org/Music/VGMs for VGM music and https://www.smspower.org/Music/HowToMakeVGMs for some information on how to use VGMTool.

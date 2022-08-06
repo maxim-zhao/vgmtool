@@ -55,6 +55,7 @@ editing.
 History
 =======
 
+2022      Resurrecting the project, doing som emodernisation. Watch this space!
 30/10/05  VGM 1.10 updates, and various work on the trimmer which is currently
           hidden - the trimmer is the same as r4.
           Visit http://sourceforge.net/projects/vgmtool/ to see the source
