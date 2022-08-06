@@ -14,18 +14,6 @@
 // Buffer for copying (created when needed)
 #define BUFFER_SIZE 1024*8
 
-// returns a boolean specifying if the passed filename exists
-// also shows an error message if it doesn't
-bool file_exists(const std::string& filename, const IVGMToolCallback& callback)
-{
-    const bool result = Utils::file_exists(filename);
-    if (!result)
-    {
-        callback.show_error(Utils::format("File not found or in use:\n%s", filename.c_str()));
-    }
-    return result;
-}
-
 bool Utils::file_exists(const std::string& filename)
 {
     return std::filesystem::exists(filename);
@@ -40,38 +28,15 @@ int Utils::file_size(const std::string& filename)
 void Utils::compress(const std::string& filename, int iterations)
 {
     // Read file into memory
-    auto f = gzopen(filename.c_str(), "rb");
-    if (f == nullptr)
-    {
-        throw std::runtime_error(format("Failed to open \"%s\"", filename.c_str()));
-    }
-    // Read into the vector
-    constexpr int chunkSize = 256 * 1024;
-    std::vector<unsigned char> data;
-    while (!gzeof(f))
-    {
-        // Make space
-        const auto sizeBefore = data.size();
-        data.resize(sizeBefore + chunkSize);
-        // Read into it
-        const auto amountRead = gzread(f, data.data() + sizeBefore, chunkSize);
-        if (amountRead < 0)
-        {
-            int errorNumber;
-            const char* error = gzerror(f, &errorNumber);
-            throw std::runtime_error(format("Error reading/decompressing \"%s\": %d: %s", filename.c_str(), errorNumber, error));
-        }
-        // Resize to fit
-        data.resize(sizeBefore + amountRead);
-    }
-    gzclose(f);
+    std::vector<uint8_t> data;
+    load_file(data, filename);
 
     // Now compress
     ZopfliOptions options{};
     ZopfliInitOptions(&options);
     if (iterations > 0)
     {
-        // Let the library pick the default (15) if not set
+        // We let the library pick the default (15) if not set
         options.numiterations = iterations;
     }
     unsigned char* out;
@@ -86,6 +51,48 @@ void Utils::compress(const std::string& filename, int iterations)
 
     // And free
     free(out);
+}
+
+void Utils::decompress(const std::string& filename)
+{
+    // Read file into memory
+    std::vector<uint8_t> data;
+    load_file(data, filename);
+
+    // Write to disk, over the original file
+    std::ofstream of;
+    of.open(filename, std::ios::binary | std::ios::trunc | std::ios::out);
+    of.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+    of.close();
+
+}
+
+void Utils::load_file(std::vector<uint8_t>& buffer, const std::string& filename)
+{
+    auto f = gzopen(filename.c_str(), "rb");
+    if (f == nullptr)
+    {
+        throw std::runtime_error(format("Failed to open \"%s\"", filename.c_str()));
+    }
+    // Read into the vector
+    constexpr int chunkSize = 256 * 1024;
+    while (!gzeof(f))
+    {
+        // Make space
+        const auto sizeBefore = buffer.size();
+        buffer.resize(sizeBefore + chunkSize);
+        // Read into it
+        const auto amountRead = gzread(f, buffer.data() + sizeBefore, chunkSize);
+        if (amountRead < 0)
+        {
+            int errorNumber;
+            const char* error = gzerror(f, &errorNumber);
+            throw std::runtime_error(format("Error reading/decompressing \"%s\": %d: %s", filename.c_str(), errorNumber, error));
+        }
+        // Resize to fit
+        buffer.resize(sizeBefore + amountRead);
+    }
+    gzclose(f);
 }
 
 // makes a unique temp filename out of src
@@ -107,21 +114,11 @@ std::string make_temp_filename(const std::string& src)
 //----------------------------------------------------------------------------------------------
 // Helper routine - "filename.ext", "suffix" becomes "filename (suffix).ext"
 //----------------------------------------------------------------------------------------------
-char* make_suffixed_filename(const char* src, const char* suffix, const IVGMToolCallback& callback)
+std::string make_suffixed_filename(const std::string& src, const std::string& suffix)
 {
-    auto dest = static_cast<char*>(malloc(strlen(src) + strlen(suffix) + 10)); // 10 is more than I need to be safe
-
-    strcpy(dest, src);
-    char* p = strrchr(strrchr(dest, '\\'), '.'); // find last dot after last slash
-    if (!p)
-    {
-        p = dest + strlen(dest); // if no extension, add to the end of the file instead
-    }
-    sprintf(p, " (%s)%s", suffix, src + (p - dest));
-
-    callback.show_message(Utils::format("Made a temp filename:\n%s\nfrom:\n%s", dest, src)); // debugging
-
-    return dest;
+    std::filesystem::path p(src);
+    const auto& newFilename = Utils::format("%s (%s)%s", p.stem().string().c_str(), suffix.c_str(), p.extension().string().c_str());
+    return p.replace_filename(newFilename).string();
 }
 
 
@@ -131,7 +128,7 @@ bool compress(const std::string& filename, const IVGMToolCallback& callback)
 {
     int amtRead;
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return false;
     }
@@ -173,45 +170,17 @@ bool compress(const std::string& filename, const IVGMToolCallback& callback)
 
 // decompress the file
 // to a temp file, then overwrites the original file with the temp file
-bool decompress(char* filename, const IVGMToolCallback& callback)
+bool decompress(const std::string& filename, const IVGMToolCallback& callback)
 {
-    if (!file_exists(filename, callback))
+    try
     {
+        Utils::decompress(filename);
+    }
+    catch (const std::exception& e)
+    {
+        callback.show_error(Utils::format("Error decompressing \"%s\": %s", filename.c_str(), e.what()));
         return false;
     }
-
-    callback.show_status("Decompressing...");
-
-    const std::string outFilename = make_temp_filename(filename);
-
-    FILE* out = fopen(outFilename.c_str(), "wb");
-    gzFile in = gzopen(filename, "rb");
-
-    const auto copyBuffer = malloc(BUFFER_SIZE);
-
-    do
-    {
-        const auto amountRead = gzread(in, copyBuffer, BUFFER_SIZE);
-        const auto amountWritten = fwrite(copyBuffer, 1, amountRead, out);
-        if (static_cast<int>(amountWritten) != amountRead)
-        {
-            // Error copying file
-            callback.show_error(Utils::format("Error copying data to temporary file %s!", outFilename.c_str()));
-            free(copyBuffer);
-            gzclose(in);
-            fclose(out);
-            std::filesystem::remove(outFilename);
-            return false;
-        }
-    }
-    while (!gzeof(in));
-
-    free(copyBuffer);
-    gzclose(in);
-    fclose(out);
-
-    replace_file(filename, outFilename.c_str());
-
     callback.show_status("Decompression complete");
     return true;
 }
@@ -228,44 +197,6 @@ void change_ext(char* filename, const char* ext)
 
     strcpy(q, ".");
     strcpy(q + 1, ext);
-}
-
-#define GZMagic1 0x1f
-#define GZMagic2 0x8b
-// Changes the file's extension to vgm or vgz depending on whether it's compressed
-bool FixExt(char* filename, const IVGMToolCallback& callback)
-{
-    if (!file_exists(filename, callback))
-    {
-        return false;
-    }
-
-    FILE* f = fopen(filename, "rb");
-    int IsCompressed = ((fgetc(f) == GZMagic1) && (fgetc(f) == GZMagic2));
-    fclose(f);
-
-    auto newfilename = static_cast<char*>(malloc(strlen(filename) + 10)); // plenty of space, can't hurt
-
-    strcpy(newfilename, filename);
-
-    if (IsCompressed)
-    {
-        change_ext(newfilename, "vgz");
-    }
-    else
-    {
-        change_ext(newfilename, "vgm");
-    }
-
-    if (strcmp(newfilename, filename) != 0)
-    {
-        replace_file(newfilename, filename);
-        // replaces any existing file with the new name, with the existing file
-        strcpy(filename, newfilename);
-    }
-
-    free(newfilename);
-    return true;
 }
 
 // Delete filetoreplace, rename with with its name

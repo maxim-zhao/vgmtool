@@ -11,7 +11,7 @@
 void remove_gd3(const char* filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return;
     }

@@ -15,7 +15,7 @@ bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
     VGMHeader VGMHeader;
     int pauseLength = 0;
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return false;
     }
@@ -185,7 +185,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
     int NumOffsetsRemoved = 0;
     int NoiseCh2 = 0;
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return 0;
     }
@@ -672,7 +672,7 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     int bucketsize = 1; // how many samples per bucket for counting
     int framelength;
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return false;
     }

@@ -68,7 +68,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
     unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
     int PSGLatchedRegister = 0;
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return;
     }

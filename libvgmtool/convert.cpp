@@ -112,7 +112,7 @@ void spread_dac(gzFile in, gzFile out)
 
 bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGMToolCallback& callback)
 {
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return false;
     }

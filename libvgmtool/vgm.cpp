@@ -156,7 +156,7 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
     char copybuffer[BUFFER_SIZE];
     int AmtRead;
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return;
     }
@@ -320,7 +320,7 @@ void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612
 //----------------------------------------------------------------------------------------------
 void check_lengths(const std::string& filename, bool showResults, const IVGMToolCallback& callback)
 {
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return;
     }
@@ -464,7 +464,7 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
     VGMHeader VGMHeader;
     int b0, b1, b2;
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return 0;
     }
@@ -610,7 +610,7 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
     memset(YM2151writes, 0, sizeof(int) * NumYM2151Types);
     memset(reservedwrites, 0, sizeof(int) * NumReservedTypes);
 
-    if (!filename || !file_exists(filename, callback))
+    if (!filename || !Utils::file_exists(filename))
     {
         return;
     }

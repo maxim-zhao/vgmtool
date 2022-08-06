@@ -249,7 +249,7 @@ void LoadFile(char* filename)
     TGD3Header GD3Header;
     int FileHasGD3 = 0;
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return;
     }
@@ -412,7 +412,7 @@ void UpdateHeader()
     int i, j;
     VGMHeader VGMHeader;
 
-    if (!file_exists(Currentfilename, callback))
+    if (!Utils::file_exists(Currentfilename))
     {
         return;
     }
@@ -484,7 +484,7 @@ void UpdateGD3()
     wchar_t* AllGD3End = AllGD3Strings;
     int ConversionErrors = 0;
 
-    if (!file_exists(Currentfilename, callback))
+    if (!Utils::file_exists(Currentfilename))
     {
         return;
     }
@@ -961,7 +961,7 @@ void StripChecked(char* filename)
     char Tmpfilename[MAX_PATH + 10], Outfilename[MAX_PATH + 10];
     VGMHeader VGMHeader;
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return;
     }

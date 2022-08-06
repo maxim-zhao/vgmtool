@@ -57,7 +57,6 @@ bool new_trim(char* filename, const int start, const int loop, const int end, co
 {
     gzFile in, out;
     VGMHeader VGMHeader;
-    char* outfilename;
     int b0 = 0, b1 = 0, b2 = 0;
     TSystemState CurrentState{}, LoopPointState{};
 
@@ -65,7 +64,7 @@ bool new_trim(char* filename, const int start, const int loop, const int end, co
     // If loop<0 then PastLoop=TRUE so it won't bother to record a loop state ever
     // Thus loop=-1 means no loop
 
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return false;
     }
@@ -99,10 +98,10 @@ bool new_trim(char* filename, const int start, const int loop, const int end, co
         &CurrentState.UsesYM2151, &CurrentState.UsesReserved);
 
     // Let's make the output filename...
-    outfilename = make_suffixed_filename(filename, "trimmed", callback);
+    auto outfilename = make_suffixed_filename(filename, "trimmed");
 
     // ...open it...
-    out = gzopen(outfilename, "wb0");
+    out = gzopen(outfilename.c_str(), "wb0");
 
     // ...skip to the data section...
     gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
@@ -411,9 +410,8 @@ bool new_trim(char* filename, const int start, const int loop, const int end, co
     }
 
     gzclose(out);
-    write_vgm_header(outfilename, VGMHeader, callback);
+    write_vgm_header(outfilename.c_str(), VGMHeader, callback);
 
-    free(outfilename);
     return true;
 }
 
@@ -694,7 +692,7 @@ void WriteYM2413State(gzFile out, unsigned char YM2413Regs[YM2413NumRegs], int I
 void trim(const std::string& filename, int start, int loop, int end, bool overWrite, bool logTrims,
           const IVGMToolCallback& callback)
 {
-    if (!file_exists(filename, callback))
+    if (!Utils::file_exists(filename))
     {
         return;
     }
