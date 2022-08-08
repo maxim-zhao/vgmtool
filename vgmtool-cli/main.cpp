@@ -3,6 +3,7 @@
 #include <trim.h>
 #include <writetotext.h>
 
+#include "convert.h"
 #include "utils.h"
 #include "vgm.h"
 
@@ -69,6 +70,8 @@ int main(int argc, const char** argv)
         compressVerb->add_option("--iterations", compressionIterations, "Zopfli compression iterations")
                     ->default_val(15);
 
+        const auto* convertVerb = app.add_subcommand("convert", "Convert GYM, CYM, SSL files to VGM");
+
         std::vector<std::string> filenames;
         app.add_option("filename", filenames, "The file(s) to process")
            ->required()
@@ -96,6 +99,28 @@ int main(int argc, const char** argv)
             if (compressVerb->parsed())
             {
                 Utils::compress(filename, compressionIterations);
+            }
+
+            if (convertVerb->parsed())
+            {
+                auto extension = std::filesystem::path(filename).extension().string();
+                std::ranges::transform(extension, extension.begin(), ::tolower);
+                if (extension == ".gym")
+                {
+                    Convert::to_vgm(filename, Convert::file_type::gym, callback);
+                }
+                else if (extension == ".cym")
+                {
+                    Convert::to_vgm(filename, Convert::file_type::cym, callback);
+                }
+                else if (extension == ".ssl")
+                {
+                    Convert::to_vgm(filename, Convert::file_type::ssl, callback);
+                }
+                else
+                {
+                    throw std::runtime_error(Utils::format("Unable to convert \"%s\" to VGM: unknown extension \"%s\"", filename.c_str(), extension.c_str()));
+                }
             }
         }
 
