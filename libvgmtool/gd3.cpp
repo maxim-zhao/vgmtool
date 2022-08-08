@@ -45,7 +45,7 @@ void remove_gd3(const std::string& filename, const IVGMToolCallback& callback)
     gzclose(in);
     gzclose(out);
 
-    write_vgm_header(outFilename.c_str(), VGMHeader, callback); // Write changed header
+    write_vgm_header(outFilename, VGMHeader, callback); // Write changed header
 
     Utils::replace_file(filename, outFilename);
 

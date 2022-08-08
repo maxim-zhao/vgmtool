@@ -555,7 +555,7 @@ void UpdateGD3()
     gzclose(in);
     gzclose(out);
 
-    write_vgm_header(outFilename.c_str(), VGMHeader, callback); // Write changed header
+    write_vgm_header(outFilename, VGMHeader, callback); // Write changed header
 
     Utils::replace_file(Currentfilename, outFilename);
 

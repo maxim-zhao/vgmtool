@@ -447,7 +447,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
                 {
                     vgmHeader.LoopOffset = 0;
                 }
-                write_vgm_header(filename.c_str(), vgmHeader, callback);
+                write_vgm_header(filename, vgmHeader, callback);
             }
             atEnd = true;
             break;

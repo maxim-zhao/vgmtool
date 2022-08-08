@@ -327,7 +327,7 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
     gzclose(in);
 
     // Update header
-    write_vgm_header(outFilename.c_str(), vgmHeader, callback);
+    write_vgm_header(outFilename, vgmHeader, callback);
 
     // Do a final compression round
     Utils::compress(outFilename);

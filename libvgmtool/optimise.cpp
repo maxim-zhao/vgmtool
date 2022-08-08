@@ -158,7 +158,7 @@ bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& ca
 
     gzclose(out);
 
-    write_vgm_header(outFilename.c_str(), VGMHeader, callback);
+    write_vgm_header(outFilename, VGMHeader, callback);
 
     // Clean up
     gzclose(in);
@@ -410,7 +410,7 @@ int remove_offset(const std::string& filename, const IVGMToolCallback& callback)
     gzclose(out);
 
     // Amend it with the updated header
-    write_vgm_header(outfilename.c_str(), VGMHeader, callback);
+    write_vgm_header(outfilename, VGMHeader, callback);
 
     // Overwrite original with the new one
     Utils::replace_file(filename, outfilename);

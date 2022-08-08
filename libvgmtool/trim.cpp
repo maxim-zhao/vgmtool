@@ -410,7 +410,7 @@ bool new_trim(const std::string& filename, const int start, const int loop, cons
     }
 
     gzclose(out);
-    write_vgm_header(outfilename.c_str(), VGMHeader, callback);
+    write_vgm_header(outfilename, VGMHeader, callback);
 
     return true;
 }
@@ -1165,9 +1165,9 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
     }
 
     // Amend it with the updated header
-    write_vgm_header(outFilename.c_str(), vgmHeader, callback);
+    write_vgm_header(outFilename, vgmHeader, callback);
 
-    optimise_vgm_pauses(outFilename.c_str(), callback);
+    optimise_vgm_pauses(outFilename, callback);
 
     Utils::compress(outFilename);
 
