@@ -151,7 +151,7 @@ void write_pause(gzFile out, long int pauselength)
 // Assumes you are writing the original header with minor modifications, so it
 // doesn't check anything (like the GD3 offset, EOF offset).
 //----------------------------------------------------------------------------------------------
-void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolCallback& callback)
+void write_vgm_header(const std::string& filename, VGMHeader VGMHeader, const IVGMToolCallback& callback)
 {
     char copybuffer[BUFFER_SIZE];
     int AmtRead;
@@ -165,7 +165,7 @@ void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolC
 
     const auto outfilename = Utils::make_temp_filename(filename);
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
     gzFile out = gzopen(outfilename.c_str(), "wb0");
 
     gzwrite(out, &VGMHeader, sizeof(VGMHeader));
@@ -459,7 +459,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
 //----------------------------------------------------------------------------------------------
 // Go through file, if I find a 1/50th or a 1/60th then I'll assume that's correct
 //----------------------------------------------------------------------------------------------
-int detect_rate(char* filename, const IVGMToolCallback& callback)
+int detect_rate(const std::string& filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     int b0, b1, b2;
@@ -471,7 +471,7 @@ int detect_rate(char* filename, const IVGMToolCallback& callback)
 
     callback.show_status("Detecting VGM recording rate...");
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
     if (!ReadVGMHeader(in, &VGMHeader, callback))
@@ -594,7 +594,7 @@ bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback
 // Count how many writes there are to each chip/channel, 
 // expecting that this and the chip/channel stripper
 // ought to be equally capable
-void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
+void GetWriteCounts(const std::string& filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
                     unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],
                     unsigned long reservedwrites[NumReservedTypes], const IVGMToolCallback& callback)
 {
@@ -610,13 +610,13 @@ void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsign
     memset(YM2151writes, 0, sizeof(int) * NumYM2151Types);
     memset(reservedwrites, 0, sizeof(int) * NumReservedTypes);
 
-    if (!filename || !Utils::file_exists(filename))
+    if (!Utils::file_exists(filename))
     {
         return;
     }
     // explicitly check for filename==NULL because that signals that we're supposed to return all zero
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
     if (!ReadVGMHeader(in, &VGMHeader, callback))

@@ -8,7 +8,7 @@
 //----------------------------------------------------------------------------------------------
 // Remove GD3 from file
 //----------------------------------------------------------------------------------------------
-void remove_gd3(const char* filename, const IVGMToolCallback& callback)
+void remove_gd3(const std::string& filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     if (!Utils::file_exists(filename))
@@ -16,7 +16,7 @@ void remove_gd3(const char* filename, const IVGMToolCallback& callback)
         return;
     }
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     if (!ReadVGMHeader(in, &VGMHeader, callback) || !VGMHeader.GD3Offset)
     {

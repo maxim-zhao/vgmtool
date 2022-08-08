@@ -9,11 +9,6 @@
 #include <vector>
 #include <zopfli.h>
 
-#include "IVGMToolCallback.h"
-
-// Buffer for copying (created when needed)
-#define BUFFER_SIZE 1024*8
-
 bool Utils::file_exists(const std::string& filename)
 {
     return std::filesystem::exists(filename);
@@ -64,12 +59,11 @@ void Utils::decompress(const std::string& filename)
     of.open(filename, std::ios::binary | std::ios::trunc | std::ios::out);
     of.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
     of.close();
-
 }
 
 void Utils::load_file(std::vector<uint8_t>& buffer, const std::string& filename)
 {
-    auto f = gzopen(filename.c_str(), "rb");
+    const auto f = gzopen(filename.c_str(), "rb");
     if (f == nullptr)
     {
         throw std::runtime_error(format("Failed to open \"%s\"", filename.c_str()));
@@ -116,70 +110,6 @@ std::string Utils::make_suffixed_filename(const std::string& src, const std::str
     std::filesystem::path p(src);
     const auto& newFilename = format("%s (%s)%s", p.stem().string().c_str(), suffix.c_str(), p.extension().string().c_str());
     return p.replace_filename(newFilename).string();
-}
-
-
-// compresses the file with GZip compression
-// to a temp file, then overwrites the original file with the temp
-bool compress(const std::string& filename, const IVGMToolCallback& callback)
-{
-    int amtRead;
-
-    if (!Utils::file_exists(filename))
-    {
-        return false;
-    }
-
-    callback.show_status("Compressing...");
-
-    const auto outFilename = Utils::make_temp_filename(filename);
-
-    gzFile out = gzopen(outFilename.c_str(), "wb9");
-    gzFile in = gzopen(filename.c_str(), "rb");
-
-    auto copybuffer = static_cast<char*>(malloc(BUFFER_SIZE));
-
-    do
-    {
-        amtRead = gzread(in, copybuffer, BUFFER_SIZE);
-        if (gzwrite(out, copybuffer, amtRead) != amtRead)
-        {
-            // Error copying file
-            callback.show_error(Utils::format("Error copying data to temporary file %s!", outFilename.c_str()));
-            free(copybuffer);
-            gzclose(in);
-            gzclose(out);
-            std::filesystem::remove(outFilename);
-            return false;
-        }
-    }
-    while (amtRead > 0);
-
-    free(copybuffer);
-    gzclose(in);
-    gzclose(out);
-
-    Utils::replace_file(filename, outFilename);
-
-    callback.show_status("Compression complete");
-    return true;
-}
-
-// decompress the file
-// to a temp file, then overwrites the original file with the temp file
-bool decompress(const std::string& filename, const IVGMToolCallback& callback)
-{
-    try
-    {
-        Utils::decompress(filename);
-    }
-    catch (const std::exception& e)
-    {
-        callback.show_error(Utils::format("Error decompressing \"%s\": %s", filename.c_str(), e.what()));
-        return false;
-    }
-    callback.show_status("Decompression complete");
-    return true;
 }
 
 // Delete destination, rename source source its name

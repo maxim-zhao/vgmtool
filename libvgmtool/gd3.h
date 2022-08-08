@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <string>
 
 // GD3 tag format definitions
 // and functionality
@@ -16,4 +17,4 @@ struct TGD3Header
 
 #define NumGD3Strings 11
 
-void remove_gd3(const char* filename, const IVGMToolCallback& callback);
+void remove_gd3(const std::string& filename, const IVGMToolCallback& callback);

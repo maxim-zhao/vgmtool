@@ -162,18 +162,18 @@ extern const int YM2612ValidBits[YM2612NumRegs];
 
 void write_pause(gzFile out, long int pauselength);
 
-void write_vgm_header(const char* filename, VGMHeader VGMHeader, const IVGMToolCallback& callback);
+void write_vgm_header(const std::string& filename, VGMHeader VGMHeader, const IVGMToolCallback& callback);
 
 void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612, bool* UsesYM2151, bool* UsesReserved);
 
 void check_lengths(const std::string& filename, bool showResults, const IVGMToolCallback& callback);
 
-int detect_rate(char* filename, const IVGMToolCallback& callback);
+int detect_rate(const std::string& filename, const IVGMToolCallback& callback);
 
 bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback);
 
-void GetWriteCounts(char* filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types], 
-                    unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types], 
+void GetWriteCounts(const std::string& filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
+                    unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],
                     unsigned long reservedwrites[NumReservedTypes], const IVGMToolCallback& callback);
 
 

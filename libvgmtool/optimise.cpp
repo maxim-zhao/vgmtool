@@ -10,7 +10,7 @@
 //----------------------------------------------------------------------------------------------
 // Pause optimiser
 //----------------------------------------------------------------------------------------------
-bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
+bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     int pauseLength = 0;
@@ -21,7 +21,7 @@ bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
     }
 
     // Open input file
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read its VGM header
     if (!ReadVGMHeader(in, &VGMHeader, callback))
@@ -33,10 +33,10 @@ bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
     const auto oldLoopOffset = static_cast<int>(VGMHeader.LoopOffset + LOOPDELTA);
 
     // Make the output filename...
-    const std::string outfilename = Utils::make_temp_filename(filename);
+    const auto& outFilename = Utils::make_temp_filename(filename);
 
     // ...open it...
-    gzFile out = gzopen(outfilename.c_str(), "wb0");
+    gzFile out = gzopen(outFilename.c_str(), "wb0");
 
     // ...skip to the data section...
     gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
@@ -158,12 +158,12 @@ bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
 
     gzclose(out);
 
-    write_vgm_header(outfilename.c_str(), VGMHeader, callback);
+    write_vgm_header(outFilename.c_str(), VGMHeader, callback);
 
     // Clean up
     gzclose(in);
 
-    Utils::replace_file(filename, outfilename);
+    Utils::replace_file(filename, outFilename);
 
     return true;
 }
@@ -173,7 +173,7 @@ bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
 // PSG offset (small freq value, volume on) remover
 // Returns number of offsets removed
 //----------------------------------------------------------------------------------------------
-int remove_offset(char* filename, const IVGMToolCallback& callback)
+int remove_offset(const std::string& filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     signed int b0, b1, b2;
@@ -190,7 +190,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
         return 0;
     }
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
     if (!ReadVGMHeader(in, &VGMHeader, callback))
@@ -665,7 +665,7 @@ BOOL OptimiseVGMData(char *filename) {
 */
 
 
-bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
+bool round_to_frame_accurate(const std::string& filename, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     int i, PauseLength = 0;
@@ -678,7 +678,7 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     }
 
     // Open input file
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read its VGM header
     if (!ReadVGMHeader(in, &VGMHeader, callback))
@@ -706,10 +706,10 @@ bool round_to_frame_accurate(char* filename, const IVGMToolCallback& callback)
     memset(PausePositions, 0, sizeof(int)*numbuckets);
 
     // Make the output filename...
-    //const char* outfilename = make_temp_filename(filename).c_str();
+    //auto outfilename = make_temp_filename(filename).c_str();
 
     // ...open it...
-    //  out=gzopen(outfilename, "wb0");
+    //  out=gzopen(outfilename.c_str(), "wb0");
 
     // ...skip to the data section...
     gzseek(in, VGM_DATA_OFFSET, SEEK_SET);

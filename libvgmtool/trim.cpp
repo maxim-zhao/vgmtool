@@ -53,7 +53,7 @@ void log_trim(const std::string& VGMFile, int start, int loop, int end, const IV
 // - No optimisation
 // - Hopefully some clarity
 //----------------------------------------------------------------------------------------------
-bool new_trim(char* filename, const int start, const int loop, const int end, const IVGMToolCallback& callback)
+bool new_trim(const std::string& filename, const int start, const int loop, const int end, const IVGMToolCallback& callback)
 {
     gzFile in, out;
     VGMHeader VGMHeader;
@@ -80,7 +80,7 @@ bool new_trim(char* filename, const int start, const int loop, const int end, co
     }
 
     // Open input file
-    in = gzopen(filename, "rb");
+    in = gzopen(filename.c_str(), "rb");
 
     // Read its VGM header
     gzread(in, &VGMHeader, sizeof(VGMHeader));
