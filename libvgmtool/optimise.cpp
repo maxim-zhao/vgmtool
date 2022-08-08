@@ -33,7 +33,7 @@ bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
     const auto oldLoopOffset = static_cast<int>(VGMHeader.LoopOffset + LOOPDELTA);
 
     // Make the output filename...
-    const std::string outfilename = make_temp_filename(filename).c_str();
+    const std::string outfilename = Utils::make_temp_filename(filename);
 
     // ...open it...
     gzFile out = gzopen(outfilename.c_str(), "wb0");
@@ -163,7 +163,7 @@ bool optimise_vgm_pauses(const char* filename, const IVGMToolCallback& callback)
     // Clean up
     gzclose(in);
 
-    replace_file(filename, outfilename.c_str());
+    Utils::replace_file(filename, outfilename);
 
     return true;
 }
@@ -201,7 +201,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
 
     gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
-    const std::string outfilename = make_temp_filename(filename).c_str();
+    const std::string outfilename = Utils::make_temp_filename(filename);
 
     gzFile out = gzopen(outfilename.c_str(), "wb0"); // No compression, since I'll recompress it later
 
@@ -413,7 +413,7 @@ int remove_offset(char* filename, const IVGMToolCallback& callback)
     write_vgm_header(outfilename.c_str(), VGMHeader, callback);
 
     // Overwrite original with the new one
-    replace_file(filename, outfilename.c_str());
+    Utils::replace_file(filename, outfilename);
 
     return NumOffsetsRemoved;
 }

@@ -97,27 +97,24 @@ void Utils::load_file(std::vector<uint8_t>& buffer, const std::string& filename)
 
 // makes a unique temp filename out of src
 // it will probably choke with weird parameters, real writable filenames should be OK
-std::string make_temp_filename(const std::string& src)
+std::string Utils::make_temp_filename(const std::string& src)
 {
-    auto directory = std::filesystem::canonical(src).parent_path();
+    const auto directory = std::filesystem::canonical(src).parent_path();
 
     for (int i = 0; ; ++i)
     {
-        auto testPath = directory / Utils::format("%d.tmp", i);
-        if (!Utils::file_exists(testPath.string()))
+        auto testPath = directory / format("%d.tmp", i);
+        if (!file_exists(testPath.string()))
         {
             return testPath.string();
         }
     }
 }
 
-//----------------------------------------------------------------------------------------------
-// Helper routine - "filename.ext", "suffix" becomes "filename (suffix).ext"
-//----------------------------------------------------------------------------------------------
-std::string make_suffixed_filename(const std::string& src, const std::string& suffix)
+std::string Utils::make_suffixed_filename(const std::string& src, const std::string& suffix)
 {
     std::filesystem::path p(src);
-    const auto& newFilename = Utils::format("%s (%s)%s", p.stem().string().c_str(), suffix.c_str(), p.extension().string().c_str());
+    const auto& newFilename = format("%s (%s)%s", p.stem().string().c_str(), suffix.c_str(), p.extension().string().c_str());
     return p.replace_filename(newFilename).string();
 }
 
@@ -135,7 +132,7 @@ bool compress(const std::string& filename, const IVGMToolCallback& callback)
 
     callback.show_status("Compressing...");
 
-    const auto outFilename = make_temp_filename(filename);
+    const auto outFilename = Utils::make_temp_filename(filename);
 
     gzFile out = gzopen(outFilename.c_str(), "wb9");
     gzFile in = gzopen(filename.c_str(), "rb");
@@ -162,7 +159,7 @@ bool compress(const std::string& filename, const IVGMToolCallback& callback)
     gzclose(in);
     gzclose(out);
 
-    replace_file(filename.c_str(), outFilename.c_str());
+    Utils::replace_file(filename, outFilename);
 
     callback.show_status("Compression complete");
     return true;
@@ -185,32 +182,18 @@ bool decompress(const std::string& filename, const IVGMToolCallback& callback)
     return true;
 }
 
-// Assumes filename has space at the end for the extension, if needed
-void change_ext(char* filename, const char* ext)
+// Delete destination, rename source source its name
+void Utils::replace_file(const std::string& destination, const std::string& source)
 {
-    char* p = strrchr(filename, '\\');
-    char* q = strchr(p, '.');
-    if (q == nullptr)
-    {
-        q = p + strlen(p); // if no ext, point to end of string
-    }
-
-    strcpy(q, ".");
-    strcpy(q + 1, ext);
-}
-
-// Delete filetoreplace, rename with with its name
-void replace_file(const char* filetoreplace, const char* with)
-{
-    if (strcmp(filetoreplace, with) == 0)
+    if (destination == source)
     {
         return;
     }
-    if (Utils::file_exists(filetoreplace))
+    if (file_exists(destination))
     {
-        std::filesystem::remove(filetoreplace);
+        std::filesystem::remove(destination);
     }
-    std::filesystem::rename(with, filetoreplace);
+    std::filesystem::rename(source, destination);
 }
 
 std::string Utils::format(const char* format, ...)

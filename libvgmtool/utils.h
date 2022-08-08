@@ -8,19 +8,6 @@
 
 class IVGMToolCallback;
 
-bool decompress(const std::string& filename, const IVGMToolCallback& callback);
-
-bool compress(const std::string& filename, const IVGMToolCallback& callback);
-
-void change_ext(char* filename, const char* ext);
-
-std::string make_temp_filename(const std::string& src);
-std::string make_suffixed_filename(const std::string& src, const std::string& suffix);
-
-void replace_file(const char* filetoreplace, const char* with);
-
-#define ROUND(x) ((int)(x>0?x+0.5:x-0.5))
-
 class Utils
 {
 public:
@@ -40,6 +27,12 @@ public:
     static void decompress(const std::string& filename);
     // Reads a file into RAM, possibly decompressing it at the same time
     static void load_file(std::vector<uint8_t>& buffer, const std::string& filename);
+    // Makes a temp filename (that is not in use) in the same directory as src and returns it. This is subject to a race but probably fine.
+    static std::string make_temp_filename(const std::string& src);
+    // Makes a filename by adding " (<suffix>)" to src before the extension
+    static std::string make_suffixed_filename(const std::string& src, const std::string& suffix);
+    // Deletes destination if it exists, and moves source to its place
+    static void replace_file(const std::string& destination, const std::string& source);
 
     // Converts LSB b1, MSB b2 into an integer
     static int make_word(int b1, int b2);

@@ -117,8 +117,8 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
         return false;
     }
 
-    // Make output filename filename.gym.vgz
-    const auto outFilename = filename + ".vgz";
+    // Make output filename filename.gym.vgm
+    const auto outFilename = filename + ".vgm";
 
     callback.show_status(Utils::format("Converting \"%s\" to VGM format...", filename.c_str()));
 
@@ -328,7 +328,9 @@ bool Convert::to_vgm(const std::string& filename, file_type fileType, const IVGM
 
     // Update header
     write_vgm_header(outFilename.c_str(), vgmHeader, callback);
-    compress(outFilename.c_str(), callback);
+
+    // Do a final compression round
+    Utils::compress(outFilename);
 
     // Report
     callback.show_conversion_progress(Utils::format(R"(Converted "%s" to "%s")", filename.c_str(), outFilename.c_str()));

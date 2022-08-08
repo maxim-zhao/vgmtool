@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
 
 #include <Windows.h>
 #include <CommCtrl.h>
@@ -12,6 +13,8 @@
 #include <gd3.h>
 #include "gui.h"
 #include <optimise.h>
+#include <sstream>
+
 #include "resource.h"
 #include <trim.h>
 #include "utils.h"
@@ -61,7 +64,8 @@ VGMHeader CurrentFileVGMHeader;
 const char* ProgName = "VGMTool 2 release 5";
 
 const int GD3EditControls[NumGD3Strings] = {
-    edtGD3TitleEn, edtGD3TitleJp, edtGD3GameEn, edtGD3GameJp, cbGD3SystemEn, edtGD3SystemJp, edtGD3AuthorEn, edtGD3AuthorJp, 
+    edtGD3TitleEn, edtGD3TitleJp, edtGD3GameEn, edtGD3GameJp, cbGD3SystemEn, edtGD3SystemJp, edtGD3AuthorEn,
+    edtGD3AuthorJp,
     edtGD3Date, edtGD3Creator, edtGD3Notes
 };
 
@@ -79,7 +83,7 @@ unsigned long int ReservedWrites[NumReservedTypes] = {0}; // reserved chips
 
 const int PSGCheckBoxes[NumPSGTypes] = {cbPSG0, cbPSG1, cbPSG2, cbPSGNoise, cbPSGGGSt};
 const int YM2413CheckBoxes[NumYM2413Types] = {
-    cbYM24130, cbYM24131, cbYM24132, cbYM24133, cbYM24134, cbYM24135, cbYM24136, cbYM24137, cbYM24138, cbYM2413HiHat, 
+    cbYM24130, cbYM24131, cbYM24132, cbYM24133, cbYM24134, cbYM24135, cbYM24136, cbYM24137, cbYM24138, cbYM2413HiHat,
     cbYM2413Cymbal, cbYM2413TomTom, cbYM2413SnareDrum, cbYM2413BassDrum, cbYM2413UserInst, cbYM2413InvalidRegs
 };
 const int YM2612CheckBoxes[NumYM2612Types] = {cbYM2612};
@@ -123,7 +127,7 @@ void Optimize(char* filename)
     // Trim (using the existing edit points), also merges pauses
     if (VGMHeader.LoopLength)
     {
-        trim(filename, 0, static_cast<int>(VGMHeader.TotalLength - VGMHeader.LoopLength), 
+        trim(filename, 0, static_cast<int>(VGMHeader.TotalLength - VGMHeader.LoopLength),
             static_cast<int>(VGMHeader.TotalLength), true, false, callback);
     }
     else
@@ -141,11 +145,11 @@ void Optimize(char* filename)
         "%s\n"
         "%d offsets/silent PSG writes removed, \n"
         "Uncompressed file size %d -> %d bytes (%+.2f%%)\n"
-        "Do you want to open it in the associated program?", 
-        filename, 
-        NumOffsetsRemoved, 
-        FileSizeBefore, 
-        FileSizeAfter, 
+        "Do you want to open it in the associated program?",
+        filename,
+        NumOffsetsRemoved,
+        FileSizeBefore,
+        FileSizeAfter,
         (FileSizeAfter - FileSizeBefore) * 100.0 / FileSizeBefore
     ) == IDYES)
     {
@@ -299,14 +303,14 @@ void LoadFile(char* filename)
     SetDlgItemInt(HeaderWnd, edtPlaybackRate, CurrentFileVGMHeader.RecordingRate, FALSE);
 
     // Lengths
-    int Mins = ROUND(CurrentFileVGMHeader.TotalLength/44100.0) / 60;
-    int Secs = ROUND(CurrentFileVGMHeader.TotalLength/44100.0-Mins*60);
+    int Mins = static_cast<int>(CurrentFileVGMHeader.TotalLength) / 44100 / 60;
+    int Secs = static_cast<int>(CurrentFileVGMHeader.TotalLength) / 44100 - Mins * 60;
     sprintf(buffer, "%d:%02d", Mins, Secs);
     SetDlgItemText(HeaderWnd, edtLengthTotal, buffer);
-    if (CurrentFileVGMHeader.LoopLength)
+    if (CurrentFileVGMHeader.LoopLength > 0)
     {
-        Mins = ROUND(CurrentFileVGMHeader.LoopLength/44100.0) / 60;
-        Secs = ROUND(CurrentFileVGMHeader.LoopLength/44100.0-Mins*60);
+        Mins = static_cast<int>(CurrentFileVGMHeader.LoopLength) / 44100 / 60;
+        Secs = static_cast<int>(CurrentFileVGMHeader.LoopLength) / 44100 - Mins * 60;
         sprintf(buffer, "%d:%02d", Mins, Secs);
     }
     else
@@ -470,20 +474,14 @@ void UpdateHeader()
 
 void ClearGD3Strings()
 {
-    for (int i = 0; i < NumGD3Strings; ++i)
+    for (const int gd3EditControl : GD3EditControls)
     {
-        SetDlgItemText(GD3Wnd, GD3EditControls[i], "");
+        SetDlgItemText(GD3Wnd, gd3EditControl, "");
     }
 }
 
 void UpdateGD3()
 {
-    VGMHeader VGMHeader;
-    TGD3Header GD3Header{};
-    wchar_t AllGD3Strings[1024 * NumGD3Strings] = L""; // zeroes the whole buffer
-    wchar_t* AllGD3End = AllGD3Strings;
-    int ConversionErrors = 0;
-
     if (!Utils::file_exists(Currentfilename))
     {
         return;
@@ -492,6 +490,7 @@ void UpdateGD3()
     ShowStatus("Updating GD3 tag...");
 
     gzFile in = gzopen(Currentfilename, "rb");
+    VGMHeader VGMHeader;
     if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
@@ -500,18 +499,8 @@ void UpdateGD3()
 
     gzrewind(in);
 
-    auto Outfilename = static_cast<char*>(malloc(strlen(Currentfilename) + 10));
-    strcpy(Outfilename, Currentfilename);
-    for (char* p = Outfilename + strlen(Outfilename); p >= Outfilename; --p)
-    {
-        if (*p == '.')
-        {
-            strcpy(p, " (tagged).vgz"); // must be different from temp exts used elsewhere
-            break;
-        }
-    }
-
-    gzFile out = gzopen(Outfilename, "wb0");
+    auto outFilename = Utils::make_suffixed_filename(Currentfilename, "tagged");
+    gzFile out = gzopen(outFilename.c_str(), "wb0");
 
     // Copy everything up to the GD3 tag
     for (auto i = 0; i < static_cast<int>(VGMHeader.GD3Offset > 0
@@ -523,102 +512,57 @@ void UpdateGD3()
 
     VGMHeader.GD3Offset = gztell(out) - GD3DELTA; // record GD3 position
 
+    std::wostringstream AllGD3Strings;
+    int ConversionErrors = 0;
+
     for (auto i = 0; i < NumGD3Strings; ++i)
     {
-        wchar_t widestr[1024] = L"\0";
-        if (!GetDlgItemTextW(GD3Wnd, GD3EditControls[i], widestr, 1023))
+        // Get string from widget
+        const auto length = GetWindowTextLengthW(GetDlgItem(GD3Wnd, GD3EditControls[i])) + 1;
+        std::wstring s(length, L'\0');
+        if (length > 1)
         {
-            // GetW failed, try to do MB2WC
-            char s[1024] = "\0";
-
-            GetDlgItemText(GD3Wnd, GD3EditControls[i], s, 1023); // get string
-
-            if (MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED + MB_ERR_INVALID_CHARS, s, -1, widestr, 1024) == 0)
+            // Non-empty string
+            if (GetDlgItemTextW(GD3Wnd, GD3EditControls[i], s.data(), static_cast<int>(s.size())) == 0)
             {
-                // convert to Unicode
                 ConversionErrors++;
             }
-        }
-        // parse widestring for HTML-encoded characters
-        {
-            wchar_t tempstr[5], *wp;
-            int value = 0;
-            do
-            {
-                wp = wcsstr(widestr, L"&#x");
-                if (wp)
-                {
-                    // string found
-                    // copy chars
-                    wcsncpy(tempstr, wp + 3, 4);
-                    tempstr[4] = L'\0';
-                    // get value
-                    if (swscanf(tempstr, L"%x", &value) == 1)
-                    {
-                        // Put it in that position
-                        *wp = static_cast<wchar_t>(value);
-                        // Move the rest of the string down by 7 ("&#xnnnn;"=8)
-                        // "&#xnnnn;...\0" len=11
-                        //  ^- wp, Unicode value
-                        //          ^- where to copy from, = wp+8
-                        //          ^--^ how many, = len-7
-                        memmove(wp + 1, wp + 8, (wcslen(wp) - 8 + 1) * 2);
-                        // tricky to work out...
-                        // the from and to parameters handle the 2-byte nature
-                        // the length parameter doesn't
-                    }
-                }
-            }
-            while (wp);
-        }
 
-        {
             // Special handling for any strings
-            wchar_t* p;
             switch (i)
             {
             case 10: // Notes - change \r\n to \n
-                p = widestr + wcslen(widestr); // point to end of string
-                while (p >= widestr)
-                {
-                    if (*p == L'\r')
-                    {
-                        memmove(p, p + 1, wcslen(p) * 2);
-                    }
-                    p--;
-                }
+                s.replace(s.begin(), s.end(), {L'\r'});
                 break;
             }
         }
-
-        wcscpy(AllGD3End, widestr); // Add to the big string
-        AllGD3End += wcslen(widestr) + 1; // and move pointer to after the \0
+        AllGD3Strings << s;
     }
-    AllGD3End++; // Final null wchar_t
+
+    const auto& data = AllGD3Strings.str();
+
+    TGD3Header GD3Header{};
 
     strncpy(GD3Header.id_string, "Gd3 ", 4);
     GD3Header.version = 0x0100;
-    GD3Header.length = static_cast<uint32_t>((AllGD3End - AllGD3Strings) * 2);
+    GD3Header.length = static_cast<uint32_t>(data.length() * 2);
 
     gzwrite(out, &GD3Header, sizeof(GD3Header)); // write GD3 header
-    gzwrite(out, AllGD3Strings, GD3Header.length); // write GD3 strings
+    gzwrite(out, data.data(), GD3Header.length); // write GD3 strings
 
     VGMHeader.EoFOffset = gztell(out) - EOFDELTA; // Update EoF offset in header
 
     gzclose(in);
     gzclose(out);
 
-    write_vgm_header(Outfilename, VGMHeader, callback); // Write changed header
+    write_vgm_header(outFilename.c_str(), VGMHeader, callback); // Write changed header
 
-    DeleteFile(Currentfilename);
-    MoveFile(Outfilename, Currentfilename);
+    Utils::replace_file(Currentfilename, outFilename);
 
-    free(Outfilename);
-
-    if (ConversionErrors)
+    if (ConversionErrors > 0)
     {
         ShowError(
-            "There were %d error(s) when converting the GD3 tag to Unicode. Some fields may be truncated or incorrect.", 
+            "There were %d error(s) when converting the GD3 tag to Unicode. Some fields may be truncated or incorrect.",
             ConversionErrors);
     }
     ShowStatus("GD3 tag updated");
@@ -994,7 +938,7 @@ void StripChecked(char* filename)
     {
         if (*p == '.')
         {
-            strcpy(p, " (stripped).vgz");
+            strcpy(p, " (stripped).vgm");
             break;
         }
         p--;
@@ -1016,7 +960,7 @@ void StripChecked(char* filename)
 
     ShowStatus("Data stripping complete");
 
-    if (ShowQuestion("Stripped VGM data written to\n%s\nDo you want to open it in the associated program?", 
+    if (ShowQuestion("Stripped VGM data written to\n%s\nDo you want to open it in the associated program?",
         Outfilename) == IDYES)
     {
         ShellExecute(hWndMain, "open", Outfilename, nullptr, nullptr, SW_NORMAL);
@@ -1116,7 +1060,7 @@ void ConvertRate(char *filename) {
   strcpy(Outfilename, filename);
   for (p=Outfilename+strlen(Outfilename); p>=Outfilename; --p) {
     if (*p=='.') {
-      sprintf(MessageBuffer, " (converted to %dHz).vgz", (VGMHeader.RecordingRate==50?60:50));
+      sprintf(MessageBuffer, " (converted to %dHz).vgm", (VGMHeader.RecordingRate==50?60:50));
       strcpy(p, MessageBuffer);
       break;
     }
@@ -1382,7 +1326,7 @@ void ConvertDroppedFiles(HDROP HDrop)
         free(DroppedFilename); // deallocate buffer
     }
 
-    add_convert_text("%d of %d file(s) successfully converted in %dms\r\n", NumConverted, NumFiles, 
+    add_convert_text("%d of %d file(s) successfully converted in %dms\r\n", NumConverted, NumFiles,
         GetTickCount() - Timer);
 
     DragFinish(HDrop);
@@ -1394,7 +1338,7 @@ void make_tabbed_dialogue()
 {
     // Load images for tabs
     InitCommonControls(); // required before doing imagelist stuff
-    HIMAGELIST il = ImageList_LoadImage(HInst, (LPCSTR)tabimages, 16, 0, RGB(255, 0, 255), IMAGE_BITMAP, 
+    HIMAGELIST il = ImageList_LoadImage(HInst, (LPCSTR)tabimages, 16, 0, RGB(255, 0, 255), IMAGE_BITMAP,
         LR_CREATEDIBSECTION);
 
     HWND tabCtrlWnd = GetDlgItem(hWndMain, tcMain);
@@ -1443,8 +1387,8 @@ void make_tabbed_dialogue()
     {
         EnableThemeDialogTexture(tabChildWnd, ETDT_ENABLETAB);
 
-        SetWindowPos(tabChildWnd, HWND_TOP, tabDisplayRect.left, tabDisplayRect.top, 
-            tabDisplayRect.right - tabDisplayRect.left, tabDisplayRect.bottom - tabDisplayRect.top, 
+        SetWindowPos(tabChildWnd, HWND_TOP, tabDisplayRect.left, tabDisplayRect.top,
+            tabDisplayRect.right - tabDisplayRect.left, tabDisplayRect.bottom - tabDisplayRect.top,
             SWP_HIDEWINDOW);
     }
     // Show the first one, though
@@ -1488,8 +1432,8 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             SetWindowText(hWndMain, ProgName);
             make_tabbed_dialogue();
             // Fill combo box - see below for Japanese translations
-            FillComboBox(GD3Wnd, cbGD3SystemEn, 
-                "Sega Master System, Sega Game Gear, Sega Master System / Game Gear, Sega Mega Drive / Genesis, Sega Game 1000, Sega Computer 3000, Sega System 16, Capcom Play System 1, Colecovision, BBC Model B, BBC Model B+, BBC Master 128, Custom...", 
+            FillComboBox(GD3Wnd, cbGD3SystemEn,
+                "Sega Master System, Sega Game Gear, Sega Master System / Game Gear, Sega Mega Drive / Genesis, Sega Game 1000, Sega Computer 3000, Sega System 16, Capcom Play System 1, Colecovision, BBC Model B, BBC Model B+, BBC Master 128, Custom...",
                 ", ");
             FillComboBox(HeaderWnd, edtPlaybackRate, "0 (unknown), 50 (PAL), 60 (NTSC)", ", ");
             FillComboBox(HeaderWnd, edtPSGClock, "0 (disabled), 3546893 (PAL), 3579545 (NTSC), 4000000 (BBC)", ", ");
@@ -1532,7 +1476,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         {
         case btnUpdateHeader:
             UpdateHeader();
-            compress(Currentfilename, callback);
+            Utils::compress(Currentfilename);
             LoadFile(Currentfilename);
             break;
         case btnCheckLengths:
@@ -1565,14 +1509,12 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case btnOptimise:
             Optimize(Currentfilename);
-            compress(Currentfilename, callback);
+            Utils::compress(Currentfilename);
             LoadFile(Currentfilename);
             break;
         case btnDecompress:
-            if (decompress(Currentfilename, callback))
-            {
-                LoadFile(Currentfilename);
-            }
+            Utils::decompress(Currentfilename);
+            LoadFile(Currentfilename);
             break;
         case btnRoundTimes:
             {
@@ -1588,7 +1530,9 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                     int Time = GetDlgItemInt(TrimWnd, Edits[i], &b, FALSE);
                     if (b)
                     {
-                        SetDlgItemInt(TrimWnd, Edits[i], ROUND((double)Time/FrameLength) * FrameLength, FALSE);
+                        const double frames = static_cast<double>(Time) / FrameLength;
+                        const int roundedFrames = std::lround(frames) * FrameLength;
+                        SetDlgItemInt(TrimWnd, Edits[i], roundedFrames, FALSE);
                     }
                 }
             }
@@ -1598,7 +1542,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case btnUpdateGD3:
             UpdateGD3();
-            compress(Currentfilename, callback);
+            Utils::compress(Currentfilename);
             LoadFile(Currentfilename);
             break;
         case btnGD3Clear:
@@ -1676,15 +1620,15 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             }
             switch (SendDlgItemMessage(GD3Wnd, cbGD3SystemEn, CB_GETCURSEL, 0, 0))
             {
-            case 0: SetDlgItemText(GD3Wnd, edtGD3SystemJp, 
+            case 0: SetDlgItemText(GD3Wnd, edtGD3SystemJp,
                     "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0;");
                 break; // Sega Master System
             case 1: SetDlgItemText(GD3Wnd, edtGD3SystemJp, "&#x30bb;&#x30ac;&#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
                 break; // Sega Game Gear
-            case 2: SetDlgItemText(GD3Wnd, edtGD3SystemJp, 
+            case 2: SetDlgItemText(GD3Wnd, edtGD3SystemJp,
                     "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0; / &#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
                 break; // Sega Master System / Game Gear
-            case 3: SetDlgItemText(GD3Wnd, edtGD3SystemJp, 
+            case 3: SetDlgItemText(GD3Wnd, edtGD3SystemJp,
                     "&#x30bb;&#x30ac;&#x30e1;&#x30ac;&#x30c9;&#x30e9;&#x30a4;&#x30d6;");
                 break; // Sega Megadrive (Japanese name)
             default: SetDlgItemText(GD3Wnd, edtGD3SystemJp, "");
@@ -1809,7 +1753,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             switch (((LPNMHDR)lParam)->code)
             {
             case TCN_SELCHANGING: // hide current window
-                SetWindowPos(TabChildWnds[TabCtrl_GetCurSel(GetDlgItem(hWndMain, tcMain))], HWND_TOP, 0, 0, 0, 0, 
+                SetWindowPos(TabChildWnds[TabCtrl_GetCurSel(GetDlgItem(hWndMain, tcMain))], HWND_TOP, 0, 0, 0, 0,
                     SWP_NOMOVE | SWP_NOSIZE | SWP_HIDEWINDOW);
                 break;
             case TCN_SELCHANGE: // show current window

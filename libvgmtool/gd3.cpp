@@ -29,7 +29,7 @@ void remove_gd3(const char* filename, const IVGMToolCallback& callback)
 
     gzrewind(in);
 
-    const std::string outFilename = make_temp_filename(filename);
+    const std::string outFilename = Utils::make_temp_filename(filename);
 
     gzFile out = gzopen(outFilename.c_str(), "wb0");
 
@@ -47,7 +47,7 @@ void remove_gd3(const char* filename, const IVGMToolCallback& callback)
 
     write_vgm_header(outFilename.c_str(), VGMHeader, callback); // Write changed header
 
-    replace_file(filename, outFilename.c_str());
+    Utils::replace_file(filename, outFilename);
 
     callback.show_status("GD3 tag removed");
 }

@@ -1,7 +1,7 @@
 VGMTool 2
 =========
 
-Release 5
+Release 6 BETA
 
 A tool for editing VGM files.
 
@@ -184,5 +184,5 @@ and broken NCRs might cause problems.
 
 
 Maxim
-maxim@mwos.cjb.net
+maxim@smspower.org
 

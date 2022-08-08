@@ -98,7 +98,7 @@ bool new_trim(char* filename, const int start, const int loop, const int end, co
         &CurrentState.UsesYM2151, &CurrentState.UsesReserved);
 
     // Let's make the output filename...
-    auto outfilename = make_suffixed_filename(filename, "trimmed");
+    auto outfilename = Utils::make_suffixed_filename(filename, "trimmed");
 
     // ...open it...
     out = gzopen(outfilename.c_str(), "wb0");
@@ -1169,12 +1169,11 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
 
     optimise_vgm_pauses(outFilename.c_str(), callback);
 
-    compress(outFilename.c_str(), callback);
+    Utils::compress(outFilename);
 
     if (overWrite)
     {
-        std::filesystem::remove(filename);
-        std::filesystem::rename(outFilename, filename);
+        Utils::replace_file(filename, outFilename);
         outFilename = filename;
     }
 
