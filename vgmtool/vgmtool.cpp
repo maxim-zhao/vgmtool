@@ -23,17 +23,18 @@
 
 #include "IVGMToolCallback.h"
 
+// This hooks our GUI handlers to the callback interface
 class Callback : public IVGMToolCallback
 {
 public:
     void show_message(const std::string& message) const override
     {
-        ShowMessage("%s", message.c_str());
+        show_message_box("%s", message.c_str());
     }
 
     void show_status(const std::string& message) const override
     {
-        ShowStatus("%s", message.c_str());
+        set_status_text("%s", message.c_str());
     }
 
     void show_conversion_progress(const std::string& message) const override
@@ -43,13 +44,12 @@ public:
 
     void show_error(const std::string& message) const override
     {
-        ShowError("%s", message.c_str());
+        show_error_message_box("%s", message.c_str());
     }
 } callback;
 
-#pragma comment(linker, "\"/manifestdependency:type='win32' \
-name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
-processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+// This allows us to have modern style widgets
+#pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 // GD3 versions I can accept
 #define MINGD3VERSION 0x100
@@ -58,10 +58,10 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 HWND hWndMain = nullptr;
 HINSTANCE HInst;
 
-char Currentfilename[10240] = "You didn't load a file yet!";
-VGMHeader CurrentFileVGMHeader;
+std::string g_current_filename("You didn't load a file yet!");
+VGMHeader g_current_file_vgm_header;
 
-const char* ProgName = "VGMTool 2 release 5";
+std::string g_program_name = "VGMTool 2 release 6 BETA";
 
 const int GD3EditControls[NumGD3Strings] = {
     edtGD3TitleEn, edtGD3TitleJp, edtGD3GameEn, edtGD3GameJp, cbGD3SystemEn, edtGD3SystemJp, edtGD3AuthorEn,
@@ -105,12 +105,13 @@ HWND TabChildWnds[NumTabChildWnds]; // Holds child windows' HWnds
 
 #define BUFFER_SIZE 1024
 
-void Optimize(char* filename)
+// TODO move this to optimise.cpp?
+void Optimize(const std::string& filename)
 {
     VGMHeader VGMHeader;
     int NumOffsetsRemoved = 0;
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
     gzread(in, &VGMHeader, sizeof(VGMHeader));
     gzclose(in);
     long FileSizeBefore = VGMHeader.EoFOffset + EOFDELTA;
@@ -135,51 +136,46 @@ void Optimize(char* filename)
         trim(filename, 0, -1, static_cast<int>(VGMHeader.TotalLength), true, false, callback);
     }
 
-    in = gzopen(filename, "rb");
+    in = gzopen(filename.c_str(), "rb");
     gzread(in, &VGMHeader, sizeof(VGMHeader));
     gzclose(in);
     long FileSizeAfter = VGMHeader.EoFOffset + EOFDELTA;
 
-    if (ShowQuestion(
+    if (show_question_message_box(
         "File optimised to\n"
         "%s\n"
         "%d offsets/silent PSG writes removed, \n"
         "Uncompressed file size %d -> %d bytes (%+.2f%%)\n"
         "Do you want to open it in the associated program?",
-        filename,
+        filename.c_str(),
         NumOffsetsRemoved,
         FileSizeBefore,
         FileSizeAfter,
         (FileSizeAfter - FileSizeBefore) * 100.0 / FileSizeBefore
     ) == IDYES)
     {
-        ShellExecute(hWndMain, "Play", filename, nullptr, nullptr, SW_NORMAL);
+        ShellExecute(hWndMain, "Play", filename.c_str(), nullptr, nullptr, SW_NORMAL);
     }
 }
 
 void UpdateWriteCount(const int CheckBoxes[], unsigned long Writes[], int count)
 {
-    char TempStr[64];
     for (int i = 0; i < count; ++i)
     {
-        GetDlgItemText(StripWnd, CheckBoxes[i], TempStr, 64);
-        char* p = TempStr;
-        while (p < TempStr + 64)
+        auto s = get_string(StripWnd, CheckBoxes[i]);
+        // Remove existing count
+        if (const auto index = s.find(" ("); index != std::string::npos)
         {
-            if (*p == '(')
-            {
-                *(p - 1) = '\0';
-                break;
-            }
-            ++p;
+            s = s.substr(0, index);
         }
-        if (Writes[i])
+        // And add the new one
+        if (Writes[i] > 0)
         {
-            sprintf(TempStr, "%s (%d)", TempStr, Writes[i]);
+            s = Utils::format("%s (%d)", s.c_str(), Writes[i]);
         }
-        SetDlgItemText(StripWnd, CheckBoxes[i], TempStr);
-        EnableWindow(GetDlgItem(StripWnd, CheckBoxes[i]), (Writes[i] > 0));
-        if (!Writes[i])
+        SetDlgItemText(StripWnd, CheckBoxes[i], s.c_str());
+        EnableWindow(GetDlgItem(StripWnd, CheckBoxes[i]), Writes[i] > 0);
+        if (Writes[i] == 0)
         {
             CheckDlgButton(StripWnd, CheckBoxes[i], 0);
         }
@@ -187,7 +183,7 @@ void UpdateWriteCount(const int CheckBoxes[], unsigned long Writes[], int count)
 }
 
 // Check checkboxes and show numbers for how many times each channel/data type is used
-void CheckWriteCounts(char* filename)
+void CheckWriteCounts(const char* filename)
 {
     int i, j;
     if (filename != nullptr)
@@ -253,12 +249,12 @@ void CheckWriteCounts(char* filename)
     }
     EnableWindow(GetDlgItem(StripWnd, gbYM2413), (j != 0));
 
-    ShowStatus("Scan for chip data complete");
+    set_status_text("Scan for chip data complete");
 }
 
 
 // Load a file - check it's valid, load displayed info
-void LoadFile(char* filename)
+void LoadFile(const char* filename)
 {
     char buffer[64];
     TGD3Header GD3Header;
@@ -269,29 +265,29 @@ void LoadFile(char* filename)
         return;
     }
 
-    ShowStatus("Loading file...");
+    set_status_text("Loading file...");
 
     gzFile in = gzopen(filename, "rb");
-    gzread(in, &CurrentFileVGMHeader, sizeof(CurrentFileVGMHeader));
+    gzread(in, &g_current_file_vgm_header, sizeof(g_current_file_vgm_header));
 
-    if (!CurrentFileVGMHeader.is_valid())
+    if (!g_current_file_vgm_header.is_valid())
     {
         // no VGM marker
-        ShowError(
+        show_error_message_box(
             "File is not a VGM file!\nIt will not be opened.\n\nMaybe you want to convert GYM, CYM and SSL files to VGM?\nClick on the \"Conversion\" tab.");
-        strcpy(Currentfilename, "");
+        g_current_filename.clear();
         SetDlgItemText(hWndMain, edtFileName, "Drop a file onto the window to load");
-        ShowStatus("");
+        set_status_text("");
         return;
     }
 
-    strcpy(Currentfilename, filename); // Remember it
+    g_current_filename = filename; // Remember it
     SetDlgItemText(hWndMain, edtFileName, filename); // Put it in the box
 
-    if (CurrentFileVGMHeader.GD3Offset)
+    if (g_current_file_vgm_header.GD3Offset)
     {
         // GD3 tag exists
-        gzseek(in, CurrentFileVGMHeader.GD3Offset + GD3DELTA, SEEK_SET);
+        gzseek(in, g_current_file_vgm_header.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         if (
             (strncmp(GD3Header.id_string, "Gd3 ", 4) == 0) && // Has valid marker
@@ -311,17 +307,17 @@ void LoadFile(char* filename)
     gzclose(in);
 
     // Rate
-    SetDlgItemInt(HeaderWnd, edtPlaybackRate, CurrentFileVGMHeader.RecordingRate, FALSE);
+    SetDlgItemInt(HeaderWnd, edtPlaybackRate, g_current_file_vgm_header.RecordingRate, FALSE);
 
     // Lengths
-    int Mins = static_cast<int>(CurrentFileVGMHeader.TotalLength) / 44100 / 60;
-    int Secs = static_cast<int>(CurrentFileVGMHeader.TotalLength) / 44100 - Mins * 60;
+    int Mins = static_cast<int>(g_current_file_vgm_header.TotalLength) / 44100 / 60;
+    int Secs = static_cast<int>(g_current_file_vgm_header.TotalLength) / 44100 - Mins * 60;
     sprintf(buffer, "%d:%02d", Mins, Secs);
     SetDlgItemText(HeaderWnd, edtLengthTotal, buffer);
-    if (CurrentFileVGMHeader.LoopLength > 0)
+    if (g_current_file_vgm_header.LoopLength > 0)
     {
-        Mins = static_cast<int>(CurrentFileVGMHeader.LoopLength) / 44100 / 60;
-        Secs = static_cast<int>(CurrentFileVGMHeader.LoopLength) / 44100 - Mins * 60;
+        Mins = static_cast<int>(g_current_file_vgm_header.LoopLength) / 44100 / 60;
+        Secs = static_cast<int>(g_current_file_vgm_header.LoopLength) / 44100 - Mins * 60;
         sprintf(buffer, "%d:%02d", Mins, Secs);
     }
     else
@@ -331,19 +327,19 @@ void LoadFile(char* filename)
     SetDlgItemText(HeaderWnd, edtLengthLoop, buffer);
 
     // Version
-    sprintf(buffer, "%x.%02x", CurrentFileVGMHeader.Version >> 8, CurrentFileVGMHeader.Version & 0xff);
+    sprintf(buffer, "%x.%02x", g_current_file_vgm_header.Version >> 8, g_current_file_vgm_header.Version & 0xff);
     SetDlgItemText(HeaderWnd, edtVersion, buffer);
 
     // Clock speeds
-    SetDlgItemInt(HeaderWnd, edtPSGClock, CurrentFileVGMHeader.PSGClock, FALSE);
-    SetDlgItemInt(HeaderWnd, edtYM2413Clock, CurrentFileVGMHeader.YM2413Clock, FALSE);
-    SetDlgItemInt(HeaderWnd, edtYM2612Clock, CurrentFileVGMHeader.YM2612Clock, FALSE);
-    SetDlgItemInt(HeaderWnd, edtYM2151Clock, CurrentFileVGMHeader.YM2151Clock, FALSE);
+    SetDlgItemInt(HeaderWnd, edtPSGClock, g_current_file_vgm_header.PSGClock, FALSE);
+    SetDlgItemInt(HeaderWnd, edtYM2413Clock, g_current_file_vgm_header.YM2413Clock, FALSE);
+    SetDlgItemInt(HeaderWnd, edtYM2612Clock, g_current_file_vgm_header.YM2612Clock, FALSE);
+    SetDlgItemInt(HeaderWnd, edtYM2151Clock, g_current_file_vgm_header.YM2151Clock, FALSE);
 
     // PSG settings
-    sprintf(buffer, "0x%04x", CurrentFileVGMHeader.PSGWhiteNoiseFeedback);
+    sprintf(buffer, "0x%04x", g_current_file_vgm_header.PSGWhiteNoiseFeedback);
     SetDlgItemText(HeaderWnd, edtPSGFeedback, buffer);
-    SetDlgItemInt(HeaderWnd, edtPSGSRWidth, CurrentFileVGMHeader.PSGShiftRegisterWidth, FALSE);
+    SetDlgItemInt(HeaderWnd, edtPSGSRWidth, g_current_file_vgm_header.PSGShiftRegisterWidth, FALSE);
 
     // GD3 tag
     if (GD3Strings)
@@ -413,11 +409,11 @@ void LoadFile(char* filename)
 
     if ((!FileHasGD3) && GD3Strings)
     {
-        ShowStatus("File loaded - file has no GD3 tag, previous tag kept");
+        set_status_text("File loaded - file has no GD3 tag, previous tag kept");
     }
     else
     {
-        ShowStatus("File loaded");
+        set_status_text("File loaded");
     }
 }
 
@@ -427,12 +423,12 @@ void UpdateHeader()
     int i, j;
     VGMHeader VGMHeader;
 
-    if (!Utils::file_exists(Currentfilename))
+    if (!Utils::file_exists(g_current_filename))
     {
         return;
     }
 
-    gzFile in = gzopen(Currentfilename, "rb");
+    gzFile in = gzopen(g_current_filename.c_str(), "rb");
     gzread(in, &VGMHeader, sizeof(VGMHeader));
     gzclose(in);
 
@@ -480,7 +476,7 @@ void UpdateHeader()
         VGMHeader.PSGShiftRegisterWidth = static_cast<uint8_t>(i);
     }
 
-    write_vgm_header(Currentfilename, VGMHeader, callback);
+    write_vgm_header(g_current_filename, VGMHeader, callback);
 }
 
 void ClearGD3Strings()
@@ -493,14 +489,14 @@ void ClearGD3Strings()
 
 void UpdateGD3()
 {
-    if (!Utils::file_exists(Currentfilename))
+    if (!Utils::file_exists(g_current_filename))
     {
         return;
     }
 
-    ShowStatus("Updating GD3 tag...");
+    set_status_text("Updating GD3 tag...");
 
-    gzFile in = gzopen(Currentfilename, "rb");
+    gzFile in = gzopen(g_current_filename.c_str(), "rb");
     VGMHeader VGMHeader;
     if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
@@ -510,7 +506,7 @@ void UpdateGD3()
 
     gzrewind(in);
 
-    auto outFilename = Utils::make_suffixed_filename(Currentfilename, "tagged");
+    auto outFilename = Utils::make_suffixed_filename(g_current_filename, "tagged");
     gzFile out = gzopen(outFilename.c_str(), "wb0");
 
     // Copy everything up to the GD3 tag
@@ -568,19 +564,19 @@ void UpdateGD3()
 
     write_vgm_header(outFilename, VGMHeader, callback); // Write changed header
 
-    Utils::replace_file(Currentfilename, outFilename);
+    Utils::replace_file(g_current_filename, outFilename);
 
     if (ConversionErrors > 0)
     {
-        ShowError(
+        show_error_message_box(
             "There were %d error(s) when converting the GD3 tag to Unicode. Some fields may be truncated or incorrect.",
             ConversionErrors);
     }
-    ShowStatus("GD3 tag updated");
+    set_status_text("GD3 tag updated");
 }
 
 // Remove data for checked boxes
-void Strip(char* filename, char* Outfilename)
+void Strip(const char* filename, const char* Outfilename)
 {
     VGMHeader VGMHeader;
     signed int b0, b1, b2;
@@ -911,7 +907,7 @@ void Strip(char* filename, char* Outfilename)
     write_vgm_header(Outfilename, VGMHeader, callback);
 }
 
-void StripChecked(char* filename)
+void StripChecked(const char* filename)
 {
     char Tmpfilename[MAX_PATH + 10], Outfilename[MAX_PATH + 10];
     VGMHeader VGMHeader;
@@ -921,7 +917,7 @@ void StripChecked(char* filename)
         return;
     }
 
-    ShowStatus("Stripping chip data...");
+    set_status_text("Stripping chip data...");
 
     gzFile in = gzopen(filename, "rb");
     if (!ReadVGMHeader(in, &VGMHeader, callback))
@@ -969,9 +965,9 @@ void StripChecked(char* filename)
       DeleteFile(Tmpfilename);
     */
 
-    ShowStatus("Data stripping complete");
+    set_status_text("Data stripping complete");
 
-    if (ShowQuestion("Stripped VGM data written to\n%s\nDo you want to open it in the associated program?",
+    if (show_question_message_box("Stripped VGM data written to\n%s\nDo you want to open it in the associated program?",
         Outfilename) == IDYES)
     {
         ShellExecute(hWndMain, "open", Outfilename, nullptr, nullptr, SW_NORMAL);
@@ -1047,7 +1043,7 @@ void ConvertRate(char *filename) {
 
   if (strncmp(VGMHeader.VGMIdent, "Vgm ", 4)!=0) {  // no VGM marker
     sprintf(MessageBuffer, "File is not a VGM file! (no \"Vgm \")");
-    ShowMessage();
+    show_message_box();
     gzclose(in);
     return;
   }
@@ -1055,14 +1051,14 @@ void ConvertRate(char *filename) {
   // See what I'm converting from
   switch (VGMHeader.RecordingRate) {
     case 50:
-      ShowStatus("Converting rate from 50 to 60Hz...");
+      set_status_text("Converting rate from 50 to 60Hz...");
       break;
     case 60:
-      ShowStatus("Converting rate from 50 to 60Hz...");
+      set_status_text("Converting rate from 50 to 60Hz...");
       break;
     default:
       sprintf(MessageBuffer, "Cannot convert this file because its recording rate is not set");
-      ShowMessage();
+      show_message_box();
       gzclose(in);
       return;
   }
@@ -1150,14 +1146,14 @@ void ConvertRate(char *filename) {
       if (VGMHeader.RecordingRate==60) gzputc(out, VGM_PAUSE_50TH);
       else {
         sprintf(MessageBuffer, "Wait 1/60th command found in 50Hz file!");
-        ShowMessage();
+        show_message_box();
       }
       break;
     case VGM_PAUSE_50TH:  // Wait 1/50 s
       if (VGMHeader.RecordingRate==50) gzputc(out, VGM_PAUSE_60TH);
       else {
         sprintf(MessageBuffer, "Wait 1/50th command found in 60Hz file!");
-        ShowMessage();
+        show_message_box();
       }
       break;
     case VGM_END:  // End of sound data
@@ -1174,7 +1170,7 @@ void ConvertRate(char *filename) {
     struct TGD3Header GD3Header;
     int i;
     int NewGD3Offset=gztell(out)-GD3DELTA;
-    ShowStatus("Copying GD3 tag...");
+    set_status_text("Copying GD3 tag...");
     gzseek(in, VGMHeader.GD3Offset+GD3DELTA, SEEK_SET);
     gzread(in, &GD3Header, sizeof(GD3Header));
     gzwrite(out, &GD3Header, sizeof(GD3Header));
@@ -1203,12 +1199,12 @@ void ConvertRate(char *filename) {
 
   CountLength(Outfilename, 0);  // fix lengths
 
-  compress(Currentfilename);
+  compress(g_current_filename);
 
-  ShowStatus("Rate conversion complete");
+  set_status_text("Rate conversion complete");
 
   sprintf(MessageBuffer, "File converted to\n%s", Outfilename);
-  ShowMessage();
+  show_message_box();
 
   free(Outfilename);
 }
@@ -1289,7 +1285,7 @@ void CopyLengthsToClipboard()
 
     String[strlen(String) - 2] = '\0';
     sprintf(MessageBuffer, "Copied: \"%s\"", String);
-    ShowStatus(MessageBuffer);
+    set_status_text(MessageBuffer);
 }
 
 // TODO: make this nicer?
@@ -1422,7 +1418,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             SendMessage(hWnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
             SendMessage(hWnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
             SetDlgItemText(hWndMain, edtFileName, "Drop a file onto the window to load");
-            SetWindowText(hWndMain, ProgName);
+            SetWindowText(hWndMain, g_program_name.c_str());
             make_tabbed_dialogue();
             // Fill combo box - see below for Japanese translations
             FillComboBox(GD3Wnd, cbGD3SystemEn,
@@ -1469,12 +1465,12 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         {
         case btnUpdateHeader:
             UpdateHeader();
-            Utils::compress(Currentfilename);
-            LoadFile(Currentfilename);
+            Utils::compress(g_current_filename);
+            LoadFile(g_current_filename.c_str());
             break;
         case btnCheckLengths:
-            check_lengths(Currentfilename, TRUE, callback);
-            LoadFile(Currentfilename);
+            check_lengths(g_current_filename, TRUE, callback);
+            LoadFile(g_current_filename.c_str());
             break;
         case btnTrim:
             {
@@ -1491,33 +1487,33 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 if (!b1 || !b2 || !b3)
                 {
                     // failed to get values
-                    ShowError("Invalid edit points!");
+                    show_error_message_box("Invalid edit points!");
                     break;
                 }
-                trim(Currentfilename, start, loop, end, false, IsDlgButtonChecked(TrimWnd, cbLogTrims), callback);
+                trim(g_current_filename, start, loop, end, false, IsDlgButtonChecked(TrimWnd, cbLogTrims), callback);
             }
             break;
         case btnWriteToText:
-            write_to_text(Currentfilename, callback);
+            write_to_text(g_current_filename, callback);
             break;
         case btnOptimise:
-            Optimize(Currentfilename);
-            Utils::compress(Currentfilename);
-            LoadFile(Currentfilename);
+            Optimize(g_current_filename);
+            Utils::compress(g_current_filename);
+            LoadFile(g_current_filename.c_str());
             break;
         case btnDecompress:
-            Utils::decompress(Currentfilename);
-            LoadFile(Currentfilename);
+            Utils::decompress(g_current_filename);
+            LoadFile(g_current_filename.c_str());
             break;
         case btnRoundTimes:
             {
                 BOOL b;
                 const int Edits[3] = {edtTrimStart, edtTrimLoop, edtTrimEnd};
-                if (!CurrentFileVGMHeader.RecordingRate)
+                if (!g_current_file_vgm_header.RecordingRate)
                 {
                     break; // stop if rate = 0
                 }
-                int FrameLength = 44100 / CurrentFileVGMHeader.RecordingRate;
+                int FrameLength = 44100 / g_current_file_vgm_header.RecordingRate;
                 for (int i = 0; i < 3; ++i)
                 {
                     int Time = GetDlgItemInt(TrimWnd, Edits[i], &b, FALSE);
@@ -1531,12 +1527,12 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             }
             break;
         case btnPlayFile:
-            ShellExecute(hWndMain, "Play", Currentfilename, nullptr, nullptr, SW_NORMAL);
+            ShellExecute(hWndMain, "Play", g_current_filename.c_str(), nullptr, nullptr, SW_NORMAL);
             break;
         case btnUpdateGD3:
             UpdateGD3();
-            Utils::compress(Currentfilename);
-            LoadFile(Currentfilename);
+            Utils::compress(g_current_filename);
+            LoadFile(g_current_filename.c_str());
             break;
         case btnGD3Clear:
             ClearGD3Strings();
@@ -1554,7 +1550,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             ChangeCheckBoxes(4);
             break;
         case btnStrip:
-            StripChecked(Currentfilename);
+            StripChecked(g_current_filename.c_str());
             break;
         case cbPSGTone:
             {
@@ -1595,7 +1591,7 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
         case btnRateDetect:
             {
-                int i = detect_rate(Currentfilename, callback);
+                int i = detect_rate(g_current_filename, callback);
                 if (i)
                 {
                     SetDlgItemInt(HeaderWnd, edtPlaybackRate, i, FALSE);
@@ -1632,21 +1628,21 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             CopyLengthsToClipboard();
             break;
         case btnRemoveGD3:
-            remove_gd3(Currentfilename, callback);
-            LoadFile(Currentfilename);
+            remove_gd3(g_current_filename, callback);
+            LoadFile(g_current_filename.c_str());
             break;
         case btnRemoveOffsets:
-            remove_offset(Currentfilename, callback);
-            LoadFile(Currentfilename);
+            remove_offset(g_current_filename, callback);
+            LoadFile(g_current_filename.c_str());
             break;
         case btnOptimiseVGMData:
-            //      OptimiseVGMData(Currentfilename);
-            ShowError("TODO: OptimiseVGMData() fixing");
-            LoadFile(Currentfilename);
+            //      OptimiseVGMData(g_current_filename);
+            show_error_message_box("TODO: OptimiseVGMData() fixing");
+            LoadFile(g_current_filename.c_str());
             break;
         case btnOptimisePauses:
-            optimise_vgm_pauses(Currentfilename, callback);
-            LoadFile(Currentfilename);
+            optimise_vgm_pauses(g_current_filename, callback);
+            LoadFile(g_current_filename.c_str());
             break;
         case btnTrimOnly:
             {
@@ -1663,21 +1659,21 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 if (!b1 || !b2 || !b3)
                 {
                     // failed to get values
-                    ShowError("Invalid edit points!");
+                    show_error_message_box("Invalid edit points!");
                     break;
                 }
 
                 if (IsDlgButtonChecked(TrimWnd, cbLogTrims))
                 {
-                    log_trim(Currentfilename, Start, Loop, End, callback);
+                    log_trim(g_current_filename, Start, Loop, End, callback);
                 }
 
-                new_trim(Currentfilename, Start, Loop, End, callback);
+                new_trim(g_current_filename, Start, Loop, End, callback);
             }
             break;
         case btnCompress:
-            Utils::compress(Currentfilename);
-            LoadFile(Currentfilename);
+            Utils::compress(g_current_filename);
+            LoadFile(g_current_filename.c_str());
             break;
         case btnNewTrim:
             {
@@ -1694,20 +1690,20 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 if (!b1 || !b2 || !b3)
                 {
                     // failed to get values
-                    ShowError("Invalid edit points!");
+                    show_error_message_box("Invalid edit points!");
                     break;
                 }
-                new_trim(Currentfilename, Start, Loop, End, callback);
-                remove_offset(Currentfilename, callback);
-                //        OptimiseVGMData(Currentfilename);
-                optimise_vgm_pauses(Currentfilename, callback);
+                new_trim(g_current_filename, Start, Loop, End, callback);
+                remove_offset(g_current_filename, callback);
+                //        OptimiseVGMData(g_current_filename);
+                optimise_vgm_pauses(g_current_filename, callback);
             }
             break;
         case btnGetCounts:
-            CheckWriteCounts(Currentfilename);
+            CheckWriteCounts(g_current_filename.c_str());
             break;
         case btnRoundToFrames:
-            round_to_frame_accurate(Currentfilename, callback);
+            round_to_frame_accurate(g_current_filename, callback);
             break;
         } // end switch(LOWORD(wParam))
         {
