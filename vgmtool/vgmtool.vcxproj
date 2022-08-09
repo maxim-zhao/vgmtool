@@ -83,9 +83,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="manifest.xml" />
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="icon1.ico" />
     <Image Include="Imagelist.bmp" />
   </ItemGroup>

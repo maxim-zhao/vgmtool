@@ -39,9 +39,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="manifest.xml" />
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="Imagelist.bmp">
       <Filter>Resource Files</Filter>
     </Image>
