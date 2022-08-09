@@ -3,21 +3,21 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <sstream>
 
 #include <Windows.h>
 #include <CommCtrl.h>
 #include <Uxtheme.h>
 #include <zlib.h>
 
+#include "resource.h"
+#include "gui.h"
+
 #include <convert.h>
 #include <gd3.h>
-#include "gui.h"
 #include <optimise.h>
-#include <sstream>
-
-#include "resource.h"
 #include <trim.h>
-#include "utils.h"
+#include <utils.h>
 #include <vgm.h>
 #include <writetotext.h>
 
@@ -49,7 +49,7 @@ public:
 } callback;
 
 // This allows us to have modern style widgets
-#pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+//#pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 // GD3 versions I can accept
 #define MINGD3VERSION 0x100
@@ -254,7 +254,7 @@ void CheckWriteCounts(const char* filename)
 
 
 // Load a file - check it's valid, load displayed info
-void LoadFile(const char* filename)
+void LoadFile(const std::string& filename)
 {
     char buffer[64];
     TGD3Header GD3Header;
@@ -267,7 +267,7 @@ void LoadFile(const char* filename)
 
     set_status_text("Loading file...");
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
     gzread(in, &g_current_file_vgm_header, sizeof(g_current_file_vgm_header));
 
     if (!g_current_file_vgm_header.is_valid())
@@ -282,7 +282,7 @@ void LoadFile(const char* filename)
     }
 
     g_current_filename = filename; // Remember it
-    SetDlgItemText(hWndMain, edtFileName, filename); // Put it in the box
+    SetDlgItemText(hWndMain, edtFileName, filename.c_str()); // Put it in the box
 
     if (g_current_file_vgm_header.GD3Offset)
     {
@@ -419,7 +419,6 @@ void LoadFile(const char* filename)
 
 void UpdateHeader()
 {
-    char buffer[64];
     int i, j;
     VGMHeader VGMHeader;
 
@@ -437,8 +436,8 @@ void UpdateHeader()
         VGMHeader.RecordingRate = i;
     }
 
-    GetDlgItemText(HeaderWnd, edtVersion, buffer, 64);
-    if (sscanf(buffer, "%d.%d", &i, &j) == 2)
+    auto s = get_string(HeaderWnd, edtVersion);
+    if (sscanf(s.c_str(), "%d.%d", &i, &j) == 2)
     {
         // valid data
         VGMHeader.Version =
@@ -465,8 +464,8 @@ void UpdateHeader()
         VGMHeader.YM2151Clock = i;
     }
 
-    GetDlgItemText(HeaderWnd, edtPSGFeedback, buffer, 64);
-    if (sscanf(buffer, "0x%x", &i) == 1)
+    s = get_string(HeaderWnd, edtPSGFeedback);
+    if (sscanf(s.c_str(), "0x%x", &i) == 1)
     {
         // valid data
         VGMHeader.PSGWhiteNoiseFeedback = static_cast<uint16_t>(i);
@@ -525,24 +524,15 @@ void UpdateGD3()
     for (auto i = 0; i < NumGD3Strings; ++i)
     {
         // Get string from widget
-        const auto length = GetWindowTextLengthW(GetDlgItem(GD3Wnd, GD3EditControls[i])) + 1;
-        std::wstring s(length, L'\0');
-        if (length > 1)
-        {
-            // Non-empty string
-            if (GetDlgItemTextW(GD3Wnd, GD3EditControls[i], s.data(), static_cast<int>(s.size())) == 0)
-            {
-                ConversionErrors++;
-            }
+        auto s = get_wstring(GD3Wnd, GD3EditControls[i]);
 
-            // Special handling for any strings
-            switch (i)
-            {
-            case 10: // Notes - change \r\n to \n
-                s.replace(s.begin(), s.end(), {L'\r'});
-                break;
-            }
+        // Special handling for any strings
+        if (i == 10)
+        {
+            // Notes - change \r\n to \n
+            std::erase(s, L'\r');
         }
+
         AllGD3Strings << s;
     }
 
@@ -576,7 +566,7 @@ void UpdateGD3()
 }
 
 // Remove data for checked boxes
-void Strip(const char* filename, const char* Outfilename)
+void Strip(const std::string& filename, const std::string& Outfilename)
 {
     VGMHeader VGMHeader;
     signed int b0, b1, b2;
@@ -621,7 +611,7 @@ void Strip(const char* filename, const char* Outfilename)
         }
     }
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
     if (!ReadVGMHeader(in, &VGMHeader, callback))
@@ -631,7 +621,7 @@ void Strip(const char* filename, const char* Outfilename)
     }
     gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
-    gzFile out = gzopen(Outfilename, "wb0"); // No compression, since I'll recompress it later
+    gzFile out = gzopen(Outfilename.c_str(), "wb0"); // No compression, since I'll recompress it later
 
     // Write header... update it later
     gzwrite(out, &VGMHeader, sizeof(VGMHeader));
@@ -907,7 +897,7 @@ void Strip(const char* filename, const char* Outfilename)
     write_vgm_header(Outfilename, VGMHeader, callback);
 }
 
-void StripChecked(const char* filename)
+void StripChecked(const std::string& filename)
 {
     char Tmpfilename[MAX_PATH + 10], Outfilename[MAX_PATH + 10];
     VGMHeader VGMHeader;
@@ -919,7 +909,7 @@ void StripChecked(const char* filename)
 
     set_status_text("Stripping chip data...");
 
-    gzFile in = gzopen(filename, "rb");
+    gzFile in = gzopen(filename.c_str(), "rb");
     if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
@@ -928,7 +918,7 @@ void StripChecked(const char* filename)
     gzclose(in);
 
     // Set up filenames
-    strcpy(Tmpfilename, filename);
+    strcpy(Tmpfilename, filename.c_str());
     char* p = Tmpfilename + strlen(Tmpfilename);
     while (p >= Tmpfilename)
     {
@@ -939,7 +929,7 @@ void StripChecked(const char* filename)
         }
         p--;
     }
-    strcpy(Outfilename, filename);
+    strcpy(Outfilename, filename.c_str());
     p = Outfilename + strlen(Outfilename);
     while (p >= Outfilename)
     {
@@ -1003,12 +993,14 @@ void ccb(const int CheckBoxes[], const unsigned long WriteCount[], int count, in
                 CheckDlgButton(StripWnd, CheckBoxes[i], !IsDlgButtonChecked(StripWnd, CheckBoxes[i]));
                 break;
             case 4: // guess
-                {
-                    char tempstr[64];
-                    GetDlgItemText(StripWnd, CheckBoxes[i], tempstr, 64);
-                    CheckDlgButton(StripWnd, CheckBoxes[i], ((WriteCount[i] < Cutoff) || (strstr(tempstr, "Invalid"))));
-                    break;
-                }
+                CheckDlgButton(
+                    StripWnd,
+                    CheckBoxes[i],
+                    ((WriteCount[i] < Cutoff) ||
+                        get_string(StripWnd, CheckBoxes[i]).find("Invalid") != std::string::npos)
+                        ? 1
+                        : 0);
+                break;
             }
         }
     }
@@ -1211,85 +1203,49 @@ void ConvertRate(char *filename) {
 
 */
 
-void PasteUnicode()
-{
-    char textbuffer[2048] = "";
-
-    if (OpenClipboard(hWndMain))
-    {
-        // Open clipboard
-        HANDLE DataHandle = GetClipboardData(CF_UNICODETEXT); // See if there's suitable data there
-        if (DataHandle)
-        {
-            // If there is...
-            auto wp = static_cast<wchar_t*>(GlobalLock(DataHandle));
-            while (static_cast<int>(*wp))
-            {
-                if (static_cast<int>(*wp) < 128)
-                {
-                    strcat(textbuffer, (char*)*wp); // Nasty hack!
-                }
-                else
-                {
-                    sprintf(textbuffer, "%s&#x%04x;", textbuffer, static_cast<int>(*wp));
-                }
-                wp++;
-            }
-
-            GlobalUnlock(DataHandle);
-        }
-        else
-        {
-            // No unicode on clipboard
-            strcat(textbuffer, "No Unicode on clipboard");
-        }
-
-        CloseClipboard();
-    }
-    SetDlgItemText(GD3Wnd, edtPasteUnicode, textbuffer);
-}
-
 void CopyLengthsToClipboard()
 {
-    char String[64] = "";
-    char MessageBuffer[1024];
-
-    GetDlgItemText(GD3Wnd, edtGD3TitleEn, MessageBuffer, 35);
-    sprintf(String, "%-35s", MessageBuffer);
-    GetDlgItemText(HeaderWnd, edtLengthTotal, MessageBuffer, 5);
-    if (!strlen(MessageBuffer))
+    // We work in Unicode for better compatibility...
+    auto result = get_wstring(GD3Wnd, edtGD3TitleEn);
+    if (result.length() > 35)
     {
-        return; // quit if no length in box
+        result.erase(35);
     }
-    sprintf(String, "%s %s", String, MessageBuffer);
-    GetDlgItemText(HeaderWnd, edtLengthLoop, MessageBuffer, 5);
-    sprintf(String, "%s   %s\r\n", String, MessageBuffer);
+    else if (result.length() < 35)
+    {
+        result.append(35 - result.length(), L' ');
+    }
+    result += get_wstring(HeaderWnd, edtLengthTotal);
+    result += L' ';
+    result += get_wstring(HeaderWnd, edtLengthLoop);
 
-    auto strlength = (strlen(String) + 1) * sizeof(char);
-    if (!OpenClipboard(hWndMain))
+    if (OpenClipboard(hWndMain) == FALSE)
     {
         return;
     }
     EmptyClipboard();
-    HANDLE CopyForClipboard = GlobalAlloc(GMEM_DDESHARE, strlength);
-    if (!CopyForClipboard)
+    const auto length = (result.length() + 1) * 2;
+    HANDLE copyForClipboard = GlobalAlloc(GMEM_DDESHARE, length);
+    if (copyForClipboard == nullptr)
     {
         CloseClipboard();
         return;
     }
-    auto p = static_cast<char*>(GlobalLock(CopyForClipboard));
-    memcpy(p, String, strlength);
-    GlobalUnlock(CopyForClipboard);
-    SetClipboardData(CF_TEXT, CopyForClipboard);
+    const auto p = GlobalLock(copyForClipboard);
+    memcpy(p, result.c_str(), length);
+    GlobalUnlock(copyForClipboard);
+    SetClipboardData(CF_UNICODETEXT, copyForClipboard);
     CloseClipboard();
 
-    String[strlen(String) - 2] = '\0';
-    sprintf(MessageBuffer, "Copied: \"%s\"", String);
-    set_status_text(MessageBuffer);
-}
+    // We need to convert back to the active code page (likely UTF-8?) to show it though
+    const int sizeNeeded = WideCharToMultiByte(CP_ACP, 0, result.data(), static_cast<int>(result.size()), nullptr, 0,
+        nullptr, nullptr);
+    std::string strTo(sizeNeeded, '\0');
+    WideCharToMultiByte(CP_ACP, 0, result.data(), static_cast<int>(result.size()), strTo.data(), sizeNeeded, nullptr,
+        nullptr);
 
-// TODO: make this nicer?
-;
+    set_status_text("Copied: \"%s\"", strTo.c_str());
+}
 
 
 void ConvertDroppedFiles(HDROP HDrop)
@@ -1316,7 +1272,8 @@ void ConvertDroppedFiles(HDROP HDrop)
         }
     }
 
-    add_convert_text("%d of %d file(s) successfully converted in %dms\r\n", numConverted, numFiles, GetTickCount() - startTime);
+    add_convert_text("%d of %d file(s) successfully converted in %dms\r\n", numConverted, numFiles,
+        GetTickCount() - startTime);
 
     DragFinish(HDrop);
 }
@@ -1599,9 +1556,6 @@ LRESULT CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                 // TODO: make sure VGM version is set high enough when updating header
             }
             break;
-        case btnPasteUnicode:
-            PasteUnicode();
-            break;
         case cbGD3SystemEn:
             if (HIWORD(wParam) != CBN_SELENDOK)
             {
@@ -1772,25 +1726,22 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 // I only handle commandlines that look like
 // "\"path to file\"blahetcwhatever"
 // ie. the filename must be quote-wrapped and I don't handle anything more than that
-void HandleCommandline(char* commandline)
+void HandleCommandline(std::string commandline)
 {
-    if (!commandline || !*commandline)
+    if (commandline.empty())
     {
-        return; // do nothing for null pointer or empty string
+        return;
     }
 
-    char* start = strchr(commandline, '"') + 1;
-    if (start)
+    // Remove surrounding quotes
+    if (commandline[0] == '"' && commandline[commandline.length() - 1] == '"')
     {
-        char* end = strchr(start, '"');
-        if (end)
-        {
-            *end = 0;
-            if (Utils::file_exists(start))
-            {
-                LoadFile(start);
-            }
-        }
+        commandline = commandline.substr(1, commandline.length() - 2);
+    }
+
+    if (Utils::file_exists(commandline))
+    {
+        LoadFile(commandline);
     }
 }
 
@@ -1820,14 +1771,14 @@ void DoCtrlTab()
     TabCtrl_SetCurFocus(tabCtrlWnd, currentTab);
 }
 
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR lpCmdLine, int nCmdShow)
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, const LPSTR lpCmdLine, const int nShowCmd)
 {
     MSG msg;
 
     HInst = hInstance;
     CreateDialog(hInstance, (LPCTSTR) MAINDIALOGUE, NULL, DialogProc); // Open dialog
     HandleCommandline(lpCmdLine);
-    ShowWindow(hWndMain, nCmdShow);
+    ShowWindow(hWndMain, nShowCmd);
     while (GetMessage(&msg, nullptr, 0, 0))
     {
         // you can use TranslateAccelerator if you prefer

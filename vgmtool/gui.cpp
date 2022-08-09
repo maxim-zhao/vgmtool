@@ -99,10 +99,25 @@ std::string get_string(HWND hDlg, int item)
 {
     const auto length = GetWindowTextLength(GetDlgItem(hDlg, item)) + 1;
     std::string s(length, L'\0');
-    if (length > 0)
+    if (length > 1)
     {
         // Non-empty string
         if (static_cast<int>(GetDlgItemText(hDlg, item, s.data(), static_cast<int>(s.size()))) == 0)
+        {
+            throw std::runtime_error("Failed to get text");
+        }
+    }
+    return s;
+}
+
+std::wstring get_wstring(HWND hDlg, int item)
+{
+    const auto length = GetWindowTextLengthW(GetDlgItem(hDlg, item)) + 1;
+    std::wstring s(length, L'\0');
+    if (length > 1)
+    {
+        // Non-empty string
+        if (static_cast<int>(GetDlgItemTextW(hDlg, item, s.data(), static_cast<int>(s.size()))) == 0)
         {
             throw std::runtime_error("Failed to get text");
         }
