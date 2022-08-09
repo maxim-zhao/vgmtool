@@ -81,7 +81,8 @@ void Utils::load_file(std::vector<uint8_t>& buffer, const std::string& filename)
         {
             int errorNumber;
             const char* error = gzerror(f, &errorNumber);
-            throw std::runtime_error(format("Error reading/decompressing \"%s\": %d: %s", filename.c_str(), errorNumber, error));
+            throw std::runtime_error(format("Error reading/decompressing \"%s\": %d: %s", filename.c_str(), errorNumber,
+                error));
         }
         // Resize to fit
         buffer.resize(sizeBefore + amountRead);
@@ -108,7 +109,8 @@ std::string Utils::make_temp_filename(const std::string& src)
 std::string Utils::make_suffixed_filename(const std::string& src, const std::string& suffix)
 {
     std::filesystem::path p(src);
-    const auto& newFilename = format("%s (%s)%s", p.stem().string().c_str(), suffix.c_str(), p.extension().string().c_str());
+    const auto& newFilename = format("%s (%s)%s", p.stem().string().c_str(), suffix.c_str(),
+        p.extension().string().c_str());
     return p.replace_filename(newFilename).string();
 }
 
@@ -156,6 +158,19 @@ std::string Utils::format(const char* format, ...)
     va_end(args_copy);
     va_end(args);
 
+    return result;
+}
+
+std::string Utils::to_lower(const std::string& s)
+{
+    std::string result;
+    std::ranges::transform(
+        s,
+        result.begin(),
+        [](std::string::value_type c)
+        {
+            return static_cast<std::string::value_type>(std::tolower(c));
+        });
     return result;
 }
 

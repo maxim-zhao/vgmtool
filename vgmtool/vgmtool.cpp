@@ -1287,47 +1287,29 @@ void CopyLengthsToClipboard()
 
 void ConvertDroppedFiles(HDROP HDrop)
 {
-    int NumConverted = 0, Timer = GetTickCount();
+    int numConverted = 0;
+    const int startTime = GetTickCount();
 
     // Get number of files dropped
-    int NumFiles = DragQueryFile(HDrop, 0xFFFFFFFF, nullptr, 0);
+    const int numFiles = DragQueryFile(HDrop, 0xFFFFFFFF, nullptr, 0);
 
     // Go through files
-    for (int i = 0; i < NumFiles; ++i)
+    for (int i = 0; i < numFiles; ++i)
     {
         // Get filename length
-        int FilenameLength = DragQueryFile(HDrop, i, nullptr, 0) + 1;
-        auto DroppedFilename = static_cast<char*>(malloc(FilenameLength)); // Allocate memory for the filename
-        DragQueryFile(HDrop, i, DroppedFilename, FilenameLength); // Get filename of file
-
-        // Get extension
-        char* p = strrchr(DroppedFilename, '.');
-
-        if (p)
+        const int filenameLength = DragQueryFile(HDrop, i, nullptr, 0);
+        // Make a string to hold it
+        std::string droppedFilename(filenameLength, '\0');
+        // Get it into the string
+        DragQueryFile(HDrop, i, droppedFilename.data(), filenameLength);
+        //  Convert it
+        if (Convert::to_vgm(droppedFilename, callback))
         {
-            if ((_strcmpi(p, ".gym") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::gym, callback))
-            {
-                NumConverted++;
-            }
-            else if ((_strcmpi(p, ".ssl") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::ssl, callback))
-            {
-                NumConverted++;
-            }
-            else if ((_strcmpi(p, ".cym") == 0) && Convert::to_vgm(DroppedFilename, Convert::file_type::cym, callback))
-            {
-                NumConverted++;
-            }
-            else
-            {
-                p = strrchr(DroppedFilename, '\\') + 1;
-                add_convert_text("Unknown extension: \"%s\"\r\n", p);
-            }
+            ++numConverted;
         }
-        free(DroppedFilename); // deallocate buffer
     }
 
-    add_convert_text("%d of %d file(s) successfully converted in %dms\r\n", NumConverted, NumFiles,
-        GetTickCount() - Timer);
+    add_convert_text("%d of %d file(s) successfully converted in %dms\r\n", numConverted, numFiles, GetTickCount() - startTime);
 
     DragFinish(HDrop);
 }

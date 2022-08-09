@@ -17,6 +17,9 @@ public:
 #endif
     static std::string format(const char* format, ...);
 
+    // Returns s in lowercase
+    static std::string to_lower(const std::string& s);
+
     // Returns true if filename exists
     static bool file_exists(const std::string& filename);
     // Returns the size of filename in bytes

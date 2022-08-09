@@ -103,24 +103,7 @@ int main(int argc, const char** argv)
 
             if (convertVerb->parsed())
             {
-                auto extension = std::filesystem::path(filename).extension().string();
-                std::ranges::transform(extension, extension.begin(), ::tolower);
-                if (extension == ".gym")
-                {
-                    Convert::to_vgm(filename, Convert::file_type::gym, callback);
-                }
-                else if (extension == ".cym")
-                {
-                    Convert::to_vgm(filename, Convert::file_type::cym, callback);
-                }
-                else if (extension == ".ssl")
-                {
-                    Convert::to_vgm(filename, Convert::file_type::ssl, callback);
-                }
-                else
-                {
-                    throw std::runtime_error(Utils::format("Unable to convert \"%s\" to VGM: unknown extension \"%s\"", filename.c_str(), extension.c_str()));
-                }
+                Convert::to_vgm(filename, callback);
             }
         }
 
