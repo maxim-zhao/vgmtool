@@ -190,7 +190,18 @@ void UpdateWriteCount(const int CheckBoxes[], unsigned long Writes[], int count)
 void CheckWriteCounts(char* filename)
 {
     int i, j;
-    GetWriteCounts(filename, PSGWrites, YM2413Writes, YM2612Writes, YM2151Writes, ReservedWrites, callback);
+    if (filename != nullptr)
+    {
+        GetWriteCounts(filename, PSGWrites, YM2413Writes, YM2612Writes, YM2151Writes, ReservedWrites, callback);
+    }
+    else
+    {
+        memset(PSGWrites, 0, sizeof(PSGWrites));
+        memset(YM2413Writes, 0, sizeof(YM2413Writes));
+        memset(YM2612Writes, 0, sizeof(YM2612Writes));
+        memset(YM2151Writes, 0, sizeof(YM2151Writes));
+        memset(ReservedWrites, 0, sizeof(ReservedWrites));
+    }
 
     UpdateWriteCount(PSGCheckBoxes, PSGWrites, NumPSGTypes);
     UpdateWriteCount(YM2413CheckBoxes, YM2413Writes, NumYM2413Types);
