@@ -343,8 +343,7 @@ bool Convert::to_vgm(const std::string& filename, const IVGMToolCallback& callba
         Utils::compress(outFilename);
 
         // Report
-        callback.show_conversion_progress(Utils::format(R"(Converted "%s" to "%s")", filename.c_str(),
-            outFilename.c_str()));
+        callback.show_conversion_progress(Utils::format(R"(Converted "%s" to "%s")", filename.c_str(), outFilename.c_str()));
     }
     catch (const std::exception& e)
     {

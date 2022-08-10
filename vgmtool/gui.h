@@ -4,32 +4,85 @@
 // Very OS-dependent
 
 #include <string>
+#include <vector>
 #include <Windows.h>
 
-#if defined(__RESHARPER__) || defined(__GNUC__)
-#define PRINTF_ATTR(StringIndex, FirstToCheck) \
-        [[gnu::format(printf, StringIndex, FirstToCheck)]]
-#else
-    #define PRINTF_ATTR(StringIndex, FirstToCheck)
-#endif
+#include "IVGMToolCallback.h"
+#include "vgm.h"
 
-PRINTF_ATTR(1, 2)
-void show_message_box(const char* format, ...);
 
-PRINTF_ATTR(1, 2)
-void show_error_message_box(const char* format, ...);
+class Gui : IVGMToolCallback
+{
+public:
+    Gui(HINSTANCE hInstance, LPSTR lpCmdLine, int nShowCmd);
+    void run();
 
-PRINTF_ATTR(1, 2)
-int show_question_message_box(const char* format, ...);
+    LRESULT dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-PRINTF_ATTR(1, 2)
-void set_status_text(const char* format, ...);
+private:
+    static LRESULT static_dialog_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    void make_tabbed_dialog();
+    void load_file(const std::string& filename);
+    void do_ctrl_tab() const;
+    static void fill_combo_box(HWND parent, int id, const std::vector<std::string>& items);
+    void convert_dropped_files(HDROP hDrop) const;
+    void update_header();
+    auto optimize(const std::string& filename) -> void;
+    void update_gd3();
+    void clear_gd3_strings();
+    void change_check_boxes(int mode);
+    void ccb(const std::vector<int>& ids, const std::vector<int>& counts, int mode);
+    void strip_checked(const std::string& filename);
+    void strip(const std::string& filename, const std::string& outFilename);
+    void copy_lengths_to_clipboard();
+    void check_write_counts(const std::string& filename);
+    void update_write_count(const std::vector<int>& ids, const std::vector<int>& counts) const;
 
-PRINTF_ATTR(1, 2)
-void add_convert_text(const char* format, ...);
+    static bool get_int(HWND hDlg, int item, int* result);
+    static std::string get_utf8_string(HWND hDlg, int item);
+    static std::wstring get_utf16_string(HWND hDlg, int item);
+    [[nodiscard]] int show_question_message_box(const std::string& s) const;
 
-bool get_int(HWND hDlg, int item, int* result);
+public:
+    void show_message(const std::string& message) const override;
+    void show_error(const std::string& message) const override;
+    void show_status(const std::string& message) const override;
+    void show_conversion_progress(const std::string& message) const override;
 
-std::string get_string(HWND hDlg, int item);
+private:
+    HINSTANCE _hInstance;
+    int _showCommand;
+    std::string _commandLine;
+    HWND _hWndMain;
 
-std::wstring get_wstring(HWND hDlg, int item);
+    // Tab windows, in a vector for ordering and as names for ease of use
+    std::vector<HWND> _tabChildWindows;
+    HWND _headerWnd;
+    HWND _gd3Wnd;
+    HWND _trimWnd;
+    HWND _stripWnd;
+    HWND _convertWnd;
+
+    // The current filename
+    std::string _currentFilename;
+    // The header of the current file
+    VGMHeader _currentFileVgmHeader;
+
+    std::vector<int> _psgCheckBoxes;
+    std::vector<int> _ym2413CheckBoxes;
+    wchar_t* GD3Strings{}; // TODO this
+    std::vector<int> _gd3EditControls;
+    std::vector<int> _psgWrites;
+    std::vector<int> _ym2413Writes;
+    std::vector<int> _ym2612CheckBoxes;
+    std::vector<int> _ym2612Writes;
+    std::vector<int> _ym2151CheckBoxes;
+    std::vector<int> _ym2151Writes;
+    std::vector<int> _reservedWrites;
+    std::vector<int> _reservedCheckboxes;
+
+    // We hold a pointer to the only Gui instance so we can dispatch to it from a static method...
+    static Gui* _pThis;
+    static std::string _programName;
+};
+

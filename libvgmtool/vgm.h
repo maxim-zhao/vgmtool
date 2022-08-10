@@ -4,6 +4,7 @@
 // and generic VGM-related functions
 
 #include <string>
+#include <vector>
 #include <zlib.h>
 
 // VGM data bytes
@@ -172,9 +173,9 @@ int detect_rate(const std::string& filename, const IVGMToolCallback& callback);
 
 bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback);
 
-void GetWriteCounts(const std::string& filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
-                    unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],
-                    unsigned long reservedwrites[NumReservedTypes], const IVGMToolCallback& callback);
+void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, std::vector<int>& YM2413writes,
+                    std::vector<int>& YM2612writes, std::vector<int>& YM2151writes,
+                    std::vector<int>& reservedwrites, const IVGMToolCallback& callback);
 
 
 void ResetState(TSystemState* State);

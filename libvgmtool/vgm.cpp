@@ -594,9 +594,9 @@ bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback
 // Count how many writes there are to each chip/channel, 
 // expecting that this and the chip/channel stripper
 // ought to be equally capable
-void GetWriteCounts(const std::string& filename, unsigned long PSGwrites[NumPSGTypes], unsigned long YM2413writes[NumYM2413Types],
-                    unsigned long YM2612writes[NumYM2612Types], unsigned long YM2151writes[NumYM2151Types],
-                    unsigned long reservedwrites[NumReservedTypes], const IVGMToolCallback& callback)
+void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, std::vector<int>& YM2413writes,
+                    std::vector<int>& YM2612writes, std::vector<int>& YM2151writes,
+                    std::vector<int>& reservedwrites, const IVGMToolCallback& callback)
 {
     VGMHeader VGMHeader;
     int b0, b1, b2;
@@ -604,11 +604,16 @@ void GetWriteCounts(const std::string& filename, unsigned long PSGwrites[NumPSGT
     int Channel = 0; // for tracking PSG latched register
 
     // Initialise all to zero
-    memset(PSGwrites, 0, sizeof(int) * NumPSGTypes);
-    memset(YM2413writes, 0, sizeof(int) * NumYM2413Types);
-    memset(YM2612writes, 0, sizeof(int) * NumYM2612Types);
-    memset(YM2151writes, 0, sizeof(int) * NumYM2151Types);
-    memset(reservedwrites, 0, sizeof(int) * NumReservedTypes);
+    PSGwrites.clear();
+    PSGwrites.resize(NumPSGTypes, 0);
+    YM2413writes.clear();
+    YM2413writes.resize(NumYM2413Types, 0);
+    YM2612writes.clear();
+    YM2612writes.resize(NumYM2612Types, 0);
+    YM2151writes.clear();
+    YM2151writes.resize(NumYM2151Types, 0);
+    reservedwrites.clear();
+    reservedwrites.resize(NumReservedTypes, 0);
 
     if (!Utils::file_exists(filename))
     {
