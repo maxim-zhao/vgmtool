@@ -5,6 +5,7 @@
 #include "gui.h"
 
 #include <CommCtrl.h>
+#include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -25,11 +26,11 @@
 #define REQUIREDGD3MAJORVER 0x100
 
 Gui* Gui::_pThis = nullptr;
-std::string Gui::_program_name = "VGMTool 2 release 6 BETA";
+std::string Gui::_programName = "VGMTool 2 release 6 BETA";
 
 int Gui::show_question_message_box(const std::string& s) const
 {
-    return MessageBox(hWndMain, s.c_str(), _program_name.c_str(), MB_ICONQUESTION + MB_YESNO);
+    return MessageBox(_hWndMain, s.c_str(), _programName.c_str(), MB_ICONQUESTION + MB_YESNO);
 }
 
 
@@ -48,7 +49,7 @@ bool Gui::get_int(HWND hDlg, int item, int* result)
     // However, text like "0 (text)" looks like a total failure.
     // But I can test for that.
     char c[3];
-    if (GetDlgItemText(hDlg, item, c, 3) == 2 && c[0] == '0' && !isdigit(c[1]))
+    if (GetDlgItemText(hDlg, item, c, 3) == 2 && c[0] == '0' && (std::isdigit(c[1]) == 0))
     {
         // It looks like it was like that
         *result = 0;
@@ -58,7 +59,7 @@ bool Gui::get_int(HWND hDlg, int item, int* result)
     return false;
 }
 
-std::string Gui::get_string(HWND hDlg, int item)
+std::string Gui::get_utf8_string(HWND hDlg, int item)
 {
     const auto length = GetWindowTextLength(GetDlgItem(hDlg, item)) + 1;
     std::string s(length, L'\0');
@@ -69,11 +70,13 @@ std::string Gui::get_string(HWND hDlg, int item)
         {
             throw std::runtime_error("Failed to get text");
         }
+        // It gets us an extra trailing \0, we remove that
+        s.resize(length - 1);
     }
     return s;
 }
 
-std::wstring Gui::get_wstring(HWND hDlg, int item)
+std::wstring Gui::get_utf16_string(HWND hDlg, int item)
 {
     const auto length = GetWindowTextLengthW(GetDlgItem(hDlg, item)) + 1;
     std::wstring s(length, L'\0');
@@ -84,6 +87,8 @@ std::wstring Gui::get_wstring(HWND hDlg, int item)
         {
             throw std::runtime_error("Failed to get text");
         }
+        // It gets us an extra trailing \0, we remove that
+        s.resize(length - 1);
     }
     return s;
 }
@@ -93,16 +98,16 @@ Gui::Gui(HINSTANCE hInstance, LPSTR lpCmdLine, int nShowCmd):
     _showCommand(nShowCmd),
     _commandLine(lpCmdLine),
     // Populate vectors for ease of use later
-    PSGCheckBoxes{cbPSG0, cbPSG1, cbPSG2, cbPSGNoise, cbPSGGGSt},
-    YM2413CheckBoxes{
+    _psgCheckBoxes{cbPSG0, cbPSG1, cbPSG2, cbPSGNoise, cbPSGGGSt},
+    _ym2413CheckBoxes{
         cbYM24130, cbYM24131, cbYM24132, cbYM24133, cbYM24134, cbYM24135, cbYM24136, cbYM24137, cbYM24138,
         cbYM2413HiHat, cbYM2413Cymbal, cbYM2413TomTom, cbYM2413SnareDrum, cbYM2413BassDrum, cbYM2413UserInst,
         cbYM2413InvalidRegs
     },
-    YM2612CheckBoxes{cbYM2612},
-    YM2151CheckBoxes{cbYM2151},
-    ReservedCheckboxes{cbReserved},
-    GD3EditControls{
+    _ym2612CheckBoxes{cbYM2612},
+    _ym2151CheckBoxes{cbYM2151},
+    _reservedCheckboxes{cbReserved},
+    _gd3EditControls{
         edtGD3TitleEn, edtGD3TitleJp, edtGD3GameEn, edtGD3GameJp, cbGD3SystemEn, edtGD3SystemJp, edtGD3AuthorEn,
         edtGD3AuthorJp,edtGD3Date, edtGD3Creator, edtGD3Notes
     }
@@ -122,37 +127,37 @@ LRESULT CALLBACK Gui::static_dialog_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 
 void Gui::run()
 {
-    hWndMain = CreateDialog(_hInstance, MAKEINTRESOURCE(MAINDIALOGUE), NULL, static_dialog_proc); // Open dialog
-    SetWindowLongPtr(hWndMain, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    _hWndMain = CreateDialog(_hInstance, MAKEINTRESOURCE(MAINDIALOGUE), NULL, static_dialog_proc); // Open dialog
+    SetWindowLongPtr(_hWndMain, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 
     // Set window icon
     HICON hIcon = LoadIcon(_hInstance, MAKEINTRESOURCE(MAINICON));
-    SendMessage(hWndMain, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hIcon));
-    SendMessage(hWndMain, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hIcon));
+    SendMessage(_hWndMain, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hIcon));
+    SendMessage(_hWndMain, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hIcon));
 
     // Initialise controls
-    SetDlgItemText(hWndMain, edtFileName, "Drop a file onto the window to load");
-    SetWindowText(hWndMain, _program_name.c_str());
+    SetDlgItemText(_hWndMain, edtFileName, "Drop a file onto the window to load");
+    SetWindowText(_hWndMain, _programName.c_str());
     make_tabbed_dialog();
     // Fill combo box - see below for Japanese translations
-    fill_combo_box(GD3Wnd, cbGD3SystemEn,
+    fill_combo_box(_gd3Wnd, cbGD3SystemEn,
         {
             "Sega Master System", "Sega Game Gear", "Sega Master System / Game Gear", "Sega Mega Drive / Genesis",
             "Sega Game 1000", "Sega Computer 3000", "Sega System 16", "Capcom Play System 1", "Colecovision",
             "BBC Model B", "BBC Model B+", "BBC Master 128"
         });
-    fill_combo_box(HeaderWnd, edtPlaybackRate, {"0 (unknown)", "50 (PAL)", "60 (NTSC)"});
-    fill_combo_box(HeaderWnd, edtPSGClock, {"0 (disabled)", "3546893 (PAL)", "3579545 (NTSC)", "4000000 (BBC)"});
-    fill_combo_box(HeaderWnd, edtYM2413Clock, {"0 (disabled)", "3546893 (PAL)", "3579545 (NTSC)"});
-    fill_combo_box(HeaderWnd, edtYM2612Clock, {"0 (disabled)", "7600489 (PAL), 7670453 (NTSC)"});
-    fill_combo_box(HeaderWnd, edtYM2151Clock, {"0 (disabled)", "7670453 (NTSC)"});
+    fill_combo_box(_headerWnd, edtPlaybackRate, {"0 (unknown)", "50 (PAL)", "60 (NTSC)"});
+    fill_combo_box(_headerWnd, edtPSGClock, {"0 (disabled)", "3546893 (PAL)", "3579545 (NTSC)", "4000000 (BBC)"});
+    fill_combo_box(_headerWnd, edtYM2413Clock, {"0 (disabled)", "3546893 (PAL)", "3579545 (NTSC)"});
+    fill_combo_box(_headerWnd, edtYM2612Clock, {"0 (disabled)", "7600489 (PAL), 7670453 (NTSC)"});
+    fill_combo_box(_headerWnd, edtYM2151Clock, {"0 (disabled)", "7670453 (NTSC)"});
 
-    fill_combo_box(HeaderWnd, edtPSGFeedback, {"0 (disabled)", "0x0009 (Sega VDP)", "0x0003 (discrete chip)"});
-    fill_combo_box(HeaderWnd, edtPSGSRWidth, {"0 (disabled)", "16 (Sega VDP)", "15 (discrete chip)"});
+    fill_combo_box(_headerWnd, edtPSGFeedback, {"0 (disabled)", "0x0009 (Sega VDP)", "0x0003 (discrete chip)"});
+    fill_combo_box(_headerWnd, edtPSGSRWidth, {"0 (disabled)", "16 (Sega VDP)", "15 (discrete chip)"});
 
     // Focus 1st control
-    SetActiveWindow(hWndMain);
-    SetFocus(GetDlgItem(hWndMain, edtFileName));
+    SetActiveWindow(_hWndMain);
+    SetFocus(GetDlgItem(_hWndMain, edtFileName));
 
     if (!_commandLine.empty())
     {
@@ -168,17 +173,18 @@ void Gui::run()
         }
     }
 
-    ShowWindow(hWndMain, _showCommand);
+    ShowWindow(_hWndMain, _showCommand);
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0))
     {
-        if (IsChild(hWndMain, msg.hwnd) && msg.message == WM_KEYDOWN && msg.wParam == VK_TAB && GetKeyState(VK_CONTROL)
+        if ((IsChild(_hWndMain, msg.hwnd) != 0) && msg.message == WM_KEYDOWN && msg.wParam == VK_TAB &&
+            GetKeyState(VK_CONTROL)
             < 0)
         {
             // We have to peek the message here to do ctrl+tab (apparently)
             do_ctrl_tab();
         }
-        else if (IsDialogMessage(hWndMain, &msg))
+        else if (IsDialogMessage(_hWndMain, &msg))
         {
             /* IsDialogMessage handled the message */
         }
@@ -192,324 +198,333 @@ void Gui::run()
 
 LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    switch (message)
+    try
     {
-    // process messages
-    case WM_CLOSE: // Window is being asked to close ([x], Alt+F4, etc)
-        PostQuitMessage(0);
-        return TRUE;
-    case WM_DESTROY: // Window is being destroyed
-        PostQuitMessage(0);
-        return TRUE;
-    case WM_DROPFILES: // File dropped
-        if (hWnd == ConvertWnd)
+        switch (message)
         {
-            convert_dropped_files((HDROP)wParam);
-        }
-        else
-        {
-            int FilenameLength = DragQueryFile((HDROP)wParam, 0, nullptr, 0) + 1;
-            auto DroppedFilename = static_cast<char*>(malloc(FilenameLength)); // Allocate memory for the filename
-            DragQueryFile((HDROP)wParam, 0, DroppedFilename, FilenameLength);
-            // Get filename of first file, discard the rest
-            DragFinish((HDROP)wParam); // Tell Windows I've finished
-            load_file(DroppedFilename);
-            free(DroppedFilename); // deallocate buffer
-        }
-        return TRUE;
-    case WM_COMMAND:
-        switch (LOWORD(wParam))
-        {
-        case btnUpdateHeader:
-            update_header();
-            Utils::compress(_current_filename);
-            load_file(_current_filename);
-            break;
-        case btnCheckLengths:
-            check_lengths(_current_filename, TRUE, *this);
-            load_file(_current_filename);
-            break;
-        case btnTrim:
+        // process messages
+        case WM_CLOSE: // Window is being asked to close ([x], Alt+F4, etc)
+        case WM_DESTROY: // Window is being destroyed
+            PostQuitMessage(0);
+            return TRUE;
+        case WM_DROPFILES: // File dropped
+            if (hWnd == _convertWnd)
             {
-                int loop = -1;
-                BOOL b1, b2, b3 = TRUE;
-                const int start = static_cast<int>(GetDlgItemInt(TrimWnd, edtTrimStart, &b1, FALSE));
-                const int end = static_cast<int>(GetDlgItemInt(TrimWnd, edtTrimEnd, &b2, FALSE));
-                if (IsDlgButtonChecked(TrimWnd, cbLoop))
+                convert_dropped_files(reinterpret_cast<HDROP>(wParam));
+            }
+            else
+            {
+                const int filenameLength = DragQueryFile(reinterpret_cast<HDROP>(wParam), 0, nullptr, 0) + 1;
+                const auto droppedFilename = static_cast<char*>(malloc(filenameLength));
+                // Allocate memory for the filename
+                DragQueryFile((HDROP)wParam, 0, droppedFilename, filenameLength);
+                // Get filename of first file, discard the rest
+                DragFinish((HDROP)wParam); // Tell Windows I've finished
+                load_file(droppedFilename);
+                free(droppedFilename); // deallocate buffer
+            }
+            return TRUE;
+        case WM_COMMAND:
+            switch (LOWORD(wParam))
+            {
+            case btnUpdateHeader:
+                update_header();
+                Utils::compress(_currentFilename);
+                load_file(_currentFilename);
+                break;
+            case btnCheckLengths:
+                check_lengths(_currentFilename, TRUE, *this);
+                load_file(_currentFilename);
+                break;
+            case btnTrim:
                 {
-                    // want looping
-                    loop = static_cast<int>(GetDlgItemInt(TrimWnd, edtTrimLoop, &b3, FALSE));
-                }
+                    int loop = -1;
+                    BOOL b1, b2, b3 = TRUE;
+                    const int start = static_cast<int>(GetDlgItemInt(_trimWnd, edtTrimStart, &b1, FALSE));
+                    const int end = static_cast<int>(GetDlgItemInt(_trimWnd, edtTrimEnd, &b2, FALSE));
+                    if (IsDlgButtonChecked(_trimWnd, cbLoop))
+                    {
+                        // want looping
+                        loop = static_cast<int>(GetDlgItemInt(_trimWnd, edtTrimLoop, &b3, FALSE));
+                    }
 
-                if (!b1 || !b2 || !b3)
+                    if (!b1 || !b2 || !b3)
+                    {
+                        // failed to get values
+                        show_error("Invalid edit points!");
+                        break;
+                    }
+                    trim(_currentFilename, start, loop, end, false, IsDlgButtonChecked(_trimWnd, cbLogTrims), *this);
+                }
+                break;
+            case btnWriteToText:
+                write_to_text(_currentFilename, *this);
+                break;
+            case btnOptimise:
+                optimize(_currentFilename);
+                Utils::compress(_currentFilename);
+                load_file(_currentFilename);
+                break;
+            case btnDecompress:
+                Utils::decompress(_currentFilename);
+                load_file(_currentFilename);
+                break;
+            case btnRoundTimes:
                 {
-                    // failed to get values
-                    show_error("Invalid edit points!");
+                    BOOL b;
+                    const int Edits[3] = {edtTrimStart, edtTrimLoop, edtTrimEnd};
+                    if (!_currentFileVgmHeader.RecordingRate)
+                    {
+                        break; // stop if rate = 0
+                    }
+                    int FrameLength = 44100 / _currentFileVgmHeader.RecordingRate;
+                    for (int i = 0; i < 3; ++i)
+                    {
+                        int Time = GetDlgItemInt(_trimWnd, Edits[i], &b, FALSE);
+                        if (b)
+                        {
+                            const double frames = static_cast<double>(Time) / FrameLength;
+                            const int roundedFrames = std::lround(frames) * FrameLength;
+                            SetDlgItemInt(_trimWnd, Edits[i], roundedFrames, FALSE);
+                        }
+                    }
+                }
+                break;
+            case btnPlayFile:
+                ShellExecute(_hWndMain, "Play", _currentFilename.c_str(), nullptr, nullptr, SW_NORMAL);
+                break;
+            case btnUpdateGD3:
+                update_gd3();
+                Utils::compress(_currentFilename);
+                load_file(_currentFilename);
+                break;
+            case btnGD3Clear:
+                clear_gd3_strings();
+                break;
+            case btnSelectAll:
+                change_check_boxes(1);
+                break;
+            case btnSelectNone:
+                change_check_boxes(2);
+                break;
+            case btnSelectInvert:
+                change_check_boxes(3);
+                break;
+            case btnSelectGuess:
+                change_check_boxes(4);
+                break;
+            case btnStrip:
+                strip_checked(_currentFilename);
+                break;
+            case cbPSGTone:
+                {
+                    const int Checked = IsDlgButtonChecked(_stripWnd, cbPSGTone);
+                    for (int i = 0; i < 3; ++i)
+                    {
+                        if (IsWindowEnabled(GetDlgItem(_stripWnd, _psgCheckBoxes[i])))
+                        {
+                            CheckDlgButton(
+                                _stripWnd, _psgCheckBoxes[i], Checked);
+                        }
+                    }
+                }
+                break;
+            case cbYM2413Tone:
+                {
+                    const int Checked = IsDlgButtonChecked(_stripWnd, cbYM2413Tone);
+                    for (int i = 0; i < 9; ++i)
+                    {
+                        if (IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i])))
+                        {
+                            CheckDlgButton(_stripWnd, _ym2413CheckBoxes[i], Checked);
+                        }
+                    }
+                }
+                break;
+            case cbYM2413Percussion:
+                {
+                    const int Checked = IsDlgButtonChecked(_stripWnd, cbYM2413Percussion);
+                    for (int i = 9; i < 14; ++i)
+                    {
+                        if (IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i])))
+                        {
+                            CheckDlgButton(_stripWnd, _ym2413CheckBoxes[i], Checked);
+                        }
+                    }
+                }
+                break;
+            case btnRateDetect:
+                {
+                    int i = detect_rate(_currentFilename, *this);
+                    if (i)
+                    {
+                        SetDlgItemInt(_headerWnd, edtPlaybackRate, i, FALSE);
+                    }
+                    // TODO: make sure VGM version is set high enough when updating header
+                }
+                break;
+            case cbGD3SystemEn:
+                if (HIWORD(wParam) != CBN_SELENDOK)
+                {
                     break;
                 }
-                trim(_current_filename, start, loop, end, false, IsDlgButtonChecked(TrimWnd, cbLogTrims), *this);
-            }
-            break;
-        case btnWriteToText:
-            write_to_text(_current_filename, *this);
-            break;
-        case btnOptimise:
-            optimize(_current_filename);
-            Utils::compress(_current_filename);
-            load_file(_current_filename);
-            break;
-        case btnDecompress:
-            Utils::decompress(_current_filename);
-            load_file(_current_filename);
-            break;
-        case btnRoundTimes:
-            {
-                BOOL b;
-                const int Edits[3] = {edtTrimStart, edtTrimLoop, edtTrimEnd};
-                if (!_current_file_vgm_header.RecordingRate)
+                switch (SendDlgItemMessage(_gd3Wnd, cbGD3SystemEn, CB_GETCURSEL, 0, 0))
                 {
-                    break; // stop if rate = 0
-                }
-                int FrameLength = 44100 / _current_file_vgm_header.RecordingRate;
-                for (int i = 0; i < 3; ++i)
-                {
-                    int Time = GetDlgItemInt(TrimWnd, Edits[i], &b, FALSE);
-                    if (b)
-                    {
-                        const double frames = static_cast<double>(Time) / FrameLength;
-                        const int roundedFrames = std::lround(frames) * FrameLength;
-                        SetDlgItemInt(TrimWnd, Edits[i], roundedFrames, FALSE);
-                    }
-                }
-            }
-            break;
-        case btnPlayFile:
-            ShellExecute(hWndMain, "Play", _current_filename.c_str(), nullptr, nullptr, SW_NORMAL);
-            break;
-        case btnUpdateGD3:
-            update_gd3();
-            Utils::compress(_current_filename);
-            load_file(_current_filename);
-            break;
-        case btnGD3Clear:
-            clear_gd3_strings();
-            break;
-        case btnSelectAll:
-            change_check_boxes(1);
-            break;
-        case btnSelectNone:
-            change_check_boxes(2);
-            break;
-        case btnSelectInvert:
-            change_check_boxes(3);
-            break;
-        case btnSelectGuess:
-            change_check_boxes(4);
-            break;
-        case btnStrip:
-            strip_checked(_current_filename);
-            break;
-        case cbPSGTone:
-            {
-                const int Checked = IsDlgButtonChecked(StripWnd, cbPSGTone);
-                for (int i = 0; i < 3; ++i)
-                {
-                    if (IsWindowEnabled(GetDlgItem(StripWnd, PSGCheckBoxes[i])))
-                    {
-                        CheckDlgButton(
-                            StripWnd, PSGCheckBoxes[i], Checked);
-                    }
-                }
-            }
-            break;
-        case cbYM2413Tone:
-            {
-                const int Checked = IsDlgButtonChecked(StripWnd, cbYM2413Tone);
-                for (int i = 0; i < 9; ++i)
-                {
-                    if (IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i])))
-                    {
-                        CheckDlgButton(StripWnd, YM2413CheckBoxes[i], Checked);
-                    }
-                }
-            }
-            break;
-        case cbYM2413Percussion:
-            {
-                const int Checked = IsDlgButtonChecked(StripWnd, cbYM2413Percussion);
-                for (int i = 9; i < 14; ++i)
-                {
-                    if (IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i])))
-                    {
-                        CheckDlgButton(StripWnd, YM2413CheckBoxes[i], Checked);
-                    }
-                }
-            }
-            break;
-        case btnRateDetect:
-            {
-                int i = detect_rate(_current_filename, *this);
-                if (i)
-                {
-                    SetDlgItemInt(HeaderWnd, edtPlaybackRate, i, FALSE);
-                }
-                // TODO: make sure VGM version is set high enough when updating header
-            }
-            break;
-        case cbGD3SystemEn:
-            if (HIWORD(wParam) != CBN_SELENDOK)
-            {
-                break;
-            }
-            switch (SendDlgItemMessage(GD3Wnd, cbGD3SystemEn, CB_GETCURSEL, 0, 0))
-            {
-            case 0: SetDlgItemText(GD3Wnd, edtGD3SystemJp,
-                    "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0;");
-                break; // Sega Master System
-            case 1: SetDlgItemText(GD3Wnd, edtGD3SystemJp, "&#x30bb;&#x30ac;&#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
-                break; // Sega Game Gear
-            case 2: SetDlgItemText(GD3Wnd, edtGD3SystemJp,
-                    "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0; / &#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
-                break; // Sega Master System / Game Gear
-            case 3: SetDlgItemText(GD3Wnd, edtGD3SystemJp,
-                    "&#x30bb;&#x30ac;&#x30e1;&#x30ac;&#x30c9;&#x30e9;&#x30a4;&#x30d6;");
-                break; // Sega Megadrive (Japanese name)
-            default: SetDlgItemText(GD3Wnd, edtGD3SystemJp, "");
-                break;
-            }
-            break;
-        case btnCopyLengths:
-            copy_lengths_to_clipboard();
-            break;
-        case btnRemoveGD3:
-            remove_gd3(_current_filename, *this);
-            load_file(_current_filename);
-            break;
-        case btnRemoveOffsets:
-            remove_offset(_current_filename, *this);
-            load_file(_current_filename);
-            break;
-        case btnOptimiseVGMData:
-            //      OptimiseVGMData(_current_filename);
-            show_error("TODO: OptimiseVGMData() fixing");
-            load_file(_current_filename);
-            break;
-        case btnOptimisePauses:
-            optimise_vgm_pauses(_current_filename, *this);
-            load_file(_current_filename);
-            break;
-        case btnTrimOnly:
-            {
-                int Loop = -1;
-                BOOL b1, b2, b3 = TRUE;
-                int Start = GetDlgItemInt(TrimWnd, edtTrimStart, &b1, FALSE);
-                int End = GetDlgItemInt(TrimWnd, edtTrimEnd, &b2, FALSE);
-                if (IsDlgButtonChecked(TrimWnd, cbLoop))
-                {
-                    // want looping
-                    Loop = GetDlgItemInt(TrimWnd, edtTrimLoop, &b3, FALSE);
-                }
-
-                if (!b1 || !b2 || !b3)
-                {
-                    // failed to get values
-                    show_error("Invalid edit points!");
+                case 0: SetDlgItemText(_gd3Wnd, edtGD3SystemJp,
+                        "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0;");
+                    break; // Sega Master System
+                case 1: SetDlgItemText(_gd3Wnd, edtGD3SystemJp,
+                        "&#x30bb;&#x30ac;&#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
+                    break; // Sega Game Gear
+                case 2: SetDlgItemText(_gd3Wnd, edtGD3SystemJp,
+                        "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0; / &#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
+                    break; // Sega Master System / Game Gear
+                case 3: SetDlgItemText(_gd3Wnd, edtGD3SystemJp,
+                        "&#x30bb;&#x30ac;&#x30e1;&#x30ac;&#x30c9;&#x30e9;&#x30a4;&#x30d6;");
+                    break; // Sega Megadrive (Japanese name)
+                default: SetDlgItemText(_gd3Wnd, edtGD3SystemJp, "");
                     break;
                 }
-
-                if (IsDlgButtonChecked(TrimWnd, cbLogTrims))
+                break;
+            case btnCopyLengths:
+                copy_lengths_to_clipboard();
+                break;
+            case btnRemoveGD3:
+                remove_gd3(_currentFilename, *this);
+                load_file(_currentFilename);
+                break;
+            case btnRemoveOffsets:
+                remove_offset(_currentFilename, *this);
+                load_file(_currentFilename);
+                break;
+            case btnOptimiseVGMData:
+                //      OptimiseVGMData(_current_filename);
+                show_error("TODO: OptimiseVGMData() fixing");
+                load_file(_currentFilename);
+                break;
+            case btnOptimisePauses:
+                optimise_vgm_pauses(_currentFilename, *this);
+                load_file(_currentFilename);
+                break;
+            case btnTrimOnly:
                 {
-                    log_trim(_current_filename, Start, Loop, End, *this);
-                }
+                    int Loop = -1;
+                    BOOL b1, b2, b3 = TRUE;
+                    int Start = GetDlgItemInt(_trimWnd, edtTrimStart, &b1, FALSE);
+                    int End = GetDlgItemInt(_trimWnd, edtTrimEnd, &b2, FALSE);
+                    if (IsDlgButtonChecked(_trimWnd, cbLoop))
+                    {
+                        // want looping
+                        Loop = GetDlgItemInt(_trimWnd, edtTrimLoop, &b3, FALSE);
+                    }
 
-                new_trim(_current_filename, Start, Loop, End, *this);
-            }
-            break;
-        case btnCompress:
-            Utils::compress(_current_filename);
-            load_file(_current_filename);
-            break;
-        case btnNewTrim:
+                    if (!b1 || !b2 || !b3)
+                    {
+                        // failed to get values
+                        show_error("Invalid edit points!");
+                        break;
+                    }
+
+                    if (IsDlgButtonChecked(_trimWnd, cbLogTrims))
+                    {
+                        log_trim(_currentFilename, Start, Loop, End, *this);
+                    }
+
+                    new_trim(_currentFilename, Start, Loop, End, *this);
+                }
+                break;
+            case btnCompress:
+                Utils::compress(_currentFilename);
+                load_file(_currentFilename);
+                break;
+            case btnNewTrim:
+                {
+                    int Loop = -1;
+                    BOOL b1, b2, b3 = TRUE;
+                    int Start = GetDlgItemInt(_trimWnd, edtTrimStart, &b1, FALSE);
+                    int End = GetDlgItemInt(_trimWnd, edtTrimEnd, &b2, FALSE);
+                    if (IsDlgButtonChecked(_trimWnd, cbLoop))
+                    {
+                        // want looping
+                        Loop = GetDlgItemInt(_trimWnd, edtTrimLoop, &b3, FALSE);
+                    }
+
+                    if (!b1 || !b2 || !b3)
+                    {
+                        // failed to get values
+                        show_error("Invalid edit points!");
+                        break;
+                    }
+                    new_trim(_currentFilename, Start, Loop, End, *this);
+                    remove_offset(_currentFilename, *this);
+                    //        OptimiseVGMData(_current_filename);
+                    optimise_vgm_pauses(_currentFilename, *this);
+                }
+                break;
+            case btnGetCounts:
+                check_write_counts(_currentFilename);
+                break;
+            case btnRoundToFrames:
+                round_to_frame_accurate(_currentFilename, *this);
+                break;
+            } // end switch(LOWORD(wParam))
             {
-                int Loop = -1;
-                BOOL b1, b2, b3 = TRUE;
-                int Start = GetDlgItemInt(TrimWnd, edtTrimStart, &b1, FALSE);
-                int End = GetDlgItemInt(TrimWnd, edtTrimEnd, &b2, FALSE);
-                if (IsDlgButtonChecked(TrimWnd, cbLoop))
+                // Stuff to happen after every message/button press (?!): update "all" checkboxes for stripping
+                int i;
+                int Checked = 0;
+                int Total = 0;
+                for (i = 0; i < 3; ++i)
                 {
-                    // want looping
-                    Loop = GetDlgItemInt(TrimWnd, edtTrimLoop, &b3, FALSE);
+                    Checked += IsDlgButtonChecked(_stripWnd, _psgCheckBoxes[i]);
+                    Total += IsWindowEnabled(GetDlgItem(_stripWnd, _psgCheckBoxes[i]));
                 }
-
-                if (!b1 || !b2 || !b3)
+                CheckDlgButton(_stripWnd, cbPSGTone, (Checked == Total) && Total);
+                Checked = 0;
+                Total = 0;
+                for (i = 0; i < 9; ++i)
                 {
-                    // failed to get values
-                    show_error("Invalid edit points!");
+                    Checked += IsDlgButtonChecked(_stripWnd, _ym2413CheckBoxes[i]);
+                    Total += IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i]));
+                }
+                CheckDlgButton(_stripWnd, cbYM2413Tone, (Checked == Total) && Total);
+                Checked = 0;
+                Total = 0;
+                for (i = 9; i < 14; ++i)
+                {
+                    Checked += IsDlgButtonChecked(_stripWnd, _ym2413CheckBoxes[i]);
+                    Total += IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i]));
+                }
+                CheckDlgButton(_stripWnd, cbYM2413Percussion, (Checked == Total) && Total);
+            }
+            return TRUE; // WM_COMMAND handled
+        case WM_NOTIFY:
+            switch (LOWORD(wParam))
+            {
+            case tcMain:
+                switch (((LPNMHDR)lParam)->code)
+                {
+                case TCN_SELCHANGING: // hide current window
+                    SetWindowPos(_tabChildWindows[TabCtrl_GetCurSel(GetDlgItem(_hWndMain, tcMain))], HWND_TOP, 0, 0, 0,
+                        0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_HIDEWINDOW);
+                    break;
+                case TCN_SELCHANGE: // show current window
+                    {
+                        int i = TabCtrl_GetCurSel(GetDlgItem(_hWndMain, tcMain));
+                        SetWindowPos(_tabChildWindows[i], HWND_TOP, 0, 0, 0, 0,
+                            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                        SetFocus(_tabChildWindows[i]);
+                    }
                     break;
                 }
-                new_trim(_current_filename, Start, Loop, End, *this);
-                remove_offset(_current_filename, *this);
-                //        OptimiseVGMData(_current_filename);
-                optimise_vgm_pauses(_current_filename, *this);
-            }
-            break;
-        case btnGetCounts:
-            check_write_counts(_current_filename);
-            break;
-        case btnRoundToFrames:
-            round_to_frame_accurate(_current_filename, *this);
-            break;
-        } // end switch(LOWORD(wParam))
-        {
-            // Stuff to happen after every message/button press (?!): update "all" checkboxes for stripping
-            int i;
-            int Checked = 0;
-            int Total = 0;
-            for (i = 0; i < 3; ++i)
-            {
-                Checked += IsDlgButtonChecked(StripWnd, PSGCheckBoxes[i]);
-                Total += IsWindowEnabled(GetDlgItem(StripWnd, PSGCheckBoxes[i]));
-            }
-            CheckDlgButton(StripWnd, cbPSGTone, (Checked == Total) && Total);
-            Checked = 0;
-            Total = 0;
-            for (i = 0; i < 9; ++i)
-            {
-                Checked += IsDlgButtonChecked(StripWnd, YM2413CheckBoxes[i]);
-                Total += IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i]));
-            }
-            CheckDlgButton(StripWnd, cbYM2413Tone, (Checked == Total) && Total);
-            Checked = 0;
-            Total = 0;
-            for (i = 9; i < 14; ++i)
-            {
-                Checked += IsDlgButtonChecked(StripWnd, YM2413CheckBoxes[i]);
-                Total += IsWindowEnabled(GetDlgItem(StripWnd, YM2413CheckBoxes[i]));
-            }
-            CheckDlgButton(StripWnd, cbYM2413Percussion, (Checked == Total) && Total);
+                break;
+            } // end switch (LOWORD(wParam))
+            return TRUE; // WM_NOTIFY handled
         }
-        return TRUE; // WM_COMMAND handled
-    case WM_NOTIFY:
-        switch (LOWORD(wParam))
-        {
-        case tcMain:
-            switch (((LPNMHDR)lParam)->code)
-            {
-            case TCN_SELCHANGING: // hide current window
-                SetWindowPos(_tabChildWindows[TabCtrl_GetCurSel(GetDlgItem(hWndMain, tcMain))], HWND_TOP, 0, 0, 0, 0,
-                    SWP_NOMOVE | SWP_NOSIZE | SWP_HIDEWINDOW);
-                break;
-            case TCN_SELCHANGE: // show current window
-                {
-                    int i = TabCtrl_GetCurSel(GetDlgItem(hWndMain, tcMain));
-                    SetWindowPos(_tabChildWindows[i], HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-                    SetFocus(_tabChildWindows[i]);
-                }
-                break;
-            }
-            break;
-        } // end switch (LOWORD(wParam))
-        return TRUE; // WM_NOTIFY handled
+    }
+    catch (const std::exception& e)
+    {
+        show_error(e.what());
     }
     return FALSE; // return FALSE to signify message not processed
 }
@@ -521,7 +536,7 @@ void Gui::make_tabbed_dialog()
     HIMAGELIST imagelist = ImageList_LoadImage(_hInstance, reinterpret_cast<LPCSTR>(tabimages), 16, 0, RGB(255, 0, 255),
         IMAGE_BITMAP, LR_CREATEDIBSECTION);
 
-    HWND tabCtrlWnd = GetDlgItem(hWndMain, tcMain);
+    HWND tabCtrlWnd = GetDlgItem(_hWndMain, tcMain);
     TabCtrl_SetImageList(tabCtrlWnd, imagelist);
 
     // Add tabs
@@ -553,18 +568,18 @@ void Gui::make_tabbed_dialog()
     // And adjust it to the "display area"
     TabCtrl_AdjustRect(tabCtrlWnd, FALSE, &tabDisplayRect);
     // Then make it relative to the main window
-    MapWindowPoints(HWND_DESKTOP, hWndMain, reinterpret_cast<LPPOINT>(&tabDisplayRect), 2);
+    MapWindowPoints(HWND_DESKTOP, _hWndMain, reinterpret_cast<LPPOINT>(&tabDisplayRect), 2);
 
     // Create child windows
     for (const auto id : {DlgVGMHeader, DlgTrimming, DlgStripping, DlgGD3, DlgConvert, DlgMisc})
     {
-        _tabChildWindows.push_back(CreateDialog(_hInstance, MAKEINTRESOURCE(id), hWndMain, static_dialog_proc));
+        _tabChildWindows.push_back(CreateDialog(_hInstance, MAKEINTRESOURCE(id), _hWndMain, static_dialog_proc));
     }
-    HeaderWnd = _tabChildWindows[0];
-    TrimWnd = _tabChildWindows[1];
-    StripWnd = _tabChildWindows[2];
-    GD3Wnd = _tabChildWindows[3];
-    ConvertWnd = _tabChildWindows[4];
+    _headerWnd = _tabChildWindows[0];
+    _trimWnd = _tabChildWindows[1];
+    _stripWnd = _tabChildWindows[2];
+    _gd3Wnd = _tabChildWindows[3];
+    _convertWnd = _tabChildWindows[4];
 
     // Put them in the right place, and hide them
     for (const auto& tabChildWnd : _tabChildWindows)
@@ -593,26 +608,26 @@ void Gui::load_file(const std::string& filename)
     show_status("Loading file...");
 
     gzFile in = gzopen(filename.c_str(), "rb");
-    gzread(in, &_current_file_vgm_header, sizeof(_current_file_vgm_header));
+    gzread(in, &_currentFileVgmHeader, sizeof(_currentFileVgmHeader));
 
-    if (!_current_file_vgm_header.is_valid())
+    if (!_currentFileVgmHeader.is_valid())
     {
         // no VGM marker
         show_error(
             "File is not a VGM file!\nIt will not be opened.\n\nMaybe you want to convert GYM, CYM and SSL files to VGM?\nClick on the \"Conversion\" tab.");
-        _current_filename.clear();
-        SetDlgItemText(hWndMain, edtFileName, "Drop a file onto the window to load");
+        _currentFilename.clear();
+        SetDlgItemText(_hWndMain, edtFileName, "Drop a file onto the window to load");
         show_status("");
         return;
     }
 
-    _current_filename = filename; // Remember it
-    SetDlgItemText(hWndMain, edtFileName, filename.c_str()); // Put it in the box
+    _currentFilename = filename; // Remember it
+    SetDlgItemText(_hWndMain, edtFileName, filename.c_str()); // Put it in the box
 
-    if (_current_file_vgm_header.GD3Offset)
+    if (_currentFileVgmHeader.GD3Offset != 0)
     {
         // GD3 tag exists
-        gzseek(in, _current_file_vgm_header.GD3Offset + GD3DELTA, SEEK_SET);
+        gzseek(in, _currentFileVgmHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         if (
             (strncmp(GD3Header.id_string, "Gd3 ", 4) == 0) && // Has valid marker
@@ -632,39 +647,39 @@ void Gui::load_file(const std::string& filename)
     gzclose(in);
 
     // Rate
-    SetDlgItemInt(HeaderWnd, edtPlaybackRate, _current_file_vgm_header.RecordingRate, FALSE);
+    SetDlgItemInt(_headerWnd, edtPlaybackRate, _currentFileVgmHeader.RecordingRate, FALSE);
 
     // Lengths
-    int Mins = static_cast<int>(_current_file_vgm_header.TotalLength) / 44100 / 60;
-    int Secs = static_cast<int>(_current_file_vgm_header.TotalLength) / 44100 - Mins * 60;
+    int Mins = static_cast<int>(_currentFileVgmHeader.TotalLength) / 44100 / 60;
+    int Secs = static_cast<int>(_currentFileVgmHeader.TotalLength) / 44100 - Mins * 60;
     sprintf(buffer, "%d:%02d", Mins, Secs);
-    SetDlgItemText(HeaderWnd, edtLengthTotal, buffer);
-    if (_current_file_vgm_header.LoopLength > 0)
+    SetDlgItemText(_headerWnd, edtLengthTotal, buffer);
+    if (_currentFileVgmHeader.LoopLength > 0)
     {
-        Mins = static_cast<int>(_current_file_vgm_header.LoopLength) / 44100 / 60;
-        Secs = static_cast<int>(_current_file_vgm_header.LoopLength) / 44100 - Mins * 60;
+        Mins = static_cast<int>(_currentFileVgmHeader.LoopLength) / 44100 / 60;
+        Secs = static_cast<int>(_currentFileVgmHeader.LoopLength) / 44100 - Mins * 60;
         sprintf(buffer, "%d:%02d", Mins, Secs);
     }
     else
     {
         strcpy(buffer, "-");
     }
-    SetDlgItemText(HeaderWnd, edtLengthLoop, buffer);
+    SetDlgItemText(_headerWnd, edtLengthLoop, buffer);
 
     // Version
-    sprintf(buffer, "%x.%02x", _current_file_vgm_header.Version >> 8, _current_file_vgm_header.Version & 0xff);
-    SetDlgItemText(HeaderWnd, edtVersion, buffer);
+    sprintf(buffer, "%x.%02x", _currentFileVgmHeader.Version >> 8, _currentFileVgmHeader.Version & 0xff);
+    SetDlgItemText(_headerWnd, edtVersion, buffer);
 
     // Clock speeds
-    SetDlgItemInt(HeaderWnd, edtPSGClock, _current_file_vgm_header.PSGClock, FALSE);
-    SetDlgItemInt(HeaderWnd, edtYM2413Clock, _current_file_vgm_header.YM2413Clock, FALSE);
-    SetDlgItemInt(HeaderWnd, edtYM2612Clock, _current_file_vgm_header.YM2612Clock, FALSE);
-    SetDlgItemInt(HeaderWnd, edtYM2151Clock, _current_file_vgm_header.YM2151Clock, FALSE);
+    SetDlgItemInt(_headerWnd, edtPSGClock, _currentFileVgmHeader.PSGClock, FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2413Clock, _currentFileVgmHeader.YM2413Clock, FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2612Clock, _currentFileVgmHeader.YM2612Clock, FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFileVgmHeader.YM2151Clock, FALSE);
 
     // PSG settings
-    sprintf(buffer, "0x%04x", _current_file_vgm_header.PSGWhiteNoiseFeedback);
-    SetDlgItemText(HeaderWnd, edtPSGFeedback, buffer);
-    SetDlgItemInt(HeaderWnd, edtPSGSRWidth, _current_file_vgm_header.PSGShiftRegisterWidth, FALSE);
+    sprintf(buffer, "0x%04x", _currentFileVgmHeader.PSGWhiteNoiseFeedback);
+    SetDlgItemText(_headerWnd, edtPSGFeedback, buffer);
+    SetDlgItemInt(_headerWnd, edtPSGSRWidth, _currentFileVgmHeader.PSGShiftRegisterWidth, FALSE);
 
     // GD3 tag
     if (GD3Strings)
@@ -696,7 +711,7 @@ void Gui::load_file(const std::string& filename)
                 break;
             }
 
-            if (!SetDlgItemTextW(GD3Wnd, GD3EditControls[i], ModifiedString))
+            if (!SetDlgItemTextW(_gd3Wnd, _gd3EditControls[i], ModifiedString))
             {
                 // Widechar text setting failed, try WC2MB
                 BOOL ConversionFailure;
@@ -722,7 +737,7 @@ void Gui::load_file(const std::string& filename)
                         p++;
                     }
                 }
-                SetDlgItemText(GD3Wnd, GD3EditControls[i], MBCSstring); // and put it in the edit control
+                SetDlgItemText(_gd3Wnd, _gd3EditControls[i], MBCSstring); // and put it in the edit control
             }
 
             // Move the pointer to the next string
@@ -744,7 +759,7 @@ void Gui::load_file(const std::string& filename)
 
 void Gui::do_ctrl_tab() const
 {
-    const HWND tabCtrlWnd = GetDlgItem(hWndMain, tcMain);
+    const HWND tabCtrlWnd = GetDlgItem(_hWndMain, tcMain);
     int currentTab = TabCtrl_GetCurFocus(tabCtrlWnd);
 
     if (GetKeyState(VK_SHIFT) < 0)
@@ -806,68 +821,73 @@ void Gui::convert_dropped_files(HDROP hDrop) const
         GetTickCount() - startTime));
 }
 
-void Gui::update_header()
+void Gui::update_header() const
 {
-    int i, j;
     VGMHeader VGMHeader;
 
-    if (!Utils::file_exists(_current_filename))
+    if (!Utils::file_exists(_currentFilename))
     {
         return;
     }
 
-    gzFile in = gzopen(_current_filename.c_str(), "rb");
+    gzFile in = gzopen(_currentFilename.c_str(), "rb");
     gzread(in, &VGMHeader, sizeof(VGMHeader));
     gzclose(in);
 
-    if (get_int(HeaderWnd, edtPlaybackRate, &i))
+    if (int rate; get_int(_headerWnd, edtPlaybackRate, &rate))
     {
-        VGMHeader.RecordingRate = i;
+        VGMHeader.RecordingRate = rate;
     }
 
-    auto s = get_string(HeaderWnd, edtVersion);
-    if (sscanf(s.c_str(), "%d.%d", &i, &j) == 2)
+    auto s = get_utf8_string(_headerWnd, edtVersion);
+    if (std::smatch m; std::regex_match(s, m, std::regex(R"((\d{1,2})\.(\d{1,2}))")))
     {
+        const auto major = std::stoi(m[0]);
+        const auto minor = std::stoi(m[1]) * (m[1].length() == 1 ? 10 : 1); // Make e.g. "1" become "10"
         // valid data
         VGMHeader.Version =
-            (i / 10) << 12 | // major tens
-            (i % 10) << 8 | // major units
-            (j / 10) << 4 | // minor tens
-            (j % 10); // minor units
+            (major / 10) << 12 | // major tens
+            (major % 10) << 8 | // major units
+            (minor / 10) << 4 | // minor tens
+            (minor % 10); // minor units
+    }
+    else
+    {
+        throw std::runtime_error(Utils::format("Invalid version \"%s\"", s.c_str()));
     }
 
-    if (get_int(HeaderWnd, edtPSGClock, &i))
+    if (int i; get_int(_headerWnd, edtPSGClock, &i))
     {
         VGMHeader.PSGClock = i;
     }
-    if (get_int(HeaderWnd, edtYM2413Clock, &i))
+    if (int i; get_int(_headerWnd, edtYM2413Clock, &i))
     {
         VGMHeader.YM2413Clock = i;
     }
-    if (get_int(HeaderWnd, edtYM2612Clock, &i))
+    if (int i; get_int(_headerWnd, edtYM2612Clock, &i))
     {
         VGMHeader.YM2612Clock = i;
     }
-    if (get_int(HeaderWnd, edtYM2151Clock, &i))
+    if (int i; get_int(_headerWnd, edtYM2151Clock, &i))
     {
         VGMHeader.YM2151Clock = i;
     }
 
-    s = get_string(HeaderWnd, edtPSGFeedback);
-    if (sscanf(s.c_str(), "0x%x", &i) == 1)
+    s = get_utf8_string(_headerWnd, edtPSGFeedback);
+    if (std::smatch m; std::regex_search(s, m, std::regex(R"(^0x([0-9a-fA-F]+))")))
     {
         // valid data
-        VGMHeader.PSGWhiteNoiseFeedback = static_cast<uint16_t>(i);
+        VGMHeader.PSGWhiteNoiseFeedback = static_cast<uint16_t>(std::stoi(m[0], nullptr, 16));
     }
-    if (get_int(HeaderWnd, edtPSGSRWidth, &i))
+    if (int i; get_int(_headerWnd, edtPSGSRWidth, &i))
     {
         VGMHeader.PSGShiftRegisterWidth = static_cast<uint8_t>(i);
     }
 
-    write_vgm_header(_current_filename, VGMHeader, *this);
+    write_vgm_header(_currentFilename, VGMHeader, *this);
 }
 
-void Gui::optimize(const std::string& filename)
+void Gui::optimize(const std::string& filename) const
 {
     VGMHeader VGMHeader;
     int NumOffsetsRemoved = 0;
@@ -881,7 +901,7 @@ void Gui::optimize(const std::string& filename)
     check_lengths(filename, FALSE, *this);
 
     // Remove PSG offsets if selected
-    if ((VGMHeader.PSGClock) && IsDlgButtonChecked(TrimWnd, cbRemoveOffset))
+    if ((VGMHeader.PSGClock) && IsDlgButtonChecked(_trimWnd, cbRemoveOffset))
     {
         NumOffsetsRemoved = remove_offset(filename, *this);
     }
@@ -915,47 +935,47 @@ void Gui::optimize(const std::string& filename)
         (FileSizeAfter - FileSizeBefore) * 100.0 / FileSizeBefore
     )) == IDYES)
     {
-        ShellExecute(hWndMain, "Play", filename.c_str(), nullptr, nullptr, SW_NORMAL);
+        ShellExecute(_hWndMain, "Play", filename.c_str(), nullptr, nullptr, SW_NORMAL);
     }
 }
 
 void Gui::show_message(const std::string& message) const
 {
-    MessageBox(hWndMain, message.c_str(), _program_name.c_str(), 0);
+    MessageBox(_hWndMain, message.c_str(), _programName.c_str(), 0);
 }
 
 void Gui::show_status(const std::string& message) const
 {
-    SetDlgItemText(hWndMain, txtStatusBar, message.c_str());
+    SetDlgItemText(_hWndMain, txtStatusBar, message.c_str());
 }
 
 void Gui::show_conversion_progress(const std::string& message) const
 {
     const auto withBreak = message + "\r\n";
     // Get length
-    const auto length = SendDlgItemMessage(ConvertWnd, edtConvertResults, WM_GETTEXTLENGTH, 0, 0);
+    const auto length = SendDlgItemMessage(_convertWnd, edtConvertResults, WM_GETTEXTLENGTH, 0, 0);
     // move caret to end of text
-    SendDlgItemMessage(ConvertWnd, edtConvertResults, EM_SETSEL, length, length);
+    SendDlgItemMessage(_convertWnd, edtConvertResults, EM_SETSEL, length, length);
     // insert text there
-    SendDlgItemMessage(ConvertWnd, edtConvertResults, EM_REPLACESEL, FALSE,
+    SendDlgItemMessage(_convertWnd, edtConvertResults, EM_REPLACESEL, FALSE,
         reinterpret_cast<LPARAM>(withBreak.c_str()));
 }
 
 void Gui::show_error(const std::string& message) const
 {
-    MessageBox(hWndMain, message.c_str(), _program_name.c_str(), MB_ICONERROR + MB_OK);
+    MessageBox(_hWndMain, message.c_str(), _programName.c_str(), MB_ICONERROR + MB_OK);
 }
 
-void Gui::update_gd3()
+void Gui::update_gd3() const
 {
-    if (!Utils::file_exists(_current_filename))
+    if (!Utils::file_exists(_currentFilename))
     {
         return;
     }
 
     show_status("Updating GD3 tag...");
 
-    gzFile in = gzopen(_current_filename.c_str(), "rb");
+    gzFile in = gzopen(_currentFilename.c_str(), "rb");
     VGMHeader VGMHeader;
     if (!ReadVGMHeader(in, &VGMHeader, *this))
     {
@@ -965,7 +985,7 @@ void Gui::update_gd3()
 
     gzrewind(in);
 
-    auto outFilename = Utils::make_suffixed_filename(_current_filename, "tagged");
+    auto outFilename = Utils::make_suffixed_filename(_currentFilename, "tagged");
     gzFile out = gzopen(outFilename.c_str(), "wb0");
 
     // Copy everything up to the GD3 tag
@@ -983,7 +1003,7 @@ void Gui::update_gd3()
     for (auto i = 0; i < NumGD3Strings; ++i)
     {
         // Get string from widget
-        auto s = get_wstring(GD3Wnd, GD3EditControls[i]);
+        auto s = get_utf16_string(_gd3Wnd, _gd3EditControls[i]);
 
         // Special handling for any strings
         if (i == 10)
@@ -1013,43 +1033,44 @@ void Gui::update_gd3()
 
     write_vgm_header(outFilename, VGMHeader, *this); // Write changed header
 
-    Utils::replace_file(_current_filename, outFilename);
+    Utils::replace_file(_currentFilename, outFilename);
 
     show_status("GD3 tag updated");
 }
 
-void Gui::clear_gd3_strings()
+void Gui::clear_gd3_strings() const
 {
-    for (const auto id : GD3EditControls)
+    for (const auto id : _gd3EditControls)
     {
-        SetDlgItemText(GD3Wnd, id, "");
+        SetDlgItemText(_gd3Wnd, id, "");
     }
 }
 
-void Gui::change_check_boxes(int mode) // TODO make mode an enum
+void Gui::change_check_boxes(int mode) const
+// TODO make mode an enum
 {
-    ccb(PSGCheckBoxes, PSGWrites, mode);
-    ccb(YM2413CheckBoxes, YM2413Writes, mode);
-    ccb(YM2612CheckBoxes, YM2612Writes, mode);
-    ccb(YM2151CheckBoxes, YM2151Writes, mode);
+    ccb(_psgCheckBoxes, _psgWrites, mode);
+    ccb(_ym2413CheckBoxes, _ym2413Writes, mode);
+    ccb(_ym2612CheckBoxes, _ym2612Writes, mode);
+    ccb(_ym2151CheckBoxes, _ym2151Writes, mode);
 }
 
-void Gui::ccb(const std::vector<int>& ids, const std::vector<int>& counts, int mode)
+void Gui::ccb(const std::vector<int>& ids, const std::vector<int>& counts, int mode) const
 {
     for (auto i = 0u; i < ids.size(); ++i)
     {
-        if (IsWindowEnabled(GetDlgItem(StripWnd, ids[i])))
+        if (IsWindowEnabled(GetDlgItem(_stripWnd, ids[i])))
         {
             switch (mode)
             {
             case 1: // check all
-                CheckDlgButton(StripWnd, ids[i], 1);
+                CheckDlgButton(_stripWnd, ids[i], 1);
                 break;
             case 2: // check none
-                CheckDlgButton(StripWnd, ids[i], 0);
+                CheckDlgButton(_stripWnd, ids[i], 0);
                 break;
             case 3: // invert selection
-                CheckDlgButton(StripWnd, ids[i], !IsDlgButtonChecked(StripWnd, ids[i]));
+                CheckDlgButton(_stripWnd, ids[i], !IsDlgButtonChecked(_stripWnd, ids[i]));
                 break;
             case 4: // guess
                 {
@@ -1064,10 +1085,10 @@ void Gui::ccb(const std::vector<int>& ids, const std::vector<int>& counts, int m
                     cutOff = cutOff / 50; // 2% of largest for that chip
 
                     CheckDlgButton(
-                        StripWnd,
+                        _stripWnd,
                         ids[i],
                         ((counts[i] < cutOff) ||
-                            get_string(StripWnd, ids[i]).find("Invalid") != std::string::npos)
+                            get_utf8_string(_stripWnd, ids[i]).find("Invalid") != std::string::npos)
                             ? 1
                             : 0);
                     break;
@@ -1079,7 +1100,7 @@ void Gui::ccb(const std::vector<int>& ids, const std::vector<int>& counts, int m
     }
 }
 
-void Gui::strip_checked(const std::string& filename)
+void Gui::strip_checked(const std::string& filename) const
 {
     VGMHeader VGMHeader;
 
@@ -1121,12 +1142,12 @@ void Gui::strip_checked(const std::string& filename)
         "Stripped VGM data written to\n%s\nDo you want to open it in the associated program?",
         Outfilename.c_str())) == IDYES)
     {
-        ShellExecute(hWndMain, "open", Outfilename.c_str(), nullptr, nullptr, SW_NORMAL);
+        ShellExecute(_hWndMain, "open", Outfilename.c_str(), nullptr, nullptr, SW_NORMAL);
     }
 }
 
 // Remove data for checked boxes
-void Gui::strip(const std::string& filename, const std::string& outfilename)
+void Gui::strip(const std::string& filename, const std::string& outfilename) const
 {
     VGMHeader VGMHeader;
     signed int b0, b1, b2;
@@ -1137,8 +1158,8 @@ void Gui::strip(const std::string& filename, const std::string& outfilename)
     unsigned char PSGMask = (1 << NumPSGTypes) - 1;
     for (auto i = 0; i < NumPSGTypes; i++)
     {
-        if ((IsDlgButtonChecked(StripWnd, PSGCheckBoxes[i])) || (!IsWindowEnabled(
-            GetDlgItem(StripWnd, PSGCheckBoxes[i]))))
+        if ((IsDlgButtonChecked(_stripWnd, _psgCheckBoxes[i])) || (!IsWindowEnabled(
+            GetDlgItem(_stripWnd, _psgCheckBoxes[i]))))
         {
             PSGMask ^= (1 << i);
         }
@@ -1146,8 +1167,8 @@ void Gui::strip(const std::string& filename, const std::string& outfilename)
     unsigned long YM2413Mask = (1 << NumYM2413Types) - 1;
     for (auto i = 0; i < NumYM2413Types; i++)
     {
-        if ((IsDlgButtonChecked(StripWnd, YM2413CheckBoxes[i])) || (!IsWindowEnabled(
-            GetDlgItem(StripWnd, YM2413CheckBoxes[i]))))
+        if ((IsDlgButtonChecked(_stripWnd, _ym2413CheckBoxes[i])) || (!IsWindowEnabled(
+            GetDlgItem(_stripWnd, _ym2413CheckBoxes[i]))))
         {
             YM2413Mask ^= (1 << i);
         }
@@ -1155,8 +1176,8 @@ void Gui::strip(const std::string& filename, const std::string& outfilename)
     unsigned char YM2612Mask = (1 << NumYM2612Types) - 1;
     for (auto i = 0; i < NumYM2612Types; i++)
     {
-        if ((IsDlgButtonChecked(StripWnd, YM2612CheckBoxes[i])) || (!IsWindowEnabled(
-            GetDlgItem(StripWnd, YM2612CheckBoxes[i]))))
+        if ((IsDlgButtonChecked(_stripWnd, _ym2612CheckBoxes[i])) || (!IsWindowEnabled(
+            GetDlgItem(_stripWnd, _ym2612CheckBoxes[i]))))
         {
             YM2612Mask ^= (1 << i);
         }
@@ -1164,8 +1185,8 @@ void Gui::strip(const std::string& filename, const std::string& outfilename)
     unsigned char YM2151Mask = (1 << NumYM2151Types) - 1;
     for (auto i = 0; i < NumYM2151Types; i++)
     {
-        if ((IsDlgButtonChecked(StripWnd, YM2151CheckBoxes[i])) || (!IsWindowEnabled(
-            GetDlgItem(StripWnd, YM2151CheckBoxes[i]))))
+        if ((IsDlgButtonChecked(_stripWnd, _ym2151CheckBoxes[i])) || (!IsWindowEnabled(
+            GetDlgItem(_stripWnd, _ym2151CheckBoxes[i]))))
         {
             YM2151Mask ^= (1 << i);
         }
@@ -1457,10 +1478,10 @@ void Gui::strip(const std::string& filename, const std::string& outfilename)
     write_vgm_header(outfilename, VGMHeader, *this);
 }
 
-void Gui::copy_lengths_to_clipboard()
+void Gui::copy_lengths_to_clipboard() const
 {
     // We work in Unicode for better compatibility...
-    auto result = get_wstring(GD3Wnd, edtGD3TitleEn);
+    auto result = get_utf16_string(_gd3Wnd, edtGD3TitleEn);
     if (result.length() > 35)
     {
         result.erase(35);
@@ -1469,11 +1490,11 @@ void Gui::copy_lengths_to_clipboard()
     {
         result.append(35 - result.length(), L' ');
     }
-    result += get_wstring(HeaderWnd, edtLengthTotal);
+    result += get_utf16_string(_headerWnd, edtLengthTotal);
     result += L' ';
-    result += get_wstring(HeaderWnd, edtLengthLoop);
+    result += get_utf16_string(_headerWnd, edtLengthLoop);
 
-    if (OpenClipboard(hWndMain) == FALSE)
+    if (OpenClipboard(_hWndMain) == FALSE)
     {
         return;
     }
@@ -1505,57 +1526,57 @@ void Gui::copy_lengths_to_clipboard()
 void Gui::check_write_counts(const std::string& filename)
 {
     int i, j;
-    GetWriteCounts(filename, PSGWrites, YM2413Writes, YM2612Writes, YM2151Writes, ReservedWrites, *this);
+    GetWriteCounts(filename, _psgWrites, _ym2413Writes, _ym2612Writes, _ym2151Writes, _reservedWrites, *this);
 
-    update_write_count(PSGCheckBoxes, PSGWrites);
-    update_write_count(YM2413CheckBoxes, YM2413Writes);
-    update_write_count(YM2612CheckBoxes, YM2612Writes);
-    update_write_count(YM2151CheckBoxes, YM2151Writes);
-    update_write_count(ReservedCheckboxes, ReservedWrites);
+    update_write_count(_psgCheckBoxes, _psgWrites);
+    update_write_count(_ym2413CheckBoxes, _ym2413Writes);
+    update_write_count(_ym2612CheckBoxes, _ym2612Writes);
+    update_write_count(_ym2151CheckBoxes, _ym2151Writes);
+    update_write_count(_reservedCheckboxes, _reservedWrites);
 
     // Sum stuff for group checkboxes and other stuff:
     // PSG tone channels
     for (i = j = 0; i < 3; ++i)
     {
-        j += PSGWrites[i]; // count writes
+        j += _psgWrites[i]; // count writes
     }
     if (!j)
     {
-        CheckDlgButton(StripWnd, cbPSGTone, 0); // if >0, initialise unchecked
+        CheckDlgButton(_stripWnd, cbPSGTone, 0); // if >0, initialise unchecked
     }
-    EnableWindow(GetDlgItem(StripWnd, cbPSGTone), (j > 0)); // enabled = (>0)
+    EnableWindow(GetDlgItem(_stripWnd, cbPSGTone), (j > 0)); // enabled = (>0)
     // YM2413 tone channels
     for (i = j = 0; i < 9; ++i)
     {
-        j += YM2413Writes[i];
+        j += _ym2413Writes[i];
     }
     if (!j)
     {
-        CheckDlgButton(StripWnd, cbYM2413Tone, 0);
+        CheckDlgButton(_stripWnd, cbYM2413Tone, 0);
     }
-    EnableWindow(GetDlgItem(StripWnd, cbYM2413Tone), (j > 0));
+    EnableWindow(GetDlgItem(_stripWnd, cbYM2413Tone), (j > 0));
     // YM2413 percussion
     for (i = 9, j = 0; i < 14; ++i)
     {
-        j += YM2413Writes[i];
+        j += _ym2413Writes[i];
     }
     if (!j)
     {
-        CheckDlgButton(StripWnd, cbYM2413Percussion, 0);
+        CheckDlgButton(_stripWnd, cbYM2413Percussion, 0);
     }
-    EnableWindow(GetDlgItem(StripWnd, cbYM2413Percussion), (j > 0));
+    EnableWindow(GetDlgItem(_stripWnd, cbYM2413Percussion), (j > 0));
     // PSG anything
     for (i = j = 0; i < NumPSGTypes; ++i)
     {
-        j += PSGWrites[i];
+        j += _psgWrites[i];
     }
-    EnableWindow(GetDlgItem(StripWnd, gbPSG), (j != 0));
+    EnableWindow(GetDlgItem(_stripWnd, gbPSG), (j != 0));
     // YM2413 anything
     for (i = j = 0; i < NumYM2413Types; ++i)
     {
-        j += YM2413Writes[i];
+        j += _ym2413Writes[i];
     }
-    EnableWindow(GetDlgItem(StripWnd, gbYM2413), (j != 0));
+    EnableWindow(GetDlgItem(_stripWnd, gbYM2413), (j != 0));
 
     show_status("Scan for chip data complete");
 }
@@ -1564,7 +1585,7 @@ void Gui::update_write_count(const std::vector<int>& ids, const std::vector<int>
 {
     for (int i = 0u; i < ids.size(); ++i)
     {
-        auto s = get_string(StripWnd, ids[i]);
+        auto s = get_utf8_string(_stripWnd, ids[i]);
         // Remove existing count
         if (const auto index = s.find(" ("); index != std::string::npos)
         {
@@ -1575,11 +1596,11 @@ void Gui::update_write_count(const std::vector<int>& ids, const std::vector<int>
         {
             s = Utils::format("%s (%d)", s.c_str(), counts[i]);
         }
-        SetDlgItemText(StripWnd, ids[i], s.c_str());
-        EnableWindow(GetDlgItem(StripWnd, ids[i]), counts[i] > 0);
+        SetDlgItemText(_stripWnd, ids[i], s.c_str());
+        EnableWindow(GetDlgItem(_stripWnd, ids[i]), counts[i] > 0);
         if (counts[i] == 0)
         {
-            CheckDlgButton(StripWnd, ids[i], 0);
+            CheckDlgButton(_stripWnd, ids[i], 0);
         }
     }
 }

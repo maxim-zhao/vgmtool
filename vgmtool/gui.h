@@ -26,15 +26,15 @@ private:
     void do_ctrl_tab() const;
     static void fill_combo_box(HWND parent, int id, const std::vector<std::string>& items);
     void convert_dropped_files(HDROP hDrop) const;
-    void update_header();
-    auto optimize(const std::string& filename) -> void;
-    void update_gd3();
-    void clear_gd3_strings();
-    void change_check_boxes(int mode);
-    void ccb(const std::vector<int>& ids, const std::vector<int>& counts, int mode);
-    void strip_checked(const std::string& filename);
-    void strip(const std::string& filename, const std::string& outFilename);
-    void copy_lengths_to_clipboard();
+    void update_header() const;
+    auto optimize(const std::string& filename) const -> void;
+    void update_gd3() const;
+    void clear_gd3_strings() const;
+    void change_check_boxes(int mode) const;
+    void ccb(const std::vector<int>& ids, const std::vector<int>& counts, int mode) const;
+    void strip_checked(const std::string& filename) const;
+    void strip(const std::string& filename, const std::string& outFilename) const;
+    void copy_lengths_to_clipboard() const;
     void check_write_counts(const std::string& filename);
     void update_write_count(const std::vector<int>& ids, const std::vector<int>& counts) const;
 
@@ -53,36 +53,40 @@ private:
     HINSTANCE _hInstance;
     int _showCommand;
     std::string _commandLine;
-    HWND _hWndMain;
+    HWND _hWndMain{};
 
     // Tab windows, in a vector for ordering and as names for ease of use
     std::vector<HWND> _tabChildWindows;
-    HWND _headerWnd;
-    HWND _gd3Wnd;
-    HWND _trimWnd;
-    HWND _stripWnd;
-    HWND _convertWnd;
+    HWND _headerWnd{};
+    HWND _gd3Wnd{};
+    HWND _trimWnd{};
+    HWND _stripWnd{};
+    HWND _convertWnd{};
 
     // The current filename
     std::string _currentFilename;
     // The header of the current file
     VGMHeader _currentFileVgmHeader;
 
+    // We maintain some vectors of control IDs to make iterating them easier.
+    // They do not change.
     std::vector<int> _psgCheckBoxes;
     std::vector<int> _ym2413CheckBoxes;
-    wchar_t* GD3Strings{}; // TODO this
+    std::vector<int> _ym2612CheckBoxes;
+    std::vector<int> _ym2151CheckBoxes;
+    std::vector<int> _reservedCheckboxes;
     std::vector<int> _gd3EditControls;
+
+    // These are used to hold write counts. We probably ought to remove them?
     std::vector<int> _psgWrites;
     std::vector<int> _ym2413Writes;
-    std::vector<int> _ym2612CheckBoxes;
     std::vector<int> _ym2612Writes;
-    std::vector<int> _ym2151CheckBoxes;
     std::vector<int> _ym2151Writes;
     std::vector<int> _reservedWrites;
-    std::vector<int> _reservedCheckboxes;
+
+    wchar_t* GD3Strings{}; // TODO this
 
     // We hold a pointer to the only Gui instance so we can dispatch to it from a static method...
     static Gui* _pThis;
     static std::string _programName;
 };
-
