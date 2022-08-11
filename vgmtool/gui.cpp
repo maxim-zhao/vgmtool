@@ -598,7 +598,6 @@ void Gui::load_file(const std::string& filename)
 {
     char buffer[64];
     TGD3Header GD3Header;
-    int FileHasGD3 = 0;
 
     if (!Utils::file_exists(filename))
     {
@@ -624,6 +623,7 @@ void Gui::load_file(const std::string& filename)
     _currentFilename = filename; // Remember it
     SetDlgItemText(_hWndMain, edtFileName, filename.c_str()); // Put it in the box
 
+    std::vector<std::wstring> gd3Strings;
     if (_currentFileVgmHeader.GD3Offset != 0)
     {
         // GD3 tag exists
@@ -635,13 +635,30 @@ void Gui::load_file(const std::string& filename)
             ((GD3Header.version & REQUIREDGD3MAJORVER) == REQUIREDGD3MAJORVER)
         )
         {
-            if (GD3Strings)
+            // We read the data into a buffer
+            const auto characterCount = GD3Header.length / 2;
+            std::wstring s(characterCount, '\0');
+            gzread(in, s.data(), GD3Header.length);
+            // Next we split it into strings
+            for (auto i = 0u; i < characterCount;)
             {
-                free(GD3Strings);
+                // Find string at current index
+                const auto nullPosition = s.find(L'\0', i);
+                if (nullPosition == std::wstring::npos)
+                {
+                    throw std::runtime_error(Utils::format("Failed to parse GD3 tag: ran out of data looking for null at index %d", i));
+                }
+                const auto length = nullPosition - i;
+                if (length == 0)
+                {
+                    gd3Strings.emplace_back(L"");
+                }
+                else
+                {
+                    gd3Strings.push_back(s.substr(i, length));
+                }
+                i += static_cast<unsigned int>(length + 1);
             }
-            GD3Strings = static_cast<wchar_t*>(malloc(GD3Header.length));
-            gzread(in, GD3Strings, GD3Header.length);
-            FileHasGD3 = 1;
         }
     }
     gzclose(in);
@@ -682,72 +699,30 @@ void Gui::load_file(const std::string& filename)
     SetDlgItemInt(_headerWnd, edtPSGSRWidth, _currentFileVgmHeader.PSGShiftRegisterWidth, FALSE);
 
     // GD3 tag
-    if (GD3Strings)
+    if (!gd3Strings.empty())
     {
-        wchar_t* GD3string = GD3Strings; // pointer to parse GD3Strings
-        char MBCSstring[1024 * 2]; // Allow 2KB to hold each string
-        wchar_t ModifiedString[1024 * 2];
-
-        for (int i = 0; i < NumGD3Strings; ++i)
+        for (int i = 0; i < Gd3Indices::Count; ++i)
         {
-            wcscpy(ModifiedString, GD3string);
-
-            switch (i)
+            if (i == Gd3Indices::Notes)
             {
-            // special handling for any strings?
-            case 10: // Notes: change \n to \r\n so Windows shows it properly
-                {
-                    wchar_t* wp = ModifiedString + wcslen(ModifiedString);
-                    while (wp >= ModifiedString)
-                    {
-                        if (*wp == L'\n')
-                        {
-                            memmove(wp + 1, wp, (wcslen(wp) + 1) * 2);
-                            *wp = L'\r';
-                        }
-                        wp--;
-                    }
-                }
-                break;
+                // Notes: change \n to \r\n so Windows shows it properly
+                gd3Strings[i] = std::regex_replace(gd3Strings[i], std::wregex(L"\n"), L"\r\n");
             }
 
-            if (!SetDlgItemTextW(_gd3Wnd, _gd3EditControls[i], ModifiedString))
+            if (i < gd3Strings.size())
             {
-                // Widechar text setting failed, try WC2MB
-                BOOL ConversionFailure;
-                WideCharToMultiByte(CP_ACP, 0, ModifiedString, -1, MBCSstring, 1024, nullptr, &ConversionFailure);
-                if (ConversionFailure)
-                {
-                    // Alternate method: transcribe to HTML escaped data
-                    wchar_t* p = ModifiedString;
-                    char tempstr[10];
-                    *MBCSstring = '\0';
-                    for (unsigned int j = 0; j < wcslen(ModifiedString); j++)
-                    {
-                        int val = *p;
-                        if (val < 128)
-                        {
-                            sprintf(tempstr, "%c", *p);
-                        }
-                        else
-                        {
-                            sprintf(tempstr, "&#x%04x;", val);
-                        }
-                        strcat(MBCSstring, tempstr);
-                        p++;
-                    }
-                }
-                SetDlgItemText(_gd3Wnd, _gd3EditControls[i], MBCSstring); // and put it in the edit control
+                SetDlgItemTextW(_gd3Wnd, _gd3EditControls[i], gd3Strings[i].c_str());
             }
-
-            // Move the pointer to the next string
-            GD3string += wcslen(GD3string) + 1;
+            else
+            {
+                SetDlgItemText(_gd3Wnd, _gd3EditControls[i], "");
+            }
         }
     }
 
     check_write_counts(""); // reset counts
 
-    if ((!FileHasGD3) && GD3Strings)
+    if (gd3Strings.empty())
     {
         show_status("File loaded - file has no GD3 tag, previous tag kept");
     }
@@ -985,37 +960,36 @@ void Gui::update_gd3() const
 
     gzrewind(in);
 
-    auto outFilename = Utils::make_suffixed_filename(_currentFilename, "tagged");
+    const auto& outFilename = Utils::make_suffixed_filename(_currentFilename, "tagged");
     gzFile out = gzopen(outFilename.c_str(), "wb0");
 
     // Copy everything up to the GD3 tag
-    for (auto i = 0; i < static_cast<int>(VGMHeader.GD3Offset > 0
-                                              ? VGMHeader.GD3Offset + GD3DELTA
-                                              : VGMHeader.EoFOffset + EOFDELTA); ++i)
+    const auto dataLength = static_cast<int>(VGMHeader.GD3Offset > 0 ? VGMHeader.GD3Offset + GD3DELTA : VGMHeader.EoFOffset + EOFDELTA);
+    for (auto i = 0; i < dataLength; ++i)
     {
         gzputc(out, gzgetc(in));
     }
 
     VGMHeader.GD3Offset = gztell(out) - GD3DELTA; // record GD3 position
 
-    std::wostringstream AllGD3Strings;
+    std::wostringstream allGd3Strings;
 
-    for (auto i = 0; i < NumGD3Strings; ++i)
+    for (auto i = 0; i < Gd3Indices::Count; ++i)
     {
         // Get string from widget
         auto s = get_utf16_string(_gd3Wnd, _gd3EditControls[i]);
 
         // Special handling for any strings
-        if (i == 10)
+        if (i == Gd3Indices::Notes)
         {
             // Notes - change \r\n to \n
             std::erase(s, L'\r');
         }
 
-        AllGD3Strings << s;
+        allGd3Strings << s << L'\0';
     }
 
-    const auto& data = AllGD3Strings.str();
+    const auto& data = allGd3Strings.str();
 
     TGD3Header GD3Header{};
 

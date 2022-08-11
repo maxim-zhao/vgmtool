@@ -84,8 +84,6 @@ private:
     std::vector<int> _ym2151Writes;
     std::vector<int> _reservedWrites;
 
-    wchar_t* GD3Strings{}; // TODO this
-
     // We hold a pointer to the only Gui instance so we can dispatch to it from a static method...
     static Gui* _pThis;
     static std::string _programName;

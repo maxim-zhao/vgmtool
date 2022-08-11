@@ -15,6 +15,20 @@ struct TGD3Header
     uint32_t length; // Length of string data following this point
 };
 
-#define NumGD3Strings 11
+enum Gd3Indices
+{
+    TitleEn,
+    TitleJp,
+    GameEn,
+    GameJp,
+    SystemEn,
+    SystemJp,
+    AuthorEn,
+    AuthorJp,
+    ReleaseDate,
+    Creator,
+    Notes,
+    Count
+};
 
 void remove_gd3(const std::string& filename, const IVGMToolCallback& callback);
