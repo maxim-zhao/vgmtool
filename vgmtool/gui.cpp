@@ -596,9 +596,6 @@ void Gui::make_tabbed_dialog()
 
 void Gui::load_file(const std::string& filename)
 {
-    char buffer[64];
-    TGD3Header GD3Header;
-
     if (!Utils::file_exists(filename))
     {
         return;
@@ -627,6 +624,7 @@ void Gui::load_file(const std::string& filename)
     if (_currentFileVgmHeader.GD3Offset != 0)
     {
         // GD3 tag exists
+        TGD3Header GD3Header;
         gzseek(in, _currentFileVgmHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         if (
@@ -667,25 +665,22 @@ void Gui::load_file(const std::string& filename)
     SetDlgItemInt(_headerWnd, edtPlaybackRate, _currentFileVgmHeader.RecordingRate, FALSE);
 
     // Lengths
-    int Mins = static_cast<int>(_currentFileVgmHeader.TotalLength) / 44100 / 60;
-    int Secs = static_cast<int>(_currentFileVgmHeader.TotalLength) / 44100 - Mins * 60;
-    sprintf(buffer, "%d:%02d", Mins, Secs);
-    SetDlgItemText(_headerWnd, edtLengthTotal, buffer);
+    int minutes = static_cast<int>(_currentFileVgmHeader.TotalLength) / 44100 / 60;
+    int seconds = static_cast<int>(_currentFileVgmHeader.TotalLength) / 44100 - minutes * 60;
+    SetDlgItemText(_headerWnd, edtLengthTotal, Utils::format("%d:%02d", minutes, seconds).c_str());
     if (_currentFileVgmHeader.LoopLength > 0)
     {
-        Mins = static_cast<int>(_currentFileVgmHeader.LoopLength) / 44100 / 60;
-        Secs = static_cast<int>(_currentFileVgmHeader.LoopLength) / 44100 - Mins * 60;
-        sprintf(buffer, "%d:%02d", Mins, Secs);
+        minutes = static_cast<int>(_currentFileVgmHeader.LoopLength) / 44100 / 60;
+        seconds = static_cast<int>(_currentFileVgmHeader.LoopLength) / 44100 - minutes * 60;
+        SetDlgItemText(_headerWnd, edtLengthLoop, Utils::format("%d:%02d", minutes, seconds).c_str());
     }
     else
     {
-        strcpy(buffer, "-");
+    SetDlgItemText(_headerWnd, edtLengthLoop, "-");
     }
-    SetDlgItemText(_headerWnd, edtLengthLoop, buffer);
 
     // Version
-    sprintf(buffer, "%x.%02x", _currentFileVgmHeader.Version >> 8, _currentFileVgmHeader.Version & 0xff);
-    SetDlgItemText(_headerWnd, edtVersion, buffer);
+    SetDlgItemText(_headerWnd, edtVersion, Utils::format("%x.%02x", _currentFileVgmHeader.Version >> 8, _currentFileVgmHeader.Version & 0xff).c_str());
 
     // Clock speeds
     SetDlgItemInt(_headerWnd, edtPSGClock, _currentFileVgmHeader.PSGClock, FALSE);
@@ -694,8 +689,7 @@ void Gui::load_file(const std::string& filename)
     SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFileVgmHeader.YM2151Clock, FALSE);
 
     // PSG settings
-    sprintf(buffer, "0x%04x", _currentFileVgmHeader.PSGWhiteNoiseFeedback);
-    SetDlgItemText(_headerWnd, edtPSGFeedback, buffer);
+    SetDlgItemText(_headerWnd, edtPSGFeedback, Utils::format("0x%04x", _currentFileVgmHeader.PSGWhiteNoiseFeedback).c_str());
     SetDlgItemInt(_headerWnd, edtPSGSRWidth, _currentFileVgmHeader.PSGShiftRegisterWidth, FALSE);
 
     // GD3 tag
