@@ -70,7 +70,7 @@ void Utils::load_file(std::vector<uint8_t>& buffer, const std::string& filename)
     }
     // Read into the vector
     constexpr int chunkSize = 256 * 1024;
-    while (!gzeof(f))
+    while (gzeof(f) == 0)
     {
         // Make space
         const auto sizeBefore = buffer.size();
@@ -81,8 +81,7 @@ void Utils::load_file(std::vector<uint8_t>& buffer, const std::string& filename)
         {
             int errorNumber;
             const char* error = gzerror(f, &errorNumber);
-            throw std::runtime_error(format("Error reading/decompressing \"%s\": %d: %s", filename.c_str(), errorNumber,
-                error));
+            throw std::runtime_error(format("Error reading/decompressing \"%s\": %d: %s", filename.c_str(), errorNumber, error));
         }
         // Resize to fit
         buffer.resize(sizeBefore + amountRead);

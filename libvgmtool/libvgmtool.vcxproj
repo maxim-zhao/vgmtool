@@ -14,8 +14,11 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BcdVersion.cpp" />
+    <ClCompile Include="BinaryData.cpp" />
     <ClCompile Include="convert.cpp" />
     <ClCompile Include="gd3.cpp" />
+    <ClCompile Include="Gd3Tag.cpp" />
     <ClCompile Include="optimise.cpp" />
     <ClCompile Include="trim.cpp" />
     <ClCompile Include="utils.cpp" />
@@ -23,8 +26,11 @@
     <ClCompile Include="writetotext.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BcdVersion.h" />
+    <ClInclude Include="BinaryData.h" />
     <ClInclude Include="convert.h" />
     <ClInclude Include="gd3.h" />
+    <ClInclude Include="Gd3Tag.h" />
     <ClInclude Include="IVGMToolCallback.h" />
     <ClInclude Include="optimise.h" />
     <ClInclude Include="trim.h" />
