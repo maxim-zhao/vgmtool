@@ -55,10 +55,10 @@ void print_tag(const std::string& description, const Gd3Tag& tag, Gd3Tag::Key ke
     {
         return;
     }
-    if (key == Gd3Tag::Key::Notes && text.find('\n') != std::string::npos)
+    if (text.find('\n') != std::string::npos)
     {
-        // Notes with line breaks
-        printf("%s:\n========\n%s\n========\n", description.c_str(), text.c_str());
+        // Text with line breaks
+        printf("%s:\n========================\n%s\n========================\n", description.c_str(), text.c_str());
     }
     else
     {
@@ -68,19 +68,14 @@ void print_tag(const std::string& description, const Gd3Tag& tag, Gd3Tag::Key ke
 
 void show_gd3(const std::string& filename)
 {
-    BinaryData file(filename);
-    // TODO read header properly
-    file.seek(0x14);
-    const auto gd3Offset = file.read_long();
-    if (gd3Offset == 0)
+    VgmFile file(filename);
+    if (file.header().gd3_offset() == 0)
     {
         printf("No GD3 tag");
         return;
     }
-    file.seek(gd3Offset + GD3DELTA);
-    Gd3Tag tag;
-    tag.from_binary(file);
 
+    const auto& tag = file.gd3();
     print_tag("Title (EN)", tag, Gd3Tag::Key::TitleEn);
     print_tag("Title (JP)", tag, Gd3Tag::Key::TitleJp);
     print_tag("Author (EN)", tag, Gd3Tag::Key::AuthorEn);
@@ -124,6 +119,8 @@ int main_utf8(int argc, char** argv)
         compressVerb->add_option("--iterations", compressionIterations, "Zopfli compression iterations")
                     ->default_val(15);
 
+        auto* decompressVerb = app.add_subcommand("decompress", "Decompress VGM file(s)");
+
         const auto* convertVerb = app.add_subcommand("convert", "Convert GYM, CYM, SSL files to VGM");
 
         const auto* showGd3Verb = app.add_subcommand("showgd3", "Show the GD3 tag");
@@ -155,6 +152,11 @@ int main_utf8(int argc, char** argv)
             if (compressVerb->parsed())
             {
                 Utils::compress(filename, compressionIterations);
+            }
+
+            if (decompressVerb->parsed())
+            {
+                Utils::decompress(filename);
             }
 
             if (convertVerb->parsed())

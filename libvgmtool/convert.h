@@ -13,5 +13,5 @@ public:
     static bool to_vgm(const std::string& filename, const IVGMToolCallback& callback);
 private:
     static void gymToVgm(const std::string& filename, gzFile in,
-                         gzFile out, VGMHeader& vgmHeader);
+                         gzFile out, OldVGMHeader& vgmHeader);
 };

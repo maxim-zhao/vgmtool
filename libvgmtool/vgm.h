@@ -24,7 +24,7 @@
 
 class IVGMToolCallback;
 
-struct VGMHeader
+struct OldVGMHeader
 {
     char VGMIdent[4]{'V', 'g', 'm', ' '}; // "Vgm "
     uint32_t EoFOffset{}; // relative offset (from this point, 0x04) of the end of file
@@ -45,7 +45,7 @@ struct VGMHeader
 public:
     bool is_valid() const;
 
-    VGMHeader() = default;
+    OldVGMHeader() = default;
 };
 
 #define EOFDELTA  0x04
@@ -163,7 +163,7 @@ extern const int YM2612ValidBits[YM2612NumRegs];
 
 void write_pause(gzFile out, long int pauselength);
 
-void write_vgm_header(const std::string& filename, VGMHeader VGMHeader, const IVGMToolCallback& callback);
+void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const IVGMToolCallback& callback);
 
 void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612, bool* UsesYM2151, bool* UsesReserved);
 
@@ -171,7 +171,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
 
 int detect_rate(const std::string& filename, const IVGMToolCallback& callback);
 
-bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback);
+bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IVGMToolCallback& callback);
 
 void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, std::vector<int>& YM2413writes,
                     std::vector<int>& YM2612writes, std::vector<int>& YM2151writes,

@@ -23,6 +23,8 @@
     <ClCompile Include="trim.cpp" />
     <ClCompile Include="utils.cpp" />
     <ClCompile Include="vgm.cpp" />
+    <ClCompile Include="VgmFile.cpp" />
+    <ClCompile Include="VgmHeader.cpp" />
     <ClCompile Include="writetotext.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -36,6 +38,8 @@
     <ClInclude Include="trim.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="vgm.h" />
+    <ClInclude Include="VgmFile.h" />
+    <ClInclude Include="VgmHeader.h" />
     <ClInclude Include="writetotext.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

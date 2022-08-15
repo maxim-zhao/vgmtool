@@ -19,6 +19,7 @@
 #include "libvgmtool/trim.h"
 #include "libvgmtool/utils.h"
 #include "libvgmtool/vgm.h"
+#include "libvgmtool/VgmFile.h"
 #include "libvgmtool/writetotext.h"
 
 
@@ -274,7 +275,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 {
                     BOOL b;
                     const int Edits[3] = {edtTrimStart, edtTrimLoop, edtTrimEnd};
-                    if (!_currentFileVgmHeader.RecordingRate)
+                    if (_currentFileVgmHeader.RecordingRate == 0)
                     {
                         break; // stop if rate = 0
                     }
@@ -622,14 +623,8 @@ void Gui::load_file(const std::string& filename)
     _currentFilename = filename; // Remember it
     SetDlgItemText(_hWndMain, edtFileName, filename.c_str()); // Put it in the box
 
-    Gd3Tag tag;
-    if (_currentFileVgmHeader.GD3Offset != 0)
-    {
-        // GD3 tag exists
-        BinaryData file(filename);
-        file.seek(_currentFileVgmHeader.GD3Offset + GD3DELTA);
-        tag.from_binary(file);
-    }
+    // "New way" used to read GD3 (only, for now)
+    VgmFile file(filename);
 
     // Rate
     SetDlgItemInt(_headerWnd, edtPlaybackRate, _currentFileVgmHeader.RecordingRate, FALSE);
@@ -663,12 +658,12 @@ void Gui::load_file(const std::string& filename)
     SetDlgItemInt(_headerWnd, edtPSGSRWidth, _currentFileVgmHeader.PSGShiftRegisterWidth, FALSE);
 
     // GD3 tag
-    if (!tag.empty())
+    if (!file.gd3().empty())
     {
         for (int i = 0; i < _gd3EditControls.size(); ++i)
         {
             const auto key = static_cast<Gd3Tag::Key>(i);
-            auto value = tag.get_text(key);
+            auto value = file.gd3().get_text(key);
             if (key == Gd3Tag::Key::Notes)
             {
                 // Notes: change \n to \r\n so Windows shows it properly
@@ -681,7 +676,7 @@ void Gui::load_file(const std::string& filename)
 
     check_write_counts(""); // reset counts
 
-    if (tag.empty())
+    if (file.gd3().empty())
     {
         show_status("File loaded - file has no GD3 tag, previous tag kept");
     }
@@ -757,7 +752,7 @@ void Gui::convert_dropped_files(HDROP hDrop) const
 
 void Gui::update_header() const
 {
-    VGMHeader VGMHeader;
+    OldVGMHeader VGMHeader;
 
     if (!Utils::file_exists(_currentFilename))
     {
@@ -823,7 +818,7 @@ void Gui::update_header() const
 
 void Gui::optimize(const std::string& filename) const
 {
-    VGMHeader VGMHeader;
+    OldVGMHeader VGMHeader;
     int NumOffsetsRemoved = 0;
 
     gzFile in = gzopen(filename.c_str(), "rb");
@@ -910,7 +905,7 @@ void Gui::update_gd3() const
     show_status("Updating GD3 tag...");
 
     gzFile in = gzopen(_currentFilename.c_str(), "rb");
-    VGMHeader VGMHeader;
+    OldVGMHeader VGMHeader;
     if (!ReadVGMHeader(in, &VGMHeader, *this))
     {
         gzclose(in);
@@ -1035,7 +1030,7 @@ void Gui::ccb(const std::vector<int>& ids, const std::vector<int>& counts, int m
 
 void Gui::strip_checked(const std::string& filename) const
 {
-    VGMHeader VGMHeader;
+    OldVGMHeader VGMHeader;
 
     if (!Utils::file_exists(filename))
     {
@@ -1082,7 +1077,7 @@ void Gui::strip_checked(const std::string& filename) const
 // Remove data for checked boxes
 void Gui::strip(const std::string& filename, const std::string& outfilename) const
 {
-    VGMHeader VGMHeader;
+    OldVGMHeader VGMHeader;
     signed int b0, b1, b2;
     char LatchedChannel = 0;
     long int NewLoopOffset = 0;

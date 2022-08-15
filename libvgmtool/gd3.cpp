@@ -10,7 +10,7 @@
 //----------------------------------------------------------------------------------------------
 void remove_gd3(const std::string& filename, const IVGMToolCallback& callback)
 {
-    VGMHeader VGMHeader;
+    OldVGMHeader VGMHeader;
     if (!Utils::file_exists(filename))
     {
         return;

@@ -82,7 +82,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
     gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
-    VGMHeader vgmHeader;
+    OldVGMHeader vgmHeader;
     if (!ReadVGMHeader(in, &vgmHeader, callback))
     {
         gzclose(in);

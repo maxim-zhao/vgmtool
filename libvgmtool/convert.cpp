@@ -110,7 +110,7 @@ void spread_dac(gzFile in, gzFile out)
     // 4. Finished!
 }
 
-void Convert::gymToVgm(const std::string& filename, gzFile in, gzFile out, VGMHeader& vgmHeader)
+void Convert::gymToVgm(const std::string& filename, gzFile in, gzFile out, OldVGMHeader& vgmHeader)
 {
     // GYM format:
     // 00    wait
@@ -245,7 +245,7 @@ bool Convert::to_vgm(const std::string& filename, const IVGMToolCallback& callba
     gzseek(out, VGM_DATA_OFFSET, SEEK_SET);
 
     // Fill in VGM header
-    VGMHeader vgmHeader;
+    OldVGMHeader vgmHeader;
     vgmHeader.RecordingRate = 60;
     vgmHeader.Version = 0x110;
 

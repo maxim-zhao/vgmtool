@@ -1,7 +1,6 @@
 #pragma once
-#include <vector>
 
-#include "BinaryData.h"
+class BinaryData;
 
 class BcdVersion
 {

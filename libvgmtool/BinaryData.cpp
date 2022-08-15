@@ -4,13 +4,12 @@
 
 #include "utils.h"
 
-void BinaryData::read_from_file(const std::string& filename)
+BinaryData::BinaryData(const std::string& filename)
 {
-    _data.clear();
     Utils::load_file(_data, filename);
 }
 
-void BinaryData::seek(const unsigned offset)
+void BinaryData::seek(const unsigned int offset)
 {
     if (offset < 0 || static_cast<size_t>(offset) >= _data.size())
     {
@@ -64,5 +63,10 @@ std::wstring BinaryData::read_null_terminated_utf16_string()
         }
         result.append(1, static_cast<wchar_t>(w));
     }
+}
+
+void BinaryData::copy_range(std::vector<unsigned char>& destination, uint32_t startIndex, uint32_t byteCount) const
+{
+    std::copy_n(_data.begin() + startIndex, byteCount, std::back_inserter(destination));
 }
 

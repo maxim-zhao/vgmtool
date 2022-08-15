@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include "utils.h"
+#include "BinaryData.h"
 
 int BcdVersion::from_bcd(int bcd)
 {

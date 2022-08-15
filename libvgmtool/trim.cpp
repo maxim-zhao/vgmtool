@@ -56,7 +56,6 @@ void log_trim(const std::string& VGMFile, int start, int loop, int end, const IV
 bool new_trim(const std::string& filename, const int start, const int loop, const int end, const IVGMToolCallback& callback)
 {
     gzFile in, out;
-    VGMHeader VGMHeader;
     int b0 = 0, b1 = 0, b2 = 0;
     TSystemState CurrentState{}, LoopPointState{};
 
@@ -83,6 +82,7 @@ bool new_trim(const std::string& filename, const int start, const int loop, cons
     in = gzopen(filename.c_str(), "rb");
 
     // Read its VGM header
+    OldVGMHeader VGMHeader;
     gzread(in, &VGMHeader, sizeof(VGMHeader));
 
     // See if the edit points are within the file
@@ -713,7 +713,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
     auto in = gzopen(filename.c_str(), "rb");
 
     // Read header
-    VGMHeader vgmHeader;
+    OldVGMHeader vgmHeader;
     if (!ReadVGMHeader(in, &vgmHeader, callback))
     {
         gzclose(in);

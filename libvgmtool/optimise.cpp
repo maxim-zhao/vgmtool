@@ -12,7 +12,7 @@
 //----------------------------------------------------------------------------------------------
 bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& callback)
 {
-    VGMHeader VGMHeader;
+    OldVGMHeader VGMHeader;
     int pauseLength = 0;
 
     if (!Utils::file_exists(filename))
@@ -175,7 +175,7 @@ bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& ca
 //----------------------------------------------------------------------------------------------
 int remove_offset(const std::string& filename, const IVGMToolCallback& callback)
 {
-    VGMHeader VGMHeader;
+    OldVGMHeader VGMHeader;
     signed int b0, b1, b2;
     bool SilencedChannels[3] = {false, false, false};
     unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
@@ -667,7 +667,7 @@ BOOL OptimiseVGMData(char *filename) {
 
 bool round_to_frame_accurate(const std::string& filename, const IVGMToolCallback& callback)
 {
-    VGMHeader VGMHeader;
+    OldVGMHeader VGMHeader;
     int i, PauseLength = 0;
     int bucketsize = 1; // how many samples per bucket for counting
     int framelength;

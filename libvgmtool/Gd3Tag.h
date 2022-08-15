@@ -36,6 +36,6 @@ public:
     void set_text(Key key, const std::wstring& value);
 
 private:
-    BcdVersion _version;
+    BcdVersion _version{};
     std::unordered_map<Key, std::wstring> _text;
 };

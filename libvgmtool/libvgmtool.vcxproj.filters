@@ -48,6 +48,12 @@
     <ClCompile Include="BinaryData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="VgmHeader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VgmFile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="convert.h">
@@ -81,6 +87,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="BinaryData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VgmHeader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VgmFile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

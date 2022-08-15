@@ -66,7 +66,7 @@ private:
     // The current filename
     std::string _currentFilename;
     // The header of the current file
-    VGMHeader _currentFileVgmHeader;
+    OldVGMHeader _currentFileVgmHeader;
 
     // We maintain some vectors of control IDs to make iterating them easier.
     // They do not change.

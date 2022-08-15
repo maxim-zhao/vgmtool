@@ -91,7 +91,7 @@ const int YM2612ValidBits[YM2612NumRegs] = {
     0x3f, 0x3f, 0x3f, 0x00, 0xef, 0xef, 0xef // 0x1bx
 };
 
-bool VGMHeader::is_valid() const
+bool OldVGMHeader::is_valid() const
 {
     return strncmp(VGMIdent, "Vgm ", 4) == 0;
 }
@@ -151,7 +151,7 @@ void write_pause(gzFile out, long int pauselength)
 // Assumes you are writing the original header with minor modifications, so it
 // doesn't check anything (like the GD3 offset, EOF offset).
 //----------------------------------------------------------------------------------------------
-void write_vgm_header(const std::string& filename, VGMHeader VGMHeader, const IVGMToolCallback& callback)
+void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const IVGMToolCallback& callback)
 {
     char copybuffer[BUFFER_SIZE];
     int AmtRead;
@@ -330,7 +330,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
     gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
-    VGMHeader vgmHeader;
+    OldVGMHeader vgmHeader;
     gzread(in, &vgmHeader, sizeof(vgmHeader));
 
     if (!vgmHeader.is_valid())
@@ -461,7 +461,6 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
 //----------------------------------------------------------------------------------------------
 int detect_rate(const std::string& filename, const IVGMToolCallback& callback)
 {
-    VGMHeader VGMHeader;
     int b0, b1, b2;
 
     if (!Utils::file_exists(filename))
@@ -474,6 +473,7 @@ int detect_rate(const std::string& filename, const IVGMToolCallback& callback)
     gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
+    OldVGMHeader VGMHeader;
     if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         callback.show_status("");
@@ -579,9 +579,9 @@ int detect_rate(const std::string& filename, const IVGMToolCallback& callback)
 // Reads in header from file
 // Shows an error if it's not a VGM file
 // returns success/failure
-bool ReadVGMHeader(gzFile f, VGMHeader* header, const IVGMToolCallback& callback)
+bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IVGMToolCallback& callback)
 {
-    gzread(f, header, sizeof(VGMHeader));
+    gzread(f, header, sizeof(OldVGMHeader));
     if (!header->is_valid())
     {
         // no VGM marker
@@ -598,7 +598,6 @@ void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, st
                     std::vector<int>& YM2612writes, std::vector<int>& YM2151writes,
                     std::vector<int>& reservedwrites, const IVGMToolCallback& callback)
 {
-    VGMHeader VGMHeader;
     int b0, b1, b2;
     int i;
     int Channel = 0; // for tracking PSG latched register
@@ -624,6 +623,7 @@ void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, st
     gzFile in = gzopen(filename.c_str(), "rb");
 
     // Read header
+    OldVGMHeader VGMHeader;
     if (!ReadVGMHeader(in, &VGMHeader, callback))
     {
         gzclose(in);
