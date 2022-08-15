@@ -7,8 +7,8 @@
 #include <vector>
 #include <Windows.h>
 
-#include "IVGMToolCallback.h"
-#include "vgm.h"
+#include "libvgmtool/IVGMToolCallback.h"
+#include "libvgmtool/vgm.h"
 
 
 class Gui : IVGMToolCallback

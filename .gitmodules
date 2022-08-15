@@ -2,3 +2,7 @@
 	path = zopfli/zopfli
 	url = https://github.com/google/zopfli.git
 	branch = master
+[submodule "libpu8/libpu8"]
+	path = libpu8/libpu8
+	url = https://github.com/jofeu/libpu8.git
+	branch = master

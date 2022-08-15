@@ -11,15 +11,15 @@
 #include <string>
 #include <Uxtheme.h>
 
-#include "convert.h"
-#include "gd3.h"
-#include "Gd3Tag.h"
-#include "optimise.h"
+#include "libvgmtool/convert.h"
+#include "libvgmtool/gd3.h"
+#include "libvgmtool/Gd3Tag.h"
+#include "libvgmtool/optimise.h"
 #include "resource.h"
-#include "trim.h"
-#include "utils.h"
-#include "vgm.h"
-#include "writetotext.h"
+#include "libvgmtool/trim.h"
+#include "libvgmtool/utils.h"
+#include "libvgmtool/vgm.h"
+#include "libvgmtool/writetotext.h"
 
 
 // GD3 versions I can accept
@@ -626,8 +626,7 @@ void Gui::load_file(const std::string& filename)
     if (_currentFileVgmHeader.GD3Offset != 0)
     {
         // GD3 tag exists
-        BinaryData file;
-        file.read_from_file(filename);
+        BinaryData file(filename);
         file.seek(_currentFileVgmHeader.GD3Offset + GD3DELTA);
         tag.from_binary(file);
     }

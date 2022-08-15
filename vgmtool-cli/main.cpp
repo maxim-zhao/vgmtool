@@ -1,11 +1,19 @@
 #include "CLI11.hpp"
-#include "IVGMToolCallback.h"
-#include <trim.h>
-#include <writetotext.h>
+#include "libvgmtool/IVGMToolCallback.h"
+#include <libvgmtool/trim.h>
+#include <libvgmtool/writetotext.h>
 
-#include "convert.h"
-#include "utils.h"
-#include "vgm.h"
+#include "libvgmtool/BinaryData.h"
+#include "libvgmtool/convert.h"
+#include "libvgmtool/Gd3Tag.h"
+#include "libvgmtool/utils.h"
+#include "libvgmtool/vgm.h"
+
+#include <libpu8/libpu8/libpu8.h>
+
+#ifdef WIN32
+#include <Windows.h>
+#endif
 
 class Callback : public IVGMToolCallback
 {
@@ -19,7 +27,7 @@ public:
 
     void show_error(const std::string& message) const override
     {
-        fprintf(stderr, "%s\n", message.c_str());
+        fprintf(stderr, "%s\n", message.c_str()); // NOLINT(cert-err33-c)
     }
 
     void show_status(const std::string& message) const override
@@ -40,7 +48,53 @@ public:
 } callback;
 
 
-int main(int argc, const char** argv)
+void print_tag(const std::string& description, const Gd3Tag& tag, Gd3Tag::Key key)
+{
+    const auto& text = u8narrow(tag.get_text(key));
+    if (text.empty())
+    {
+        return;
+    }
+    if (key == Gd3Tag::Key::Notes && text.find('\n') != std::string::npos)
+    {
+        // Notes with line breaks
+        printf("%s:\n========\n%s\n========\n", description.c_str(), text.c_str());
+    }
+    else
+    {
+        printf("%s:\t%s\n", description.c_str(), text.c_str());
+    }
+}
+
+void show_gd3(const std::string& filename)
+{
+    BinaryData file(filename);
+    // TODO read header properly
+    file.seek(0x14);
+    const auto gd3Offset = file.read_long();
+    if (gd3Offset == 0)
+    {
+        printf("No GD3 tag");
+        return;
+    }
+    file.seek(gd3Offset + GD3DELTA);
+    Gd3Tag tag;
+    tag.from_binary(file);
+
+    print_tag("Title (EN)", tag, Gd3Tag::Key::TitleEn);
+    print_tag("Title (JP)", tag, Gd3Tag::Key::TitleJp);
+    print_tag("Author (EN)", tag, Gd3Tag::Key::AuthorEn);
+    print_tag("Author (EN)", tag, Gd3Tag::Key::AuthorJp);
+    print_tag("Game (EN)", tag, Gd3Tag::Key::GameEn);
+    print_tag("Game (JP)", tag, Gd3Tag::Key::GameJp);
+    print_tag("System (EN)", tag, Gd3Tag::Key::SystemEn);
+    print_tag("System (JP)", tag, Gd3Tag::Key::SystemJp);
+    print_tag("Release date", tag, Gd3Tag::Key::ReleaseDate);
+    print_tag("Creator", tag, Gd3Tag::Key::Creator);
+    print_tag("Notes", tag, Gd3Tag::Key::Notes);
+}
+
+int main_utf8(int argc, char** argv)
 {
     try
     {
@@ -71,6 +125,8 @@ int main(int argc, const char** argv)
                     ->default_val(15);
 
         const auto* convertVerb = app.add_subcommand("convert", "Convert GYM, CYM, SSL files to VGM");
+
+        const auto* showGd3Verb = app.add_subcommand("showgd3", "Show the GD3 tag");
 
         std::vector<std::string> filenames;
         app.add_option("filename", filenames, "The file(s) to process")
@@ -105,13 +161,18 @@ int main(int argc, const char** argv)
             {
                 Convert::to_vgm(filename, callback);
             }
+
+            if (showGd3Verb->parsed())
+            {
+                show_gd3(filename);
+            }
         }
 
         return EXIT_SUCCESS;
     }
     catch (const std::exception& e)
     {
-        fprintf(stderr, "Fatal error: %s", e.what());
+        fprintf(stderr, "Fatal error: %s", e.what()); // NOLINT(cert-err33-c)
         return EXIT_FAILURE;
     }
 }

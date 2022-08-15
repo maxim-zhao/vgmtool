@@ -10,7 +10,7 @@ public:
 
     void read_from_file(const std::string& filename);
 
-    void seek(int offset);
+    void seek(const unsigned offset);
 
     uint8_t read_byte();
     uint16_t read_word();

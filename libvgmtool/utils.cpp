@@ -4,6 +4,7 @@
 #include <filesystem>
 #include "utils.h"
 
+#include <codecvt>
 #include <fstream>
 #include <stdexcept>
 #include <vector>

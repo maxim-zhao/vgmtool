@@ -10,7 +10,7 @@ void BinaryData::read_from_file(const std::string& filename)
     Utils::load_file(_data, filename);
 }
 
-void BinaryData::seek(const int offset)
+void BinaryData::seek(const unsigned offset)
 {
     if (offset < 0 || static_cast<size_t>(offset) >= _data.size())
     {
