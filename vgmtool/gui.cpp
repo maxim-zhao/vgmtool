@@ -10,8 +10,6 @@
 #include <string>
 
 #include <Windows.h>
-#include <CommCtrl.h>
-#include <map>
 #include <Uxtheme.h>
 
 #include "libvgmtool/convert.h"
