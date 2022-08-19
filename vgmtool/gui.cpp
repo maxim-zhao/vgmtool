@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cmath>
+#include <format>
 #include <ranges>
 #include <regex>
 #include <sstream>
@@ -49,64 +50,54 @@ int Gui::show_question_message_box(const std::string& s) const
     return MessageBox(_hWndMain, s.c_str(), _programName.c_str(), MB_ICONQUESTION + MB_YESNO);
 }
 
-
-bool Gui::get_int(HWND hDlg, int item, int* result)
+int Gui::get_int(HWND hDlg, int item)
 {
-    BOOL success;
-    const auto value = GetDlgItemInt(hDlg, item, &success, FALSE);
-    if (success == TRUE || value != 0)
+    // Get text
+    const auto& s = get_utf8_string(hDlg, item);
+    // Find leading number part
+    std::smatch m;
+    if (!std::regex_search(s, m, std::regex(R"(^\d+)")))
     {
-        // success == TRUE -> no errors
-        // success == FALSE but value != 0 -> there were errors, but it managed to convert an integer
-        // This is the case when the text is something like "1234 (text)"
-        *result = static_cast<int>(value);
-        return true;
+        throw std::runtime_error(std::format("Failed to parse number from value \"{}\"", s));
     }
-    // However, text like "0 (text)" looks like a total failure.
-    // But I can test for that.
-    char c[3];
-    if (GetDlgItemText(hDlg, item, c, 3) == 2 && c[0] == '0' && (std::isdigit(c[1]) == 0))
-    {
-        // It looks like it was like that
-        *result = 0;
-        return true;
-    }
-
-    return false;
+    return std::stoi(m[0]);
 }
 
 std::string Gui::get_utf8_string(HWND hDlg, int item)
 {
-    const auto length = GetWindowTextLength(GetDlgItem(hDlg, item)) + 1;
-    std::string s(length, L'\0');
-    if (length > 1)
+    // The API tells us how long the string is, but to retrieve it we have to have a buffer with space for a null terminator too.
+    const auto length = GetWindowTextLength(GetDlgItem(hDlg, item));
+    if (length > 0)
     {
         // Non-empty string
-        if (static_cast<int>(GetDlgItemText(hDlg, item, s.data(), static_cast<int>(s.size()))) == 0)
+        std::string s(length + 1, L'\0');
+        if (static_cast<int>(GetDlgItemText(hDlg, item, s.data(), length + 1)) != length)
         {
             throw std::runtime_error("Failed to get text");
         }
-        // It gets us an extra trailing \0, we remove that
-        s.resize(length - 1);
+        // We remove the trailing null
+        s.resize(length);
+        return s;
     }
-    return s;
+    return "";
 }
 
 std::wstring Gui::get_utf16_string(HWND hDlg, int item)
 {
-    const auto length = GetWindowTextLengthW(GetDlgItem(hDlg, item)) + 1;
-    std::wstring s(length, L'\0');
-    if (length > 1)
+    const auto length = GetWindowTextLengthW(GetDlgItem(hDlg, item));
+    if (length > 0)
     {
         // Non-empty string
-        if (static_cast<int>(GetDlgItemTextW(hDlg, item, s.data(), static_cast<int>(s.size()))) == 0)
+        std::wstring s(length + 1, L'\0');
+        if (static_cast<int>(GetDlgItemTextW(hDlg, item, s.data(), length + 1)) == length)
         {
             throw std::runtime_error("Failed to get text");
         }
-        // It gets us an extra trailing \0, we remove that
-        s.resize(length - 1);
+        // We remove the trailing null
+        s.resize(length);
+        return s;
     }
-    return s;
+    return L"";
 }
 
 Gui::Gui(HINSTANCE hInstance, LPSTR lpCmdLine, int nShowCmd):
@@ -209,6 +200,11 @@ void Gui::run()
     }
 }
 
+bool Gui::get_bool(HWND hDlg, int item)
+{
+    return IsDlgButtonChecked(hDlg, item) != 0u;
+}
+
 LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     try
@@ -221,20 +217,22 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
             PostQuitMessage(0);
             return TRUE;
         case WM_DROPFILES: // File dropped
-            if (hWnd == _convertWnd)
             {
-                convert_dropped_files(reinterpret_cast<HDROP>(wParam));
-            }
-            else
-            {
-                const int filenameLength = DragQueryFile(reinterpret_cast<HDROP>(wParam), 0, nullptr, 0) + 1;
-                const auto droppedFilename = static_cast<char*>(malloc(filenameLength));
-                // Allocate memory for the filename
-                DragQueryFile((HDROP)wParam, 0, droppedFilename, filenameLength);
-                // Get filename of first file, discard the rest
-                DragFinish((HDROP)wParam); // Tell Windows I've finished
-                load_file(droppedFilename);
-                free(droppedFilename); // deallocate buffer
+                const auto hDrop = reinterpret_cast<HDROP>(wParam); // NOLINT(performance-no-int-to-ptr)
+                if (hWnd == _convertWnd)
+                {
+                    convert_dropped_files(hDrop);
+                }
+                else
+                {
+                    const int filenameLength = DragQueryFile(hDrop, 0, nullptr, 0) + 1;
+                    std::string droppedFilename(filenameLength, '\0');
+                    // Allocate memory for the filename
+                    DragQueryFile(hDrop, 0, droppedFilename.data(), filenameLength);
+                    // Get filename of first file, discard the rest
+                    DragFinish(hDrop); // Tell Windows I've finished
+                    load_file(droppedFilename);
+                }
             }
             return TRUE;
         case WM_COMMAND:
@@ -250,25 +248,14 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 load_file(_currentFilename);
                 break;
             case btnTrim:
-                {
-                    int loop = -1;
-                    BOOL b1, b2, b3 = TRUE;
-                    const int start = static_cast<int>(GetDlgItemInt(_trimWnd, edtTrimStart, &b1, FALSE));
-                    const int end = static_cast<int>(GetDlgItemInt(_trimWnd, edtTrimEnd, &b2, FALSE));
-                    if (IsDlgButtonChecked(_trimWnd, cbLoop))
-                    {
-                        // want looping
-                        loop = static_cast<int>(GetDlgItemInt(_trimWnd, edtTrimLoop, &b3, FALSE));
-                    }
-
-                    if (!b1 || !b2 || !b3)
-                    {
-                        // failed to get values
-                        show_error("Invalid edit points!");
-                        break;
-                    }
-                    trim(_currentFilename, start, loop, end, false, IsDlgButtonChecked(_trimWnd, cbLogTrims), *this);
-                }
+                trim(
+                    _currentFilename,
+                    get_int(_trimWnd, edtTrimStart),
+                    get_bool(_trimWnd, cbLoop) ? get_int(_trimWnd, edtTrimLoop) : -1,
+                    get_int(_trimWnd, edtTrimEnd),
+                    false,
+                    get_bool(_trimWnd, cbLogTrims),
+                    *this);
                 break;
             case btnWriteToText:
                 write_to_text(_currentFilename, *this);
@@ -284,21 +271,23 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 break;
             case btnRoundTimes:
                 {
-                    BOOL b;
-                    const int Edits[3] = {edtTrimStart, edtTrimLoop, edtTrimEnd};
                     if (_currentFile.header().frame_rate() == 0)
                     {
                         break; // stop if rate = 0
                     }
                     const int frameLength = 44100 / _currentFile.header().frame_rate();
-                    for (int i = 0; i < 3; ++i)
+                    for (const int control : {edtTrimStart, edtTrimLoop, edtTrimEnd})
                     {
-                        const int time = GetDlgItemInt(_trimWnd, Edits[i], &b, FALSE);
-                        if (b == TRUE)
+                        try
                         {
+                            const int time = get_int(_trimWnd, control);
                             const double frames = static_cast<double>(time) / frameLength;
                             const int roundedFrames = std::lround(frames) * frameLength;
-                            SetDlgItemInt(_trimWnd, Edits[i], roundedFrames, FALSE);
+                            SetDlgItemInt(_trimWnd, control, roundedFrames, FALSE);
+                        }
+                        catch (const std::exception&)
+                        {
+                            // Ignore errors
                         }
                     }
                 }
@@ -430,7 +419,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                         break;
                     }
 
-                    if (IsDlgButtonChecked(_trimWnd, cbLogTrims))
+                    if (IsDlgButtonChecked(_trimWnd, cbLogTrims) != 0u)
                     {
                         log_trim(_currentFilename, Start, Loop, End, *this);
                     }
@@ -472,52 +461,50 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
             case btnRoundToFrames:
                 round_to_frame_accurate(_currentFilename, *this);
                 break;
+            default: 
+                return FALSE;
             } // end switch(LOWORD(wParam))
             {
                 // Stuff to happen after every message/button press (?!): update "all" checkboxes for stripping
-                int i;
-                int Checked = 0;
-                int Total = 0;
-                for (i = 0; i < 3; ++i)
+                int checked = 0;
+                int total = 0;
+                for (int i = 0; i < 3; ++i)
                 {
-                    Checked += IsDlgButtonChecked(_stripWnd, _psgCheckBoxes[i]);
-                    Total += IsWindowEnabled(GetDlgItem(_stripWnd, _psgCheckBoxes[i]));
+                    checked += IsDlgButtonChecked(_stripWnd, _psgCheckBoxes[i]) == FALSE ? 0 : 1;
+                    total += IsWindowEnabled(GetDlgItem(_stripWnd, _psgCheckBoxes[i]));
                 }
-                CheckDlgButton(_stripWnd, cbPSGTone, (Checked == Total) && Total);
-                Checked = 0;
-                Total = 0;
-                for (i = 0; i < 9; ++i)
+                CheckDlgButton(_stripWnd, cbPSGTone, (checked == total) && total != 0);
+                checked = 0;
+                total = 0;
+                for (int i = 0; i < 9; ++i)
                 {
-                    Checked += IsDlgButtonChecked(_stripWnd, _ym2413CheckBoxes[i]);
-                    Total += IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i]));
+                    checked += IsDlgButtonChecked(_stripWnd, _ym2413CheckBoxes[i]) == FALSE ? 0 : 1;
+                    total += IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i]));
                 }
-                CheckDlgButton(_stripWnd, cbYM2413Tone, (Checked == Total) && Total);
-                Checked = 0;
-                Total = 0;
-                for (i = 9; i < 14; ++i)
+                CheckDlgButton(_stripWnd, cbYM2413Tone, (checked == total) && total != 0);
+                checked = 0;
+                total = 0;
+                for (int i = 9; i < 14; ++i)
                 {
-                    Checked += IsDlgButtonChecked(_stripWnd, _ym2413CheckBoxes[i]);
-                    Total += IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i]));
+                    checked += IsDlgButtonChecked(_stripWnd, _ym2413CheckBoxes[i]) == FALSE ? 0 : 1;
+                    total += IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i]));
                 }
-                CheckDlgButton(_stripWnd, cbYM2413Percussion, (Checked == Total) && Total);
+                CheckDlgButton(_stripWnd, cbYM2413Percussion, (checked == total) && total != 0);
             }
             return TRUE; // WM_COMMAND handled
         case WM_NOTIFY:
             switch (LOWORD(wParam))
             {
             case tcMain:
-                switch (((LPNMHDR)lParam)->code)
+                switch (reinterpret_cast<LPNMHDR>(lParam)->code)
                 {
                 case TCN_SELCHANGING: // hide current window
-                    SetWindowPos(_tabChildWindows[TabCtrl_GetCurSel(GetDlgItem(_hWndMain, tcMain))], HWND_TOP, 0, 0, 0,
-                        0,
-                        SWP_NOMOVE | SWP_NOSIZE | SWP_HIDEWINDOW);
+                    SetWindowPos(_tabChildWindows[TabCtrl_GetCurSel(GetDlgItem(_hWndMain, tcMain))], HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_HIDEWINDOW);
                     break;
                 case TCN_SELCHANGE: // show current window
                     {
-                        int i = TabCtrl_GetCurSel(GetDlgItem(_hWndMain, tcMain));
-                        SetWindowPos(_tabChildWindows[i], HWND_TOP, 0, 0, 0, 0,
-                            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                        const int i = TabCtrl_GetCurSel(GetDlgItem(_hWndMain, tcMain));
+                        SetWindowPos(_tabChildWindows[i], HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
                         SetFocus(_tabChildWindows[i]);
                     }
                     break;
@@ -525,6 +512,8 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 break;
             } // end switch (LOWORD(wParam))
             return TRUE; // WM_NOTIFY handled
+        default:
+            return FALSE; // message not handled
         }
     }
     catch (const std::exception& e)
@@ -538,11 +527,11 @@ void Gui::make_tabbed_dialog()
 {
     // Load images for tabs
     InitCommonControls(); // required before doing imagelist stuff
-    HIMAGELIST imagelist = ImageList_LoadImage(_hInstance, reinterpret_cast<LPCSTR>(tabimages), 16, 0, RGB(255, 0, 255),
+    const HIMAGELIST imageList = ImageList_LoadImage(_hInstance, reinterpret_cast<LPCSTR>(tabimages), 16, 0, RGB(255, 0, 255),
         IMAGE_BITMAP, LR_CREATEDIBSECTION);
 
-    HWND tabCtrlWnd = GetDlgItem(_hWndMain, tcMain);
-    TabCtrl_SetImageList(tabCtrlWnd, imagelist);
+    const HWND tabCtrlWnd = GetDlgItem(_hWndMain, tcMain);
+    TabCtrl_SetImageList(tabCtrlWnd, imageList);
 
     // Add tabs
     TC_ITEM newTab;
@@ -753,10 +742,7 @@ void Gui::convert_dropped_files(HDROP hDrop) const
 
 void Gui::update_header()
 {
-    if (int rate; get_int(_headerWnd, edtPlaybackRate, &rate))
-    {
-        _currentFile.header().set_frame_rate(rate);
-    }
+    _currentFile.header().set_frame_rate(get_int(_headerWnd, edtPlaybackRate));
 
     auto s = get_utf8_string(_headerWnd, edtVersion);
     if (std::smatch m; std::regex_match(s, m, std::regex(R"((\d{1,2})\.(\d{1,2}))")))
@@ -772,22 +758,10 @@ void Gui::update_header()
         throw std::runtime_error(Utils::format("Invalid version \"%s\"", s.c_str()));
     }
 
-    if (int i; get_int(_headerWnd, edtPSGClock, &i))
-    {
-        _currentFile.header().set_clock(VgmHeader::Chip::SN76489, i);
-    }
-    if (int i; get_int(_headerWnd, edtYM2413Clock, &i))
-    {
-        _currentFile.header().set_clock(VgmHeader::Chip::YM2413, i);
-    }
-    if (int i; get_int(_headerWnd, edtYM2612Clock, &i))
-    {
-        _currentFile.header().set_clock(VgmHeader::Chip::YM2612, i);
-    }
-    if (int i; get_int(_headerWnd, edtYM2151Clock, &i))
-    {
-        _currentFile.header().set_clock(VgmHeader::Chip::YM2151, i);
-    }
+    _currentFile.header().set_clock(VgmHeader::Chip::SN76489, get_int(_headerWnd, edtPSGClock));
+    _currentFile.header().set_clock(VgmHeader::Chip::YM2413, get_int(_headerWnd, edtYM2413Clock));
+    _currentFile.header().set_clock(VgmHeader::Chip::YM2612, get_int(_headerWnd, edtYM2612Clock));
+    _currentFile.header().set_clock(VgmHeader::Chip::YM2151, get_int(_headerWnd, edtYM2151Clock));
 
     s = get_utf8_string(_headerWnd, edtPSGFeedback);
     if (std::smatch m; std::regex_search(s, m, std::regex(R"(^0x([0-9a-fA-F]+))")))
@@ -795,10 +769,8 @@ void Gui::update_header()
         // valid data
         _currentFile.header().set_sn76489_feedback(static_cast<uint16_t>(std::stoi(m[0], nullptr, 16)));
     }
-    if (int i; get_int(_headerWnd, edtPSGSRWidth, &i))
-    {
-        _currentFile.header().set_sn76489_shift_register_width(static_cast<uint8_t>(i));
-    }
+
+    _currentFile.header().set_sn76489_shift_register_width(static_cast<uint8_t>(get_int(_headerWnd, edtPSGSRWidth)));
 
     _currentFile.save_file(_currentFilename);
 }
@@ -811,19 +783,19 @@ void Gui::optimize(const std::string& filename) const
     gzFile in = gzopen(filename.c_str(), "rb");
     gzread(in, &VGMHeader, sizeof(VGMHeader));
     gzclose(in);
-    long FileSizeBefore = VGMHeader.EoFOffset + EOFDELTA;
+    const long fileSizeBefore = VGMHeader.EoFOffset + EOFDELTA;
 
     // Make sure lengths are correct
     check_lengths(filename, FALSE, *this);
 
     // Remove PSG offsets if selected
-    if ((VGMHeader.PSGClock) && IsDlgButtonChecked(_trimWnd, cbRemoveOffset))
+    if ((VGMHeader.PSGClock) && (IsDlgButtonChecked(_trimWnd, cbRemoveOffset) != 0u))
     {
         NumOffsetsRemoved = remove_offset(filename, *this);
     }
 
     // Trim (using the existing edit points), also merges pauses
-    if (VGMHeader.LoopLength)
+    if (VGMHeader.LoopLength != 0u)
     {
         trim(filename, 0, static_cast<int>(VGMHeader.TotalLength - VGMHeader.LoopLength),
             static_cast<int>(VGMHeader.TotalLength), true, false, *this);
@@ -836,7 +808,7 @@ void Gui::optimize(const std::string& filename) const
     in = gzopen(filename.c_str(), "rb");
     gzread(in, &VGMHeader, sizeof(VGMHeader));
     gzclose(in);
-    long FileSizeAfter = VGMHeader.EoFOffset + EOFDELTA;
+    const auto fileSizeAfter = VGMHeader.EoFOffset + EOFDELTA;
 
     if (show_question_message_box(Utils::format(
         "File optimised to\n"
@@ -846,9 +818,9 @@ void Gui::optimize(const std::string& filename) const
         "Do you want to open it in the associated program?",
         filename.c_str(),
         NumOffsetsRemoved,
-        FileSizeBefore,
-        FileSizeAfter,
-        (FileSizeAfter - FileSizeBefore) * 100.0 / FileSizeBefore
+        fileSizeBefore,
+        fileSizeAfter,
+        (fileSizeAfter - fileSizeBefore) * 100.0 / fileSizeBefore
     )) == IDYES)
     {
         ShellExecute(_hWndMain, "Play", filename.c_str(), nullptr, nullptr, SW_NORMAL);

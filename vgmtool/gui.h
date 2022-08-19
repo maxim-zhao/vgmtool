@@ -50,9 +50,10 @@ private:
     void update_write_count(const std::vector<int>& ids, const std::vector<int>& counts) const;
 
     // Pure GUI stuff
-    static bool get_int(HWND hDlg, int item, int* result);
-    static std::string get_utf8_string(HWND hDlg, int item);
-    static std::wstring get_utf16_string(HWND hDlg, int item);
+    [[nodiscard]] static int get_int(HWND hDlg, int item);
+    [[nodiscard]] static bool get_bool(HWND hDlg, int item);
+    [[nodiscard]] static std::string get_utf8_string(HWND hDlg, int item);
+    [[nodiscard]] static std::wstring get_utf16_string(HWND hDlg, int item);
     [[nodiscard]] int show_question_message_box(const std::string& s) const;
 
 public:
