@@ -1,31 +1,47 @@
-#include <Windows.h>
-#include <cstdio>
-#include <cstdarg>
-#include <cmath>
 #include "gui.h"
+#include "resource.h"
 
-#include <CommCtrl.h>
+#include <cstdio>
+#include <cmath>
+#include <ranges>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+
+#include <Windows.h>
+#include <CommCtrl.h>
+#include <map>
 #include <Uxtheme.h>
 
 #include "libvgmtool/convert.h"
 #include "libvgmtool/gd3.h"
 #include "libvgmtool/Gd3Tag.h"
 #include "libvgmtool/optimise.h"
-#include "resource.h"
 #include "libvgmtool/trim.h"
 #include "libvgmtool/utils.h"
 #include "libvgmtool/vgm.h"
 #include "libvgmtool/VgmFile.h"
 #include "libvgmtool/writetotext.h"
 
-
-// GD3 versions I can accept
-#define MINGD3VERSION 0x100
-#define REQUIREDGD3MAJORVER 0x100
+namespace
+{
+    const std::vector<std::pair<std::string, std::wstring>> SYSTEM_NAMES =
+    {
+        {"Sega Master System", L"セガマスターシステム"},
+        {"Sega Game Gear", L"セガゲームギア"},
+        {"Sega Master System / Game Gear", L"セガマスターシステム / セガゲームギア"},
+        {"Sega Mega Drive / Genesis", L"セガメガドライブ"},
+        {"Sega Game 1000", L""},
+        {"Sega Computer 3000", L""},
+        {"Sega System 16", L""},
+        {"Capcom Play System 1", L""},
+        {"Colecovision", L""},
+        {"BBC Model B", L""},
+        {"BBC Model B+", L""},
+        {"BBC Master 128", L""}
+    };
+}
 
 Gui* Gui::_pThis = nullptr;
 std::string Gui::_programName = "VGMTool 2 release 6 BETA";
@@ -142,12 +158,9 @@ void Gui::run()
     SetWindowText(_hWndMain, _programName.c_str());
     make_tabbed_dialog();
     // Fill combo box - see below for Japanese translations
-    fill_combo_box(_gd3Wnd, cbGD3SystemEn,
-        {
-            "Sega Master System", "Sega Game Gear", "Sega Master System / Game Gear", "Sega Mega Drive / Genesis",
-            "Sega Game 1000", "Sega Computer 3000", "Sega System 16", "Capcom Play System 1", "Colecovision",
-            "BBC Model B", "BBC Model B+", "BBC Master 128"
-        });
+
+    auto systemNames = SYSTEM_NAMES | std::views::keys;
+    fill_combo_box(_gd3Wnd, cbGD3SystemEn, {systemNames.begin(), systemNames.end()});
     fill_combo_box(_headerWnd, edtPlaybackRate, {"0 (unknown)", "50 (PAL)", "60 (NTSC)"});
     fill_combo_box(_headerWnd, edtPSGClock, {"0 (disabled)", "3546893 (PAL)", "3579545 (NTSC)", "4000000 (BBC)"});
     fill_combo_box(_headerWnd, edtYM2413Clock, {"0 (disabled)", "3546893 (PAL)", "3579545 (NTSC)"});
@@ -370,22 +383,14 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 {
                     break;
                 }
-                switch (SendDlgItemMessage(_gd3Wnd, cbGD3SystemEn, CB_GETCURSEL, 0, 0))
                 {
-                case 0: SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp,
-                        L"セガマスターシステム");
-                    break; // Sega Master System
-                case 1: SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp,
-                        L"セガゲームギア");
-                    break; // Sega Game Gear
-                case 2: SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp,
-                        L"セガマスターシステム / セガゲームギア");
-                    break; // Sega Master System / Game Gear
-                case 3: SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp,
-                        L"セガメガドライブ");
-                    break; // Sega Megadrive (Japanese name)
-                default: SetDlgItemText(_gd3Wnd, edtGD3SystemJp, "");
-                    break;
+                    // Get selected item
+                    const int index = static_cast<int>(SendDlgItemMessage(_gd3Wnd, cbGD3SystemEn, CB_GETCURSEL, 0, 0));
+                    // Find in our list
+                    if (index >= 0 && index < static_cast<int>(SYSTEM_NAMES.size()))
+                    {
+                        SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp, SYSTEM_NAMES[index].second.c_str());
+                    }
                 }
                 break;
             case btnCopyLengths:
@@ -636,11 +641,13 @@ void Gui::load_file(const std::string& filename)
     }
     else
     {
-    SetDlgItemText(_headerWnd, edtLengthLoop, "-");
+        SetDlgItemText(_headerWnd, edtLengthLoop, "-");
     }
 
     // Version
-    SetDlgItemText(_headerWnd, edtVersion, Utils::format("%d.%02d", _currentFile.header().version().major(), _currentFile.header().version().minor()).c_str());
+    SetDlgItemText(_headerWnd, edtVersion,
+        Utils::format("%d.%02d", _currentFile.header().version().major(),
+            _currentFile.header().version().minor()).c_str());
 
     // Clock speeds
     SetDlgItemInt(_headerWnd, edtPSGClock, _currentFile.header().clock(VgmHeader::Chip::SN76489), FALSE);
@@ -649,7 +656,8 @@ void Gui::load_file(const std::string& filename)
     SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFile.header().clock(VgmHeader::Chip::YM2151), FALSE);
 
     // PSG settings
-    SetDlgItemText(_headerWnd, edtPSGFeedback, Utils::format("0x%04x", _currentFile.header().sn76489_feedback()).c_str());
+    SetDlgItemText(_headerWnd, edtPSGFeedback,
+        Utils::format("0x%04x", _currentFile.header().sn76489_feedback()).c_str());
     SetDlgItemInt(_headerWnd, edtPSGSRWidth, _currentFile.header().sn76489_shift_register_width(), FALSE);
 
     // GD3 tag
@@ -899,7 +907,9 @@ void Gui::update_gd3() const
     gzFile out = gzopen(outFilename.c_str(), "wb0");
 
     // Copy everything up to the GD3 tag
-    const auto dataLength = static_cast<int>(VGMHeader.GD3Offset > 0 ? VGMHeader.GD3Offset + GD3DELTA : VGMHeader.EoFOffset + EOFDELTA);
+    const auto dataLength = static_cast<int>(VGMHeader.GD3Offset > 0
+                                                 ? VGMHeader.GD3Offset + GD3DELTA
+                                                 : VGMHeader.EoFOffset + EOFDELTA);
     for (auto i = 0; i < dataLength; ++i)
     {
         gzputc(out, gzgetc(in));
@@ -963,7 +973,8 @@ void Gui::change_check_boxes(const ChangeCheckboxesMode mode) const
     change_check_boxes(_ym2151CheckBoxes, _ym2151Writes, mode);
 }
 
-void Gui::change_check_boxes(const std::vector<int>& ids, const std::vector<int>& counts, const ChangeCheckboxesMode mode) const
+void Gui::change_check_boxes(const std::vector<int>& ids, const std::vector<int>& counts,
+                             const ChangeCheckboxesMode mode) const
 {
     for (auto i = 0u; i < ids.size(); ++i)
     {
