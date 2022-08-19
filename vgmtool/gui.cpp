@@ -275,18 +275,18 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 {
                     BOOL b;
                     const int Edits[3] = {edtTrimStart, edtTrimLoop, edtTrimEnd};
-                    if (_currentFileVgmHeader.RecordingRate == 0)
+                    if (_currentFile.header().frame_rate() == 0)
                     {
                         break; // stop if rate = 0
                     }
-                    int FrameLength = 44100 / _currentFileVgmHeader.RecordingRate;
+                    const int frameLength = 44100 / _currentFile.header().frame_rate();
                     for (int i = 0; i < 3; ++i)
                     {
-                        int Time = GetDlgItemInt(_trimWnd, Edits[i], &b, FALSE);
-                        if (b)
+                        const int time = GetDlgItemInt(_trimWnd, Edits[i], &b, FALSE);
+                        if (b == TRUE)
                         {
-                            const double frames = static_cast<double>(Time) / FrameLength;
-                            const int roundedFrames = std::lround(frames) * FrameLength;
+                            const double frames = static_cast<double>(time) / frameLength;
+                            const int roundedFrames = std::lround(frames) * frameLength;
                             SetDlgItemInt(_trimWnd, Edits[i], roundedFrames, FALSE);
                         }
                     }
@@ -304,16 +304,16 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 clear_gd3_strings();
                 break;
             case btnSelectAll:
-                change_check_boxes(1);
+                change_check_boxes(ChangeCheckboxesMode::All);
                 break;
             case btnSelectNone:
-                change_check_boxes(2);
+                change_check_boxes(ChangeCheckboxesMode::None);
                 break;
             case btnSelectInvert:
-                change_check_boxes(3);
+                change_check_boxes(ChangeCheckboxesMode::Invert);
                 break;
             case btnSelectGuess:
-                change_check_boxes(4);
+                change_check_boxes(ChangeCheckboxesMode::Guess);
                 break;
             case btnStrip:
                 strip_checked(_currentFilename);
@@ -372,17 +372,17 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 }
                 switch (SendDlgItemMessage(_gd3Wnd, cbGD3SystemEn, CB_GETCURSEL, 0, 0))
                 {
-                case 0: SetDlgItemText(_gd3Wnd, edtGD3SystemJp,
-                        "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0;");
+                case 0: SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp,
+                        L"セガマスターシステム");
                     break; // Sega Master System
-                case 1: SetDlgItemText(_gd3Wnd, edtGD3SystemJp,
-                        "&#x30bb;&#x30ac;&#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
+                case 1: SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp,
+                        L"セガゲームギア");
                     break; // Sega Game Gear
-                case 2: SetDlgItemText(_gd3Wnd, edtGD3SystemJp,
-                        "&#x30bb;&#x30ac;&#x30de;&#x30b9;&#x30bf;&#x30fc;&#x30b7;&#x30b9;&#x30c6;&#x30e0; / &#x30b2;&#x30fc;&#x30e0;&#x30ae;&#x30a2;");
+                case 2: SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp,
+                        L"セガマスターシステム / セガゲームギア");
                     break; // Sega Master System / Game Gear
-                case 3: SetDlgItemText(_gd3Wnd, edtGD3SystemJp,
-                        "&#x30bb;&#x30ac;&#x30e1;&#x30ac;&#x30c9;&#x30e9;&#x30a4;&#x30d6;");
+                case 3: SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp,
+                        L"セガメガドライブ");
                     break; // Sega Megadrive (Japanese name)
                 default: SetDlgItemText(_gd3Wnd, edtGD3SystemJp, "");
                     break;
@@ -605,15 +605,13 @@ void Gui::load_file(const std::string& filename)
 
     show_status("Loading file...");
 
-    gzFile in = gzopen(filename.c_str(), "rb");
-    gzread(in, &_currentFileVgmHeader, sizeof(_currentFileVgmHeader));
-    gzclose(in);
-
-    if (!_currentFileVgmHeader.is_valid())
+    try
     {
-        // no VGM marker
-        show_error(
-            "File is not a VGM file!\nIt will not be opened.\n\nMaybe you want to convert GYM, CYM and SSL files to VGM?\nClick on the \"Conversion\" tab.");
+        _currentFile.load_file(filename);
+    }
+    catch (const std::exception& e)
+    {
+        show_error(Utils::format("Failed to load \"%s\":\n%s", filename.c_str(), e.what()));
         _currentFilename.clear();
         SetDlgItemText(_hWndMain, edtFileName, "Drop a file onto the window to load");
         show_status("");
@@ -623,20 +621,17 @@ void Gui::load_file(const std::string& filename)
     _currentFilename = filename; // Remember it
     SetDlgItemText(_hWndMain, edtFileName, filename.c_str()); // Put it in the box
 
-    // "New way" used to read GD3 (only, for now)
-    VgmFile file(filename);
-
     // Rate
-    SetDlgItemInt(_headerWnd, edtPlaybackRate, _currentFileVgmHeader.RecordingRate, FALSE);
+    SetDlgItemInt(_headerWnd, edtPlaybackRate, _currentFile.header().frame_rate(), FALSE);
 
     // Lengths
-    int minutes = static_cast<int>(_currentFileVgmHeader.TotalLength) / 44100 / 60;
-    int seconds = static_cast<int>(_currentFileVgmHeader.TotalLength) / 44100 - minutes * 60;
+    int minutes = static_cast<int>(_currentFile.header().sample_count()) / 44100 / 60;
+    int seconds = static_cast<int>(_currentFile.header().sample_count()) / 44100 - minutes * 60;
     SetDlgItemText(_headerWnd, edtLengthTotal, Utils::format("%d:%02d", minutes, seconds).c_str());
-    if (_currentFileVgmHeader.LoopLength > 0)
+    if (_currentFile.header().loop_sample_count() > 0)
     {
-        minutes = static_cast<int>(_currentFileVgmHeader.LoopLength) / 44100 / 60;
-        seconds = static_cast<int>(_currentFileVgmHeader.LoopLength) / 44100 - minutes * 60;
+        minutes = static_cast<int>(_currentFile.header().loop_sample_count()) / 44100 / 60;
+        seconds = static_cast<int>(_currentFile.header().loop_sample_count()) / 44100 - minutes * 60;
         SetDlgItemText(_headerWnd, edtLengthLoop, Utils::format("%d:%02d", minutes, seconds).c_str());
     }
     else
@@ -645,25 +640,25 @@ void Gui::load_file(const std::string& filename)
     }
 
     // Version
-    SetDlgItemText(_headerWnd, edtVersion, Utils::format("%x.%02x", _currentFileVgmHeader.Version >> 8, _currentFileVgmHeader.Version & 0xff).c_str());
+    SetDlgItemText(_headerWnd, edtVersion, Utils::format("%d.%02d", _currentFile.header().version().major(), _currentFile.header().version().minor()).c_str());
 
     // Clock speeds
-    SetDlgItemInt(_headerWnd, edtPSGClock, _currentFileVgmHeader.PSGClock, FALSE);
-    SetDlgItemInt(_headerWnd, edtYM2413Clock, _currentFileVgmHeader.YM2413Clock, FALSE);
-    SetDlgItemInt(_headerWnd, edtYM2612Clock, _currentFileVgmHeader.YM2612Clock, FALSE);
-    SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFileVgmHeader.YM2151Clock, FALSE);
+    SetDlgItemInt(_headerWnd, edtPSGClock, _currentFile.header().clock(VgmHeader::Chip::SN76489), FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2413Clock, _currentFile.header().clock(VgmHeader::Chip::YM2413), FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2612Clock, _currentFile.header().clock(VgmHeader::Chip::YM2612), FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFile.header().clock(VgmHeader::Chip::YM2151), FALSE);
 
     // PSG settings
-    SetDlgItemText(_headerWnd, edtPSGFeedback, Utils::format("0x%04x", _currentFileVgmHeader.PSGWhiteNoiseFeedback).c_str());
-    SetDlgItemInt(_headerWnd, edtPSGSRWidth, _currentFileVgmHeader.PSGShiftRegisterWidth, FALSE);
+    SetDlgItemText(_headerWnd, edtPSGFeedback, Utils::format("0x%04x", _currentFile.header().sn76489_feedback()).c_str());
+    SetDlgItemInt(_headerWnd, edtPSGSRWidth, _currentFile.header().sn76489_shift_register_width(), FALSE);
 
     // GD3 tag
-    if (!file.gd3().empty())
+    if (!_currentFile.gd3().empty())
     {
-        for (int i = 0; i < _gd3EditControls.size(); ++i)
+        for (auto i = 0u; i < _gd3EditControls.size(); ++i)
         {
             const auto key = static_cast<Gd3Tag::Key>(i);
-            auto value = file.gd3().get_text(key);
+            auto value = _currentFile.gd3().get_text(key);
             if (key == Gd3Tag::Key::Notes)
             {
                 // Notes: change \n to \r\n so Windows shows it properly
@@ -676,7 +671,7 @@ void Gui::load_file(const std::string& filename)
 
     check_write_counts(""); // reset counts
 
-    if (file.gd3().empty())
+    if (_currentFile.gd3().empty())
     {
         show_status("File loaded - file has no GD3 tag, previous tag kept");
     }
@@ -750,22 +745,11 @@ void Gui::convert_dropped_files(HDROP hDrop) const
         GetTickCount() - startTime));
 }
 
-void Gui::update_header() const
+void Gui::update_header()
 {
-    OldVGMHeader VGMHeader;
-
-    if (!Utils::file_exists(_currentFilename))
-    {
-        return;
-    }
-
-    gzFile in = gzopen(_currentFilename.c_str(), "rb");
-    gzread(in, &VGMHeader, sizeof(VGMHeader));
-    gzclose(in);
-
     if (int rate; get_int(_headerWnd, edtPlaybackRate, &rate))
     {
-        VGMHeader.RecordingRate = rate;
+        _currentFile.header().set_frame_rate(rate);
     }
 
     auto s = get_utf8_string(_headerWnd, edtVersion);
@@ -774,11 +758,8 @@ void Gui::update_header() const
         const auto major = std::stoi(m[0]);
         const auto minor = std::stoi(m[1]) * (m[1].length() == 1 ? 10 : 1); // Make e.g. "1" become "10"
         // valid data
-        VGMHeader.Version =
-            (major / 10) << 12 | // major tens
-            (major % 10) << 8 | // major units
-            (minor / 10) << 4 | // minor tens
-            (minor % 10); // minor units
+        _currentFile.header().version().set_major(major);
+        _currentFile.header().version().set_minor(minor);
     }
     else
     {
@@ -787,33 +768,33 @@ void Gui::update_header() const
 
     if (int i; get_int(_headerWnd, edtPSGClock, &i))
     {
-        VGMHeader.PSGClock = i;
+        _currentFile.header().set_clock(VgmHeader::Chip::SN76489, i);
     }
     if (int i; get_int(_headerWnd, edtYM2413Clock, &i))
     {
-        VGMHeader.YM2413Clock = i;
+        _currentFile.header().set_clock(VgmHeader::Chip::YM2413, i);
     }
     if (int i; get_int(_headerWnd, edtYM2612Clock, &i))
     {
-        VGMHeader.YM2612Clock = i;
+        _currentFile.header().set_clock(VgmHeader::Chip::YM2612, i);
     }
     if (int i; get_int(_headerWnd, edtYM2151Clock, &i))
     {
-        VGMHeader.YM2151Clock = i;
+        _currentFile.header().set_clock(VgmHeader::Chip::YM2151, i);
     }
 
     s = get_utf8_string(_headerWnd, edtPSGFeedback);
     if (std::smatch m; std::regex_search(s, m, std::regex(R"(^0x([0-9a-fA-F]+))")))
     {
         // valid data
-        VGMHeader.PSGWhiteNoiseFeedback = static_cast<uint16_t>(std::stoi(m[0], nullptr, 16));
+        _currentFile.header().set_sn76489_feedback(static_cast<uint16_t>(std::stoi(m[0], nullptr, 16)));
     }
     if (int i; get_int(_headerWnd, edtPSGSRWidth, &i))
     {
-        VGMHeader.PSGShiftRegisterWidth = static_cast<uint8_t>(i);
+        _currentFile.header().set_sn76489_shift_register_width(static_cast<uint8_t>(i));
     }
 
-    write_vgm_header(_currentFilename, VGMHeader, *this);
+    _currentFile.save_file(_currentFilename);
 }
 
 void Gui::optimize(const std::string& filename) const
@@ -974,55 +955,53 @@ void Gui::clear_gd3_strings() const
     }
 }
 
-void Gui::change_check_boxes(int mode) const
-// TODO make mode an enum
+void Gui::change_check_boxes(const ChangeCheckboxesMode mode) const
 {
-    ccb(_psgCheckBoxes, _psgWrites, mode);
-    ccb(_ym2413CheckBoxes, _ym2413Writes, mode);
-    ccb(_ym2612CheckBoxes, _ym2612Writes, mode);
-    ccb(_ym2151CheckBoxes, _ym2151Writes, mode);
+    change_check_boxes(_psgCheckBoxes, _psgWrites, mode);
+    change_check_boxes(_ym2413CheckBoxes, _ym2413Writes, mode);
+    change_check_boxes(_ym2612CheckBoxes, _ym2612Writes, mode);
+    change_check_boxes(_ym2151CheckBoxes, _ym2151Writes, mode);
 }
 
-void Gui::ccb(const std::vector<int>& ids, const std::vector<int>& counts, int mode) const
+void Gui::change_check_boxes(const std::vector<int>& ids, const std::vector<int>& counts, const ChangeCheckboxesMode mode) const
 {
     for (auto i = 0u; i < ids.size(); ++i)
     {
-        if (IsWindowEnabled(GetDlgItem(_stripWnd, ids[i])))
+        if (IsWindowEnabled(GetDlgItem(_stripWnd, ids[i])) == FALSE)
         {
-            switch (mode)
+            continue;
+        }
+        switch (mode)
+        {
+        case ChangeCheckboxesMode::All:
+            CheckDlgButton(_stripWnd, ids[i], 1);
+            break;
+        case ChangeCheckboxesMode::None:
+            CheckDlgButton(_stripWnd, ids[i], 0);
+            break;
+        case ChangeCheckboxesMode::Invert:
+            CheckDlgButton(_stripWnd, ids[i], !IsDlgButtonChecked(_stripWnd, ids[i]));
+            break;
+        case ChangeCheckboxesMode::Guess:
             {
-            case 1: // check all
-                CheckDlgButton(_stripWnd, ids[i], 1);
-                break;
-            case 2: // check none
-                CheckDlgButton(_stripWnd, ids[i], 0);
-                break;
-            case 3: // invert selection
-                CheckDlgButton(_stripWnd, ids[i], !IsDlgButtonChecked(_stripWnd, ids[i]));
-                break;
-            case 4: // guess
+                int cutOff = 0;
+                for (const int count : counts)
                 {
-                    int cutOff = 0;
-                    for (const int count : counts)
+                    if (cutOff < count)
                     {
-                        if (cutOff < count)
-                        {
-                            cutOff = count;
-                        }
+                        cutOff = count;
                     }
-                    cutOff = cutOff / 50; // 2% of largest for that chip
-
-                    CheckDlgButton(
-                        _stripWnd,
-                        ids[i],
-                        ((counts[i] < cutOff) ||
-                            get_utf8_string(_stripWnd, ids[i]).find("Invalid") != std::string::npos)
-                            ? 1
-                            : 0);
-                    break;
                 }
-            default:
-                throw std::runtime_error(Utils::format("Invalid checkbox mode %d", mode));
+                cutOff = cutOff / 50; // 2% of largest for that chip
+
+                CheckDlgButton(
+                    _stripWnd,
+                    ids[i],
+                    ((counts[i] < cutOff) ||
+                        get_utf8_string(_stripWnd, ids[i]).find("Invalid") != std::string::npos)
+                        ? 1
+                        : 0);
+                break;
             }
         }
     }

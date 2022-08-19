@@ -19,6 +19,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libpu8", "libpu8\libpu8.vcxproj", "{B48E58CF-9561-4E18-A7B7-3E8E40DB3D6C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "externals", "externals", "{4B5CAADE-4D69-405F-80DA-BADE87C1D556}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -70,6 +72,10 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8E51C57F-708A-4479-829F-D1DCBEA596F3} = {4B5CAADE-4D69-405F-80DA-BADE87C1D556}
+		{B48E58CF-9561-4E18-A7B7-3E8E40DB3D6C} = {4B5CAADE-4D69-405F-80DA-BADE87C1D556}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4CA81338-E65A-4423-B13B-BEE43ABAE0B9}

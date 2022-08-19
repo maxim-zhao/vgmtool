@@ -8,7 +8,7 @@
 #include <Windows.h>
 
 #include "libvgmtool/IVGMToolCallback.h"
-#include "libvgmtool/vgm.h"
+#include "libvgmtool/VgmFile.h"
 
 
 class Gui : IVGMToolCallback
@@ -20,24 +20,36 @@ public:
     LRESULT dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
+    // GUI stuff
     static LRESULT static_dialog_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
     void make_tabbed_dialog();
-    void load_file(const std::string& filename);
     void do_ctrl_tab() const;
     static void fill_combo_box(HWND parent, int id, const std::vector<std::string>& items);
+
+    enum class ChangeCheckboxesMode
+    {
+        All,
+        None,
+        Invert,
+        Guess
+    };
+
+    void change_check_boxes(ChangeCheckboxesMode mode) const;
+    void change_check_boxes(const std::vector<int>& ids, const std::vector<int>& counts, ChangeCheckboxesMode mode) const;
+
+    void load_file(const std::string& filename);
     void convert_dropped_files(HDROP hDrop) const;
-    void update_header() const;
+    void update_header();
     auto optimize(const std::string& filename) const -> void;
     void update_gd3() const;
     void clear_gd3_strings() const;
-    void change_check_boxes(int mode) const;
-    void ccb(const std::vector<int>& ids, const std::vector<int>& counts, int mode) const;
     void strip_checked(const std::string& filename) const;
     void strip(const std::string& filename, const std::string& outFilename) const;
     void copy_lengths_to_clipboard() const;
     void check_write_counts(const std::string& filename);
     void update_write_count(const std::vector<int>& ids, const std::vector<int>& counts) const;
 
+    // Pure GUI stuff
     static bool get_int(HWND hDlg, int item, int* result);
     static std::string get_utf8_string(HWND hDlg, int item);
     static std::wstring get_utf16_string(HWND hDlg, int item);
@@ -65,8 +77,8 @@ private:
 
     // The current filename
     std::string _currentFilename;
-    // The header of the current file
-    OldVGMHeader _currentFileVgmHeader;
+    // The current file
+    VgmFile _currentFile;
 
     // We maintain some vectors of control IDs to make iterating them easier.
     // They do not change.

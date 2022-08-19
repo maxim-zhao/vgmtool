@@ -11,7 +11,11 @@ class VgmFile
     std::vector<uint8_t> _data;
 
 public:
+    VgmFile() = default;
     explicit VgmFile(const std::string& filename);
+
+    void load_file(const std::string& filename);
+    void save_file(const std::string& filename);
 
     VgmHeader& header()
     {
@@ -22,4 +26,5 @@ public:
     {
         return _gd3Tag;
     }
+
 };

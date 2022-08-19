@@ -1,5 +1,4 @@
 #pragma once
-#include <ranges>
 #include <string>
 #include <unordered_map>
 
@@ -14,8 +13,8 @@ public:
     ~Gd3Tag() = default;
 
     void from_binary(BinaryData& data);
-    void to_binary(std::vector<uint8_t>& data);
-    bool empty() const;
+    void to_binary(BinaryData& data) const;
+    [[nodiscard]] bool empty() const;
 
     enum class Key
     {

@@ -1,4 +1,5 @@
 #pragma once
+#include <inttypes.h>
 
 class BinaryData;
 
@@ -8,6 +9,7 @@ public:
     BcdVersion() = default;
 
     void from_binary(BinaryData& data);
+    void to_binary(BinaryData& data) const;
 
     [[nodiscard]] int major() const
     {
@@ -19,8 +21,20 @@ public:
         return _minor;
     }
 
+    void set_major(const int major)
+    {
+        _major = major;
+    }
+
+    void set_minor(const int minor)
+    {
+        _minor = minor;
+    }
+
+    [[nodiscard]] bool at_least(int major, int minor) const;
+
 private:
-    static int from_bcd(int bcd);
+    static int from_bcd(uint32_t bcd);
 
     int _major;
     int _minor;

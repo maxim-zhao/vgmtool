@@ -25,9 +25,9 @@ std::string note_name(const double frequencyHz)
     const int nearestNote = static_cast<int>(std::round(midiNote));
     const char* noteNames[] = {"A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"};
     return Utils::format(
-        "%2s%-2d %+3d", 
-        noteNames[abs(nearestNote - 21) % 12], 
-        (nearestNote - 24) / 12 + 1, 
+        "%2s%-2d %+3d",
+        noteNames[abs(nearestNote - 21) % 12],
+        (nearestNote - 24) / 12 + 1,
         static_cast<int>((midiNote - nearestNote) * 100 + ((nearestNote < midiNote) ? +0.5 : -0.5))
     );
 }
@@ -46,10 +46,10 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
     // We write into these
     std::vector<std::string> noiseTypes{{"high (", "med (", "low (", "ch 2"}};
     const std::vector<std::string> ym2413Instruments{
-        "User instrument", 
-        "Violin", "Guitar", "Piano", "Flute", "Clarinet", 
-        "Oboe", "Trumpet", "Organ", "Horn", "Synthesizer", 
-        "Harpsichord", "Vibraphone", "Synthesizer Bass", 
+        "User instrument",
+        "Violin", "Guitar", "Piano", "Flute", "Clarinet",
+        "Oboe", "Trumpet", "Organ", "Horn", "Synthesizer",
+        "Harpsichord", "Vibraphone", "Synthesizer Bass",
         "Acoustic Bass", "Electric Guitar"
     };
     const std::vector<std::string> ym2413RhythmInstrumentNames{
@@ -91,7 +91,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
 
     gzseek(in, 0x40, SEEK_SET);
 
-    fprintf(out, 
+    fprintf(out,
         "VGM Header:\n"
         "VGM marker           \"%c%c%c%c\"\n"
         "End-of-file offset   0x%08x (relative) 0x%08x (absolute)\n"
@@ -108,30 +108,30 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         "Loop length          %d samples (%.2fs)\n"
         "Recording rate       %d Hz\n\n"
         "VGM data:\n"
-        , 
-        vgmHeader.VGMIdent[0], 
-        vgmHeader.VGMIdent[1], 
-        vgmHeader.VGMIdent[2], 
-        vgmHeader.VGMIdent[3], 
-        vgmHeader.EoFOffset, 
-        vgmHeader.EoFOffset + EOFDELTA, 
-        vgmHeader.Version, 
-        vgmHeader.Version >> 8, 
-        vgmHeader.Version & 0xff, 
-        vgmHeader.PSGClock, 
-        vgmHeader.PSGWhiteNoiseFeedback, 
-        vgmHeader.PSGShiftRegisterWidth, 
-        vgmHeader.YM2413Clock, 
-        vgmHeader.YM2612Clock, 
-        vgmHeader.YM2151Clock, 
-        vgmHeader.GD3Offset, 
-        vgmHeader.GD3Offset + GD3DELTA, 
-        vgmHeader.TotalLength, 
-        vgmHeader.TotalLength / 44100.0, 
-        vgmHeader.LoopOffset, 
-        vgmHeader.LoopOffset + LOOPDELTA, 
-        vgmHeader.LoopLength, 
-        vgmHeader.LoopLength / 44100.0, 
+        ,
+        vgmHeader.VGMIdent[0],
+        vgmHeader.VGMIdent[1],
+        vgmHeader.VGMIdent[2],
+        vgmHeader.VGMIdent[3],
+        vgmHeader.EoFOffset,
+        vgmHeader.EoFOffset + EOFDELTA,
+        vgmHeader.Version,
+        vgmHeader.Version >> 8,
+        vgmHeader.Version & 0xff,
+        vgmHeader.PSGClock,
+        vgmHeader.PSGWhiteNoiseFeedback,
+        vgmHeader.PSGShiftRegisterWidth,
+        vgmHeader.YM2413Clock,
+        vgmHeader.YM2612Clock,
+        vgmHeader.YM2151Clock,
+        vgmHeader.GD3Offset,
+        vgmHeader.GD3Offset + GD3DELTA,
+        vgmHeader.TotalLength,
+        vgmHeader.TotalLength / 44100.0,
+        vgmHeader.LoopOffset,
+        vgmHeader.LoopOffset + LOOPDELTA,
+        vgmHeader.LoopLength,
+        vgmHeader.LoopLength / 44100.0,
         vgmHeader.RecordingRate
     );
 
@@ -209,7 +209,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     {
                         frequencyHz = 0.0;
                     }
-                    fprintf(out, "Tone ch %d -> 0x%03x = %8.2f Hz = %s\n", 
+                    fprintf(out, "Tone ch %d -> 0x%03x = %8.2f Hz = %s\n",
                         PSGLatchedRegister / 2, // Channel
                         PSGRegisters[PSGLatchedRegister], // Value
                         frequencyHz, // Frequency
@@ -218,14 +218,14 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 }
                 break;
             case 6: // Noise
-                fprintf(out, "Noise: %s, %s\n", 
-                    (b1 & 0x4) == 0x4 ? "white" : "synchronous", 
+                fprintf(out, "Noise: %s, %s\n",
+                    (b1 & 0x4) == 0x4 ? "white" : "synchronous",
                     noiseTypes[b1 & 0x3].c_str());
                 break;
             default: // Volume
-                fprintf(out, "Volume: ch %d -> 0x%x = %d%%\n", 
-                    PSGLatchedRegister / 2, 
-                    PSGRegisters[PSGLatchedRegister], 
+                fprintf(out, "Volume: ch %d -> 0x%x = %d%%\n",
+                    PSGLatchedRegister / 2,
+                    PSGRegisters[PSGLatchedRegister],
                     (15 - PSGRegisters[PSGLatchedRegister]) * 100 / 15
                 );
                 break;
@@ -243,7 +243,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                 case 0x00:
                 case 0x01:
-                    fprintf(out, "Tone user inst (%s): MSWH 0x%1x, key scale rate %d, sustain %s, vibrato %s, AM %s\n", 
+                    fprintf(out, "Tone user inst (%s): MSWH 0x%1x, key scale rate %d, sustain %s, vibrato %s, AM %s\n",
                         b1 ? "car" : "mod", b2 & 0xf, b2 & 1 << 4, ON(b2& 1<<5), ON(b2& 1<<6), ON(b2& 1<<7));
                     break;
                 case 0x02:
@@ -251,18 +251,18 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     break;
                 case 0x03:
                     fprintf(
-                        out, 
-                        "Tone user inst (car): key scale level %1d, rectification distortion to car %s, mod %s, FM feedback %1d\n", 
+                        out,
+                        "Tone user inst (car): key scale level %1d, rectification distortion to car %s, mod %s, FM feedback %1d\n",
                         b2 >> 6, ON(b2& 1<<3), ON(b2& 1<<4), b2 & 0x7);
                     break;
                 case 0x04:
                 case 0x05:
-                    fprintf(out, "Tone user inst (%s): attack rate 0x%1x, decay rate 0x%1x\n", b1 - 4 ? "car" : "mod", 
+                    fprintf(out, "Tone user inst (%s): attack rate 0x%1x, decay rate 0x%1x\n", b1 - 4 ? "car" : "mod",
                         b2 & 0xf, b2 >> 4);
                     break;
                 case 0x06:
                 case 0x07:
-                    fprintf(out, "Tone user inst (%s): sustain level 0x%1x, release rate 0x%1x\n", 
+                    fprintf(out, "Tone user inst (%s): sustain level 0x%1x, release rate 0x%1x\n",
                         b1 - 6 ? "car" : "mod", b2 & 0xf, b2 >> 4);
                     break;
                 case 0x0E: // Percussion
@@ -297,12 +297,13 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                     int channel = b1 & 0xf;
                     ym2413FNumbers[channel] = (ym2413FNumbers[channel] & 0x100) | b2; // Update low bits of F-number
-                    double frequencyHz = static_cast<double>(ym2413FNumbers[channel]) * vgmHeader.YM2413Clock / 72 / (1 << (19 - ym2413Blocks[channel]));
-                    fprintf(out, "Tone F-num low bits: ch %1d -> %03d(%1d) = %8.2f Hz = %s", 
-                        channel, 
-                        ym2413FNumbers[channel], 
-                        ym2413Blocks[channel], 
-                        frequencyHz, 
+                    double frequencyHz = static_cast<double>(ym2413FNumbers[channel]) * vgmHeader.YM2413Clock / 72 / (1
+                        << (19 - ym2413Blocks[channel]));
+                    fprintf(out, "Tone F-num low bits: ch %1d -> %03d(%1d) = %8.2f Hz = %s",
+                        channel,
+                        ym2413FNumbers[channel],
+                        ym2413Blocks[channel],
+                        frequencyHz,
                         note_name(frequencyHz).c_str());
                     if (b1 >= 0x16)
                     {
@@ -328,14 +329,15 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                         double freq;
                         ym2413FNumbers[chan] = ym2413FNumbers[chan] & 0xff | (b2 & 1) << 8;
                         ym2413Blocks[chan] = (b2 & 0xE) >> 1;
-                        freq = static_cast<double>(ym2413FNumbers[chan]) * vgmHeader.YM2413Clock / 72 / (1 << (19 - ym2413Blocks[chan]));
-                        fprintf(out, "Tone F-n/bl/sus/key: ch %1d -> %03d(%1d) = %8.2f Hz = %s; sustain %s, key %s\n", 
-                            chan, 
-                            ym2413FNumbers[chan], 
-                            ym2413Blocks[chan], 
-                            freq, 
-                            note_name(freq).c_str(), 
-                            ON(b2&0x20), 
+                        freq = static_cast<double>(ym2413FNumbers[chan]) * vgmHeader.YM2413Clock / 72 / (1 << (19 -
+                            ym2413Blocks[chan]));
+                        fprintf(out, "Tone F-n/bl/sus/key: ch %1d -> %03d(%1d) = %8.2f Hz = %s; sustain %s, key %s\n",
+                            chan,
+                            ym2413FNumbers[chan],
+                            ym2413Blocks[chan],
+                            freq,
+                            note_name(freq).c_str(),
+                            ON(b2&0x20),
                             ON(b2&0x10));
                     }
                     else
@@ -359,11 +361,11 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 }
                 else
                 {
-                    fprintf(out, "Tone vol/instrument: ch %1d -> vol 0x%1x = %3d%%; inst 0x%1x = %-17s", 
-                        b1 & 0xf, 
-                        b2 & 0xf, 
-                        static_cast<int>((15 - (b2 & 0xf)) / 15.0 * 100), 
-                        b2 >> 4, 
+                    fprintf(out, "Tone vol/instrument: ch %1d -> vol 0x%1x = %3d%%; inst 0x%1x = %-17s",
+                        b1 & 0xf,
+                        b2 & 0xf,
+                        static_cast<int>((15 - (b2 & 0xf)) / 15.0 * 100),
+                        b2 >> 4,
                         ym2413Instruments[b2 >> 4].c_str());
                     if (b1 >= 0x36)
                     {
@@ -382,12 +384,12 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                             i2 = 2;
                             break;
                         }
-                        fprintf(out, " OR Percussion volume:   %s -> vol 0x%1x = %3d%%", 
-                            ym2413RhythmInstrumentNames[i1].c_str(), b2 & 0xf, 
+                        fprintf(out, " OR Percussion volume:   %s -> vol 0x%1x = %3d%%",
+                            ym2413RhythmInstrumentNames[i1].c_str(), b2 & 0xf,
                             static_cast<int>((15 - (b2 & 0xf)) / 15.0 * 100));
                         if (i2 > -1)
                         {
-                            fprintf(out, "; %s -> vol 0x%1x = %3d%%", ym2413RhythmInstrumentNames[i2].c_str(), b2 >> 4, 
+                            fprintf(out, "; %s -> vol 0x%1x = %3d%%", ym2413RhythmInstrumentNames[i2].c_str(), b2 >> 4,
                                 static_cast<int>((15 - (b2 >> 4)) / 15.0 * 100));
                         }
                     }
@@ -435,11 +437,11 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     break;
                 case 0x27: // Timer control/ch 3 mode
                     fprintf(out, "Timer control/ch 3 mode: ");
-                    fprintf(out, "timer A %s, set flag on overflow %s%s, ", ON(b2&0x1), ON(b2&4), 
+                    fprintf(out, "timer A %s, set flag on overflow %s%s, ", ON(b2&0x1), ON(b2&4),
                         b2 & 0x10 ? ", reset flag" : "");
-                    fprintf(out, "timer B %s, set flag on overflow %s%s, ", ON(b2&0x2), ON(b2&8), 
+                    fprintf(out, "timer B %s, set flag on overflow %s%s, ", ON(b2&0x2), ON(b2&8),
                         b2 & 0x20 ? ", reset flag" : "");
-                    fprintf(out, "ch 3 %s\n", 
+                    fprintf(out, "ch 3 %s\n",
                         (b2 & 0xc0) == 0
                             ? "normal mode"
                             : (b2 & 0xc0) == 1
@@ -511,7 +513,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     {
                         // Valid
                         fprintf(out, "ch %d op %d ", ch, op);
-                        fprintf(out, "-> 0x%02x = %3d%%\n", b2 & 0x7f, 
+                        fprintf(out, "-> 0x%02x = %3d%%\n", b2 & 0x7f,
                             static_cast<int>((127 - (b2 & 0x7f)) / 127.0 * 100));
                     }
                     else
@@ -628,18 +630,18 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
             b1 = gzgetc(in);
             b2 = gzgetc(in);
             SampleCount += b1 | b2 << 8;
-            fprintf(out, "%02x %02x Wait:   %5d samples (%7.2f ms) (total %8d samples (%d:%05.2f))\n", b1, b2, 
-                b1 | b2 << 8, (b1 | b2 << 8) / 44.1, SampleCount, SampleCount / 2646000, 
+            fprintf(out, "%02x %02x Wait:   %5d samples (%7.2f ms) (total %8d samples (%d:%05.2f))\n", b1, b2,
+                b1 | b2 << 8, (b1 | b2 << 8) / 44.1, SampleCount, SampleCount / 2646000,
                 SampleCount % 2646000 / 44100.0);
             break;
         case VGM_PAUSE_60TH: // Wait 1/60 s
             SampleCount += LEN60TH;
-            fprintf(out, "      Wait:     735 samples (1/60s)      (total %8d samples (%d:%05.2f))\n", SampleCount, 
+            fprintf(out, "      Wait:     735 samples (1/60s)      (total %8d samples (%d:%05.2f))\n", SampleCount,
                 SampleCount / 2646000, SampleCount % 2646000 / 44100.0);
             break;
         case VGM_PAUSE_50TH: // Wait 1/50 s
             SampleCount += LEN50TH;
-            fprintf(out, "      Wait:   882 samples (1/50s)      (total %8d samples (%d:%05.2f))\n", SampleCount, 
+            fprintf(out, "      Wait:   882 samples (1/50s)      (total %8d samples (%d:%05.2f))\n", SampleCount,
                 SampleCount / 2646000, SampleCount % 2646000 / 44100.0);
             break;
         //    case VGM_PAUSE_BYTE: // Wait n samples (byte)
@@ -665,7 +667,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         case 0x7f: // Wait 1-16 samples
             b1 = (b0 & 0xf) + 1;
             SampleCount += b1;
-            fprintf(out, "      Wait:   %5d samples (%7.2f ms) (total %8d samples (%d:%05.2f))\n", b1, b1 / 44.1, 
+            fprintf(out, "      Wait:   %5d samples (%7.2f ms) (total %8d samples (%d:%05.2f))\n", b1, b1 / 44.1,
                 SampleCount, SampleCount / 2646000, SampleCount % 2646000 / 44100.0);
             break;
         case VGM_END: // End of sound data... report
