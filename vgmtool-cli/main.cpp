@@ -3,13 +3,14 @@
 #include <libvgmtool/trim.h>
 #include <libvgmtool/writetotext.h>
 
-#include "libvgmtool/BinaryData.h"
 #include "libvgmtool/convert.h"
 #include "libvgmtool/Gd3Tag.h"
 #include "libvgmtool/utils.h"
 #include "libvgmtool/vgm.h"
+#include "libvgmtool/VgmFile.h"
 
 #include <libpu8/libpu8/libpu8.h>
+
 
 #ifdef WIN32
 #include <Windows.h>
