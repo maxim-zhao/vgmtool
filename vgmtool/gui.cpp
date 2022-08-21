@@ -275,7 +275,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                     {
                         break; // stop if rate = 0
                     }
-                    const int frameLength = 44100 / _currentFile.header().frame_rate();
+                    const int frameLength = 44100 / static_cast<int>(_currentFile.header().frame_rate());
                     for (const int control : {edtTrimStart, edtTrimLoop, edtTrimEnd})
                     {
                         try
@@ -320,49 +320,53 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 break;
             case cbPSGTone:
                 {
-                    const int Checked = IsDlgButtonChecked(_stripWnd, cbPSGTone);
+                    const bool checked = get_bool(_stripWnd, cbPSGTone);
                     for (int i = 0; i < 3; ++i)
                     {
-                        if (IsWindowEnabled(GetDlgItem(_stripWnd, _psgCheckBoxes[i])))
+                        if (IsWindowEnabled(GetDlgItem(_stripWnd, _psgCheckBoxes[i])) != 0)
                         {
-                            CheckDlgButton(
-                                _stripWnd, _psgCheckBoxes[i], Checked);
+                            CheckDlgButton(_stripWnd, _psgCheckBoxes[i], checked ? 1 : 0);
                         }
                     }
                 }
                 break;
             case cbYM2413Tone:
                 {
-                    const int Checked = IsDlgButtonChecked(_stripWnd, cbYM2413Tone);
+                    const bool checked = get_bool(_stripWnd, cbYM2413Tone);
                     for (int i = 0; i < 9; ++i)
                     {
-                        if (IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i])))
+                        if (IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i])) != 0)
                         {
-                            CheckDlgButton(_stripWnd, _ym2413CheckBoxes[i], Checked);
+                            CheckDlgButton(_stripWnd, _ym2413CheckBoxes[i], checked ? 1 : 0);
                         }
                     }
                 }
                 break;
             case cbYM2413Percussion:
                 {
-                    const int Checked = IsDlgButtonChecked(_stripWnd, cbYM2413Percussion);
+                    const bool checked = get_bool(_stripWnd, cbYM2413Percussion);
                     for (int i = 9; i < 14; ++i)
                     {
-                        if (IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i])))
+                        if (IsWindowEnabled(GetDlgItem(_stripWnd, _ym2413CheckBoxes[i])) != 0)
                         {
-                            CheckDlgButton(_stripWnd, _ym2413CheckBoxes[i], Checked);
+                            CheckDlgButton(_stripWnd, _ym2413CheckBoxes[i], checked ? 1 : 0);
                         }
                     }
                 }
                 break;
             case btnRateDetect:
                 {
-                    int i = detect_rate(_currentFilename, *this);
-                    if (i)
+                    show_status("Detecting VGM recording rate...");
+                    const int i = detect_rate(_currentFile);
+                    if (i != 0)
                     {
                         SetDlgItemInt(_headerWnd, edtPlaybackRate, i, FALSE);
+                        show_status(Utils::format("VGM rate detected as %dHz", i));
                     }
-                    // TODO: make sure VGM version is set high enough when updating header
+                    else
+                    {
+                        show_status("VGM rate not detected");
+                    }
                 }
                 break;
             case cbGD3SystemEn:

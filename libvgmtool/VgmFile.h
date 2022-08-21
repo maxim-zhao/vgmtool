@@ -4,6 +4,7 @@
 #include "Gd3Tag.h"
 #include "VgmHeader.h"
 
+
 class VgmFile
 {
     VgmHeader _header;
@@ -27,4 +28,13 @@ public:
         return _gd3Tag;
     }
 
+    [[nodiscard]] std::vector<uint8_t>& data()
+    {
+        return _data;
+    }
+
+    [[nodiscard]] const std::vector<uint8_t>& data() const
+    {
+        return _data;
+    }
 };

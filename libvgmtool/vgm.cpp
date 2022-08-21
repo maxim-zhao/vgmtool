@@ -5,6 +5,7 @@
 
 #include "IVGMToolCallback.h"
 #include "utils.h"
+#include "VgmFile.h"
 
 #define BUFFER_SIZE 5*1024 // 5KB buffer size for mass copying
 
@@ -459,39 +460,16 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
 //----------------------------------------------------------------------------------------------
 // Go through file, if I find a 1/50th or a 1/60th then I'll assume that's correct
 //----------------------------------------------------------------------------------------------
-int detect_rate(const std::string& filename, const IVGMToolCallback& callback)
+int detect_rate(const VgmFile& file)
 {
-    int b0, b1, b2;
-
-    if (!Utils::file_exists(filename))
+    const auto& data = file.data();
+    for (size_t i = 0; i < data.size(); ++i)
     {
-        return 0;
-    }
-
-    callback.show_status("Detecting VGM recording rate...");
-
-    gzFile in = gzopen(filename.c_str(), "rb");
-
-    // Read header
-    OldVGMHeader VGMHeader;
-    if (!ReadVGMHeader(in, &VGMHeader, callback))
-    {
-        callback.show_status("");
-        gzclose(in);
-        return 0;
-    }
-
-    gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
-
-    int Speed = 0;
-    do
-    {
-        b0 = gzgetc(in);
-        switch (b0)
+        switch (data[i])
         {
         case VGM_GGST: // GG stereo
         case VGM_PSG: // PSG write
-            gzseek(in, 1, SEEK_CUR);
+            ++i;
             break;
         case VGM_YM2413: // YM2413
         case VGM_YM2612_0: // YM2612 port 0
@@ -508,34 +486,26 @@ int detect_rate(const std::string& filename, const IVGMToolCallback& callback)
         case 0x5d:
         case 0x5e:
         case 0x5f: // Reserved up to 0x5f
-            break;
         case VGM_PAUSE_WORD:
-            // check if it's a 1/60 or 1/50 interval
-            b1 = gzgetc(in);
-            b2 = gzgetc(in);
-            switch (b1 | (b2 << 8))
+            // Check if it's a multiple of 1/50 or 1/60s (but not both)
             {
-            case LEN60TH:
-                Speed = 60;
-                b0 = EOF;
-                break;
-            case LEN50TH:
-                Speed = 50;
-                b0 = EOF;
-                break;
+                const auto low = data[++i];
+                const auto high = data[++i];
+                const auto duration = Utils::make_word(low, high);
+                if (duration % LEN50TH == 0 && duration % LEN60TH != 0)
+                {
+                    return 50;
+                }
+                if (duration % LEN50TH != 0 && duration % LEN60TH == 0)
+                {
+                    return 60;
+                }
             }
             break;
         case VGM_PAUSE_60TH: // Wait 1/60 s
-            Speed = 60;
-            b0 = EOF;
-            break;
+            return 60;
         case VGM_PAUSE_50TH: // Wait 1/50 s
-            Speed = 50;
-            b0 = EOF;
-            break;
-        //    case VGM_PAUSE_BYTE:
-        //      gzseek(in, 1, SEEK_CUR);
-        //      break;
+            return 50;
         case 0x70:
         case 0x71:
         case 0x72:
@@ -552,28 +522,12 @@ int detect_rate(const std::string& filename, const IVGMToolCallback& callback)
         case 0x7d:
         case 0x7e:
         case 0x7f: // Wait 1-16 samples
-            break;
         case VGM_END: // End of sound data
-            b0 = EOF; // make it break out
-            break;
         default:
             break;
         }
     }
-    while (b0 != EOF);
-
-    gzclose(in);
-
-    if (Speed)
-    {
-        callback.show_status(Utils::format("VGM rate detected as %dHz", Speed));
-    }
-    else
-    {
-        callback.show_status("VGM rate not detected");
-    }
-
-    return Speed;
+    return 0;
 }
 
 // Reads in header from file

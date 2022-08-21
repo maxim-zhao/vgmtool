@@ -3,7 +3,6 @@
 #include <stdexcept>
 
 #include "BinaryData.h"
-#include "utils.h"
 
 VgmFile::VgmFile(const std::string& filename)
 {

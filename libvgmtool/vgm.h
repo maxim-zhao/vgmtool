@@ -22,6 +22,7 @@
 
 #define VGMIDENT 0x206d6756 // "Vgm "
 
+class VgmFile;
 class IVGMToolCallback;
 
 struct OldVGMHeader
@@ -169,7 +170,7 @@ void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612
 
 void check_lengths(const std::string& filename, bool showResults, const IVGMToolCallback& callback);
 
-int detect_rate(const std::string& filename, const IVGMToolCallback& callback);
+int detect_rate(const VgmFile& file);
 
 bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IVGMToolCallback& callback);
 
