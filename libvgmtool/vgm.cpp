@@ -460,8 +460,9 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
 //----------------------------------------------------------------------------------------------
 // Go through file, if I find a 1/50th or a 1/60th then I'll assume that's correct
 //----------------------------------------------------------------------------------------------
-int detect_rate(const VgmFile& file)
+int detect_rate(const VgmFile& /*file*/)
 {
+    /* TODO 
     const auto& data = file.data();
     for (size_t i = 0; i < data.size(); ++i)
     {
@@ -527,6 +528,7 @@ int detect_rate(const VgmFile& file)
             break;
         }
     }
+    */
     return 0;
 }
 

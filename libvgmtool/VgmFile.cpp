@@ -1,5 +1,6 @@
 #include "VgmFile.h"
 
+#include <format>
 #include <stdexcept>
 
 #include "BinaryData.h"
@@ -33,8 +34,17 @@ void VgmFile::load_file(const std::string& filename)
     {
         throw std::runtime_error("Invalid data offsets imply no data");
     }
-    const auto byteCount = endOffset - dataOffset;
-    data.copy_range(_data, dataOffset, byteCount);
+    //const auto byteCount = endOffset - dataOffset;
+
+    data.seek(dataOffset);
+
+    _data.from_data(data, _header.loop_offset(), endOffset);
+
+    // Check for orphaned data
+    if (data.offset() < endOffset)
+    {
+        throw std::runtime_error(std::format("Unconsumed data in VGM file at offset {:x}", data.offset()));
+    }
 }
 
 void VgmFile::save_file(const std::string& filename)
@@ -46,7 +56,7 @@ void VgmFile::save_file(const std::string& filename)
 
     // Then the data
     // TODO if the header size changes then the pointers need to be rewritten
-    data.add_range(_data);
+    // TODO data.add_range(_data);
 
     // Then the GD3 tag. We could move this before the data now...
     if (!_gd3Tag.empty())
@@ -67,4 +77,41 @@ void VgmFile::save_file(const std::string& filename)
 
     // Finally, save to disk. We don't do compression here.
     data.save(filename + ".foo.vgm");
+}
+
+void VgmFile::check_header()
+{
+    // Check lengths
+    auto totalSampleCount = 0u;
+    auto loopStartSampleCount = 0u;
+
+    for (const auto* pCommand : _data.commands())
+    {
+        if (auto* pWait = dynamic_cast<const VgmCommands::IWait*>(pCommand); pWait != nullptr)
+        {
+            totalSampleCount += pWait->duration();
+        }
+        else if (auto* pLoop = dynamic_cast<const VgmCommands::LoopPoint*>(pCommand); pLoop != nullptr)
+        {
+            loopStartSampleCount = totalSampleCount;
+        }
+    }
+
+    const auto loopSampleCount = totalSampleCount - loopStartSampleCount;
+
+    if (_header.loop_sample_count() != loopStartSampleCount || _header.sample_count() != totalSampleCount)
+    {
+        throw std::runtime_error(std::format(
+            "Lengths:\n"
+            "In file:\n"
+            "Total: {} samples = {:.2f} seconds\n"
+            "Loop: {} samples = {:.2f} seconds\n"
+            "In header:\n"
+            "Total: {} samples = {:.2f} seconds\n"
+            "Loop: {} samples = {:.2f} seconds",
+            _header.sample_count(), _header.sample_count() / 44100.0,
+            _header.loop_sample_count(), _header.loop_sample_count() / 44100.0,
+            totalSampleCount, totalSampleCount / 44100.0,
+            loopSampleCount, loopSampleCount/ 44100.0));
+    }
 }

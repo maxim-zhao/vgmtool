@@ -1,5 +1,10 @@
 #include "VgmCommands.h"
 
+VgmCommands::OneByteCommand::OneByteCommand(BinaryData& data)
+{
+    OneByteCommand::from_data(data);
+}
+
 uint8_t VgmCommands::OneByteCommand::data() const
 {
     return _data;
@@ -18,6 +23,11 @@ void VgmCommands::OneByteCommand::from_data(BinaryData& data)
 void VgmCommands::OneByteCommand::to_data(BinaryData& data) const
 {
     data.write_uint8(_data);
+}
+
+VgmCommands::AddressDataCommand::AddressDataCommand(BinaryData& data)
+{
+    AddressDataCommand::from_data(data);
 }
 
 uint8_t VgmCommands::AddressDataCommand::register_() const
@@ -50,6 +60,10 @@ void VgmCommands::AddressDataCommand::to_data(BinaryData& data) const
 {
     data.write_uint8(_register);
     data.write_uint8(_data);
+}
+
+VgmCommands::Wait::Wait(BinaryData& data) {
+    Wait::from_data(data);
 }
 
 void VgmCommands::Wait::from_data(BinaryData& data)

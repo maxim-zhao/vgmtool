@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 
+#include "CommandStream.h"
 #include "Gd3Tag.h"
 #include "VgmHeader.h"
 
@@ -8,8 +9,8 @@
 class VgmFile
 {
     VgmHeader _header;
+    CommandStream _data;
     Gd3Tag _gd3Tag;
-    std::vector<uint8_t> _data;
 
 public:
     VgmFile() = default;
@@ -28,13 +29,6 @@ public:
         return _gd3Tag;
     }
 
-    [[nodiscard]] std::vector<uint8_t>& data()
-    {
-        return _data;
-    }
-
-    [[nodiscard]] const std::vector<uint8_t>& data() const
-    {
-        return _data;
-    }
+    // Checks the header. Throws on any errors found.
+    void check_header();
 };

@@ -244,8 +244,9 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 load_file(_currentFilename);
                 break;
             case btnCheckLengths:
-                check_lengths(_currentFilename, TRUE, *this);
-                load_file(_currentFilename);
+                //check_lengths(_currentFilename, TRUE, *this);
+                //load_file(_currentFilename);
+                _currentFile.check_header();
                 break;
             case btnTrim:
                 trim(

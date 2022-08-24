@@ -35,6 +35,12 @@ public:
         return _offset;
     }
 
+    [[nodiscard]]
+    bool at_end() const
+    {
+        return _offset == size();
+    }
+
     void copy_range(std::vector<unsigned char>& destination, uint32_t startIndex, uint32_t byteCount) const;
 
     // Write string with no terminator
@@ -53,6 +59,7 @@ public:
 
     // Save to disk
     void save(const std::string& filename) const;
+
 
 private:
     void check_write_space(size_t size);
