@@ -89,7 +89,7 @@ std::wstring Gui::get_utf16_string(HWND hDlg, int item)
     {
         // Non-empty string
         std::wstring s(length + 1, L'\0');
-        if (static_cast<int>(GetDlgItemTextW(hDlg, item, s.data(), length + 1)) == length)
+        if (static_cast<int>(GetDlgItemTextW(hDlg, item, s.data(), length + 1)) != length)
         {
             throw std::runtime_error("Failed to get text");
         }
@@ -246,7 +246,18 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
             case btnCheckLengths:
                 //check_lengths(_currentFilename, TRUE, *this);
                 //load_file(_currentFilename);
-                _currentFile.check_header();
+                try
+                {
+                    _currentFile.check_header(false);
+                    show_status("Header check OK");
+                }
+                catch (const std::exception& ex)
+                {
+                    if (show_question_message_box(std::format("Error found:\n{}\nDo you want to fix it?", ex.what())) == IDYES)
+                    {
+                        _currentFile.check_header(true);
+                    }
+                }
                 break;
             case btnTrim:
                 trim(

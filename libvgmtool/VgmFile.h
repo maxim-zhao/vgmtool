@@ -29,6 +29,6 @@ public:
         return _gd3Tag;
     }
 
-    // Checks the header. Throws on any errors found.
-    void check_header();
+    // Checks the header. Throws on any errors found if fix=false, else tries to fix them.
+    void check_header(bool fix);
 };

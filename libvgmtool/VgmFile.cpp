@@ -79,7 +79,7 @@ void VgmFile::save_file(const std::string& filename)
     data.save(filename + ".foo.vgm");
 }
 
-void VgmFile::check_header()
+void VgmFile::check_header(bool fix)
 {
     // Check lengths
     auto totalSampleCount = 0u;
@@ -99,19 +99,27 @@ void VgmFile::check_header()
 
     const auto loopSampleCount = totalSampleCount - loopStartSampleCount;
 
-    if (_header.loop_sample_count() != loopStartSampleCount || _header.sample_count() != totalSampleCount)
+    if (_header.loop_sample_count() != loopSampleCount || _header.sample_count() != totalSampleCount)
     {
-        throw std::runtime_error(std::format(
-            "Lengths:\n"
-            "In file:\n"
-            "Total: {} samples = {:.2f} seconds\n"
-            "Loop: {} samples = {:.2f} seconds\n"
-            "In header:\n"
-            "Total: {} samples = {:.2f} seconds\n"
-            "Loop: {} samples = {:.2f} seconds",
-            _header.sample_count(), _header.sample_count() / 44100.0,
-            _header.loop_sample_count(), _header.loop_sample_count() / 44100.0,
-            totalSampleCount, totalSampleCount / 44100.0,
-            loopSampleCount, loopSampleCount/ 44100.0));
+        if (fix)
+        {
+            _header.set_sample_count(totalSampleCount);
+            _header.set_loop_sample_count(loopSampleCount);
+        }
+        else
+        {
+            throw std::runtime_error(std::format(
+                "Lengths:\n"
+                "In file:\n"
+                "Total: {} samples = {:.2} seconds\n"
+                "Loop: {} samples = {:.2} seconds\n"
+                "In header:\n"
+                "Total: {} samples = {:.2} seconds\n"
+                "Loop: {} samples = {:.2} seconds",
+                _header.sample_count(), _header.sample_count() / 44100.0,
+                _header.loop_sample_count(), _header.loop_sample_count() / 44100.0,
+                totalSampleCount, totalSampleCount / 44100.0,
+                loopSampleCount, loopSampleCount / 44100.0));
+        }
     }
 }
