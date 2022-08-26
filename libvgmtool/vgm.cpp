@@ -178,7 +178,7 @@ void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const
         if (gzwrite(out, copybuffer, AmtRead) != AmtRead)
         {
             // Error copying file
-            callback.show_error(Utils::format("Error copying data to temporary file %s!", outfilename.c_str()));
+            callback.show_error(std::format("Error copying data to temporary file {}!", outfilename));
             gzclose(in);
             gzclose(out);
             std::filesystem::remove(outfilename);
@@ -416,14 +416,14 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
 
             if (showResults)
             {
-                callback.show_message(Utils::format(
+                callback.show_message(std::format(
                     "Lengths:\n"
                     "In file:\n"
-                    "Total: %d samples = %.2f seconds\n"
-                    "Loop: %d samples = %.2f seconds\n"
+                    "Total: {} samples = {:.2f} seconds\n"
+                    "Loop: {} samples = {:.2f} seconds\n"
                     "In header:\n"
-                    "Total: %d samples = %.2f seconds\n"
-                    "Loop: %d samples = %.2f seconds",
+                    "Total: {} samples = {:.2f} seconds\n"
+                    "Loop: {} samples = {:.2f} seconds",
                     sampleCount,
                     sampleCount / 44100.0,
                     loopSampleCount,

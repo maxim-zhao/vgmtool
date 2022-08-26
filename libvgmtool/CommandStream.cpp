@@ -18,10 +18,10 @@ CommandStream::CommandStream()
     register_command<VgmCommands::End>();
 }
 
-void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t max_offset)
+void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t end_offset)
 {
-    // TODO check for end of data
-    while (data.offset() < max_offset)
+    // TODO check for end of data?
+    while (data.offset() < end_offset)
     {
         // We inject a "loop point" virtual command here.
         if (data.offset() == loop_offset)
@@ -40,6 +40,14 @@ void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t m
 
         if (marker == VgmCommands::End::get_marker_static())
         {
+            if (data.offset() != end_offset)
+            {
+                throw std::runtime_error(std::format(
+                    "End of VGM data at offset {:x}, {} bytes unaccounted for before expected end at {:x}",
+                    data.offset() - 1,
+                    end_offset - data.offset(),
+                    end_offset));
+            }
             return;
         }
     }

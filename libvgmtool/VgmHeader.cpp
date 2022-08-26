@@ -1,5 +1,6 @@
 #include "VgmHeader.h"
 
+#include <format>
 #include <stdexcept>
 
 #include "utils.h"
@@ -22,7 +23,7 @@ void VgmHeader::from_binary(BinaryData& data)
     // Check ident
     if (const auto& ident = data.read_ascii_string(4); ident != VGM_IDENT)
     {
-        throw std::runtime_error(Utils::format("Invalid GD3 header ident \"%s\"", ident.c_str()));
+        throw std::runtime_error(std::format("Invalid GD3 header ident \"{}\"", ident));
     }
 
     _eofOffset = data.read_uint32() + EOF_DELTA;
@@ -41,7 +42,7 @@ void VgmHeader::from_binary(BinaryData& data)
     _version.from_binary(data);
     if (_version.major() != 1)
     {
-        throw std::runtime_error(Utils::format("Unsupported version %d.%02d", _version.major(), _version.minor()));
+        throw std::runtime_error(std::format("Unsupported version {}.{:02d}", _version.major(), _version.minor()));
     }
 
     const auto offsetC = data.read_uint32();
@@ -173,8 +174,7 @@ void VgmHeader::from_binary(BinaryData& data)
     {
         if (const auto b = data.read_uint8(); b != 0)
         {
-            throw std::runtime_error(Utils::format("Invalid header byte at offset 0x%x: value %02x", data.offset() - 1,
-                b));
+            throw std::runtime_error(std::format("Invalid header byte at offset 0x{:x}: value {:02x}", data.offset() - 1, b));
         }
     }
 }

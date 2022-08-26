@@ -11,12 +11,6 @@ class IVGMToolCallback;
 class Utils
 {
 public:
-    // printf() for std::strings
-#if defined(__RESHARPER__) || defined(__GNUC__)
-    [[gnu::format(printf, 1, 2)]]
-#endif
-    static std::string format(const char* format, ...);
-
     // Returns s in lowercase
     static std::string to_lower(const std::string& s);
 

@@ -1,10 +1,8 @@
-#include <cstdio>
 #include <cstdlib>
 #include <zlib.h>
 #include <filesystem>
 #include "utils.h"
 
-#include <codecvt>
 #include <fstream>
 #include <stdexcept>
 #include <vector>
@@ -67,7 +65,7 @@ void Utils::load_file(std::vector<uint8_t>& buffer, const std::string& filename)
     const auto f = gzopen(filename.c_str(), "rb");
     if (f == nullptr)
     {
-        throw std::runtime_error(format("Failed to open \"%s\"", filename.c_str()));
+        throw std::runtime_error(std::format("Failed to open \"{}\"", filename));
     }
     // Read into the vector
     constexpr int chunkSize = 256 * 1024;
@@ -82,7 +80,7 @@ void Utils::load_file(std::vector<uint8_t>& buffer, const std::string& filename)
         {
             int errorNumber;
             const char* error = gzerror(f, &errorNumber);
-            throw std::runtime_error(format("Error reading/decompressing \"%s\": %d: %s", filename.c_str(), errorNumber, error));
+            throw std::runtime_error(std::format("Error reading/decompressing \"{}\": {}: {}", filename, errorNumber, error));
         }
         // Resize to fit
         buffer.resize(sizeBefore + amountRead);
@@ -98,7 +96,7 @@ std::string Utils::make_temp_filename(const std::string& src)
 
     for (int i = 0; ; ++i)
     {
-        auto testPath = directory / format("%d.tmp", i);
+        auto testPath = directory / std::format("{}.tmp", i);
         if (!file_exists(testPath.string()))
         {
             return testPath.string();
@@ -109,8 +107,7 @@ std::string Utils::make_temp_filename(const std::string& src)
 std::string Utils::make_suffixed_filename(const std::string& src, const std::string& suffix)
 {
     std::filesystem::path p(src);
-    const auto& newFilename = format("%s (%s)%s", p.stem().string().c_str(), suffix.c_str(),
-        p.extension().string().c_str());
+    const auto& newFilename = std::format("{} ({}){}", p.stem().string(), suffix, p.extension().string());
     return p.replace_filename(newFilename).string();
 }
 
@@ -126,39 +123,6 @@ void Utils::replace_file(const std::string& destination, const std::string& sour
         std::filesystem::remove(destination);
     }
     std::filesystem::rename(source, destination);
-}
-
-std::string Utils::format(const char* format, ...)
-{
-    // Copy args to test length
-    va_list args;
-    va_list args_copy;
-
-    va_start(args, format);
-    va_copy(args_copy, args);
-
-    const int lengthNeeded = vsnprintf(nullptr, 0, format, args); // NOLINT(clang-diagnostic-format-nonliteral)
-    if (lengthNeeded < 0)
-    {
-        va_end(args_copy);
-        va_end(args);
-        throw std::runtime_error("vsnprintf error");
-    }
-
-    std::string result;
-    if (lengthNeeded > 0)
-    {
-        // Make a vector as it needs to be mutable
-        std::vector<char> buffer(lengthNeeded + 1);
-        vsnprintf(&buffer[0], buffer.size(), format, args_copy); // NOLINT(clang-diagnostic-format-nonliteral)
-        // Then copy into a string
-        result = std::string(&buffer[0], lengthNeeded);
-    }
-
-    va_end(args_copy);
-    va_end(args);
-
-    return result;
 }
 
 std::string Utils::to_lower(const std::string& s)

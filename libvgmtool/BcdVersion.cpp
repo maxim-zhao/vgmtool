@@ -1,5 +1,6 @@
 #include "BcdVersion.h"
 
+#include <format>
 #include <stdexcept>
 
 #include "utils.h"
@@ -10,7 +11,7 @@ void BcdVersion::from_binary(BinaryData& data)
     const auto i = data.read_uint32();
     if ((i & 0xffff0000u) != 0)
     {
-        throw std::runtime_error(Utils::format("Invalid version: non-zero padding: \"%04x\"", i));
+        throw std::runtime_error(std::format("Invalid version: non-zero padding: \"{:04x}\"", i));
     }
     // We parse the version as two BCD bytes.
     _major = from_bcd((i >> 8u) & 0xffu);
@@ -26,7 +27,7 @@ int BcdVersion::from_bcd(uint32_t bcd)
         const auto digit = bcd & 0xf;
         if (digit > 9)
         {
-            throw std::runtime_error(Utils::format("Invalid BCD number \"%02x\"", bcd));
+            throw std::runtime_error(std::format("Invalid BCD number \"{:02x}\"", bcd));
         }
         result += static_cast<int>(digit) * multiplier;
         multiplier *= 10;

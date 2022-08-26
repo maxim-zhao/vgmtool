@@ -130,7 +130,7 @@ void Convert::gymToVgm(const std::string& filename, gzFile in, gzFile out, OldVG
         if (header.compressed)
         {
             // Can't handle that
-            throw std::runtime_error(Utils::format("Cannot convert compressed GYM \"%s\" - see vgmtool.txt", filename.c_str()));
+            throw std::runtime_error(std::format("Cannot convert compressed GYM \"{}\" - see vgmtool.txt", filename));
         }
 
         // To do: put the tag information in a GD3, handle looping
@@ -210,7 +210,7 @@ bool Convert::to_vgm(const std::string& filename, const IVGMToolCallback& callba
     // Make output filename filename.ext.vgm
     const auto outFilename = filename + ".vgm";
 
-    callback.show_status(Utils::format("Converting \"%s\" to VGM format...", filename.c_str()));
+    callback.show_status(std::format("Converting \"{}\" to VGM format...", filename));
 
     enum class file_type
     {
@@ -234,8 +234,10 @@ bool Convert::to_vgm(const std::string& filename, const IVGMToolCallback& callba
     }
     else
     {
-        throw std::runtime_error(Utils::format(R"(Unable to convert "%s" to VGM: unknown extension "%s")",
-            filename.c_str(), extension.c_str()));
+        throw std::runtime_error(std::format(
+            R"(Unable to convert "{}" to VGM: unknown extension "{}")",
+            filename, 
+            extension));
     }
 
     // Open files
@@ -343,14 +345,14 @@ bool Convert::to_vgm(const std::string& filename, const IVGMToolCallback& callba
         Utils::compress(outFilename);
 
         // Report
-        callback.show_conversion_progress(Utils::format(R"(Converted "%s" to "%s")", filename.c_str(), outFilename.c_str()));
+        callback.show_conversion_progress(std::format(R"(Converted "{}" to "{}")", filename, outFilename));
     }
     catch (const std::exception& e)
     {
         gzclose(out);
         gzclose(in);
         std::filesystem::remove(outFilename.c_str());
-        callback.show_error(Utils::format("Error converting \"%s\" to VGM: %s", filename.c_str(), e.what()));
+        callback.show_error(std::format("Error converting \"{}\" to VGM: {}", filename, e.what()));
         return false;
     }
 

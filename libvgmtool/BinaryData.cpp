@@ -1,5 +1,6 @@
 #include "BinaryData.h"
 
+#include <format>
 #include <stdexcept>
 #include <fstream>
 
@@ -14,7 +15,7 @@ void BinaryData::seek(const unsigned int offset)
 {
     if (offset < 0 || static_cast<size_t>(offset) > _data.size())
     {
-        throw std::runtime_error(Utils::format("Cannot seek to offset 0x%x as it is beyond the data size (%llu bytes)", offset, _data.size()));
+        throw std::runtime_error(std::format("Cannot seek to offset 0x{:x} as it is beyond the data size ({} bytes)", offset, _data.size()));
     }
     _offset = offset;
 }

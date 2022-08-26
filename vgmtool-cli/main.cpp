@@ -100,7 +100,8 @@ int main_utf8(int argc, char** argv)
            ->set_help_all_flag("--help-all", "Show all subcommands help");
         app.add_flag("-v, --verbose", callback.is_verbose, "Print messages while working");
 
-        const auto* toTextVerb = app.add_subcommand("totext", "Emits a text file conversion of the VGM file");
+        auto* toTextVerb = app.add_subcommand("totext", "Emits a text file conversion of the VGM file");
+        toTextVerb->add_option("--output", "Fllename to output to. If not specified, output to stdout.");
 
         auto* trimVerb = app.add_subcommand("trim", "Trim the file");
         int start;
@@ -137,7 +138,8 @@ int main_utf8(int argc, char** argv)
         {
             if (toTextVerb->parsed())
             {
-                write_to_text(filename, callback);
+                auto* output = toTextVerb->get_option("--output");
+                write_to_text(filename, callback, output->empty(), output->as<std::string>());
             }
 
             if (trimVerb->parsed())

@@ -1,5 +1,6 @@
 #include "Gd3Tag.h"
 
+#include <format>
 #include <stdexcept>
 #include <ranges>
 
@@ -17,14 +18,14 @@ void Gd3Tag::from_binary(BinaryData& data)
     // Check header
     if (const auto& ident = data.read_ascii_string(4); ident != GD3_IDENT)
     {
-        throw std::runtime_error(Utils::format("Invalid GD3 header ident \"%s\"", ident.c_str()));
+        throw std::runtime_error(std::format("Invalid GD3 header ident \"{}\"", ident));
     }
 
     _version.from_binary(data);
 
     if (_version.major() != 1 || _version.minor() != 0)
     {
-        throw std::runtime_error(Utils::format("Invalid GD3 version %d.%02d", _version.major(), _version.minor()));
+        throw std::runtime_error(std::format("Invalid GD3 version {}.{:02}", _version.major(), _version.minor()));
     }
 
     // Now read the strings

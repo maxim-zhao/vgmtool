@@ -11,7 +11,7 @@ public:
     CommandStream();
     // explicit CommandStream(BinaryData& data);
 
-    void from_data(BinaryData& data, uint32_t loop_offset, uint32_t max_offset);
+    void from_data(BinaryData& data, uint32_t loop_offset, uint32_t end_offset);
 
     std::vector<VgmCommands::ICommand*>& commands()
     {

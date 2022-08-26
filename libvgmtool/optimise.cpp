@@ -1,5 +1,6 @@
 #include "optimise.h"
 #include <cstdio>
+#include <format>
 #include <zlib.h>
 #include "vgm.h"
 #include "trim.h"
@@ -819,7 +820,7 @@ bool round_to_frame_accurate(const std::string& filename, const IVGMToolCallback
         }
     }
 
-    auto s = Utils::format("Slots (max %d):\n", maxcount);
+    auto s = std::format("Slots (max {}):\n", maxcount);
 
     maxcount /= 9;
 

@@ -4,6 +4,7 @@
 #include <cmath>
 #include "writetotext.h"
 
+#include <format>
 #include <string>
 #include <vector>
 
@@ -24,8 +25,8 @@ std::string note_name(const double frequencyHz)
     const double midiNote = (log(frequencyHz) - log(440)) / log(2) * 12 + 69;
     const int nearestNote = static_cast<int>(std::round(midiNote));
     const char* noteNames[] = {"A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"};
-    return Utils::format(
-        "%2s%-2d %+3d",
+    return std::format(
+        "{:>2}{:<2} {:>+3}",
         noteNames[abs(nearestNote - 21) % 12],
         (nearestNote - 24) / 12 + 1,
         static_cast<int>((midiNote - nearestNote) * 100 + ((nearestNote < midiNote) ? +0.5 : -0.5))
@@ -37,7 +38,7 @@ std::string note_name(const double frequencyHz)
 // No handling of YM2151
 // YM2413 needs checking
 // TODO: display GD3 too - maybe use UTF-8?
-void write_to_text(const std::string& filename, const IVGMToolCallback& callback)
+void write_to_text(const std::string& filename, const IVGMToolCallback& callback, bool toStdOut, const std::string& outputFilename)
 {
     int SampleCount = 0;
     int b0, b1, b2;
@@ -73,11 +74,17 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         return;
     }
 
-    auto outFilename = filename + ".txt";
-
-    callback.show_status(Utils::format("Writing VGM data to text in \"%s\"...", outFilename.c_str()));
-
-    FILE* out = fopen(outFilename.c_str(), "w");
+    FILE* out;
+    if (toStdOut)
+    {
+        out = stdout;
+    }
+    else
+    {
+        auto outFilename = filename.empty() ? filename + ".txt" : outputFilename;
+        out = fopen(outFilename.c_str(), "w");
+        callback.show_status(std::format("Writing VGM data to text in \"{}\"...", outFilename));
+    }
 
     gzFile in = gzopen(filename.c_str(), "rb");
 
@@ -688,7 +695,10 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
 #endif;
 
     gzclose(in);
-    fclose(out);
+    if (!toStdOut)
+    {
+        fclose(out);
+    }
 
     callback.show_status("Write to text complete");
 }

@@ -746,8 +746,8 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
 
     if (end > static_cast<int>(vgmHeader.TotalLength))
     {
-        callback.show_message(Utils::format(
-            "End point (%d samples) beyond end of file!\nUsing maximum value of %d samples instead",
+        callback.show_message(std::format(
+            "End point ({} samples) beyond end of file!\nUsing maximum value of {} samples instead",
             end,
             vgmHeader.TotalLength));
         end = static_cast<int>(vgmHeader.TotalLength);
@@ -1185,10 +1185,10 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
 
     callback.show_status("Trimming complete");
 
-    callback.show_status(Utils::format(
-        "File %s to %s Uncompressed file size %d -> %d bytes (%+.2f%%)",
+    callback.show_status(std::format(
+        "File {} to {} Uncompressed file size {} -> {} bytes ({:+.2f}%)",
         (overWrite ? "optimised" : "trimmed"),
-        outFilename.c_str(),
+        outFilename,
         fileSizeBefore,
         fileSizeAfter,
         (static_cast<double>(fileSizeAfter) - fileSizeBefore) * 100 / fileSizeBefore));

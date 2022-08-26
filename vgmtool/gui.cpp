@@ -259,7 +259,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                     *this);
                 break;
             case btnWriteToText:
-                write_to_text(_currentFilename, *this);
+                write_to_text(_currentFilename, *this, false, "");
                 break;
             case btnOptimise:
                 optimize(_currentFilename);
@@ -362,7 +362,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                     if (i != 0)
                     {
                         SetDlgItemInt(_headerWnd, edtPlaybackRate, i, FALSE);
-                        show_status(Utils::format("VGM rate detected as %dHz", i));
+                        show_status(std::format("VGM rate detected as {}Hz", i));
                     }
                     else
                     {
@@ -608,7 +608,7 @@ void Gui::load_file(const std::string& filename)
     }
     catch (const std::exception& e)
     {
-        show_error(Utils::format("Failed to load \"%s\":\n%s", filename.c_str(), e.what()));
+        show_error(std::format("Failed to load \"{}\":\n{}", filename, e.what()));
         _currentFilename.clear();
         SetDlgItemText(_hWndMain, edtFileName, "Drop a file onto the window to load");
         show_status("");
@@ -624,12 +624,12 @@ void Gui::load_file(const std::string& filename)
     // Lengths
     int minutes = static_cast<int>(_currentFile.header().sample_count()) / 44100 / 60;
     int seconds = static_cast<int>(_currentFile.header().sample_count()) / 44100 - minutes * 60;
-    SetDlgItemText(_headerWnd, edtLengthTotal, Utils::format("%d:%02d", minutes, seconds).c_str());
+    SetDlgItemText(_headerWnd, edtLengthTotal, std::format("{}:{:02d}", minutes, seconds).c_str());
     if (_currentFile.header().loop_sample_count() > 0)
     {
         minutes = static_cast<int>(_currentFile.header().loop_sample_count()) / 44100 / 60;
         seconds = static_cast<int>(_currentFile.header().loop_sample_count()) / 44100 - minutes * 60;
-        SetDlgItemText(_headerWnd, edtLengthLoop, Utils::format("%d:%02d", minutes, seconds).c_str());
+        SetDlgItemText(_headerWnd, edtLengthLoop, std::format("{}:{:02d}", minutes, seconds).c_str());
     }
     else
     {
@@ -637,9 +637,10 @@ void Gui::load_file(const std::string& filename)
     }
 
     // Version
-    SetDlgItemText(_headerWnd, edtVersion,
-        Utils::format("%d.%02d", _currentFile.header().version().major(),
-            _currentFile.header().version().minor()).c_str());
+    SetDlgItemText(_headerWnd, edtVersion, std::format(
+        "{}:{:02d}", 
+        _currentFile.header().version().major(),
+        _currentFile.header().version().minor()).c_str());
 
     // Clock speeds
     SetDlgItemInt(_headerWnd, edtPSGClock, _currentFile.header().clock(VgmHeader::Chip::SN76489), FALSE);
@@ -648,8 +649,9 @@ void Gui::load_file(const std::string& filename)
     SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFile.header().clock(VgmHeader::Chip::YM2151), FALSE);
 
     // PSG settings
-    SetDlgItemText(_headerWnd, edtPSGFeedback,
-        Utils::format("0x%04x", _currentFile.header().sn76489_feedback()).c_str());
+    SetDlgItemText(_headerWnd, edtPSGFeedback, std::format(
+        "0x{:04x}", 
+        _currentFile.header().sn76489_feedback()).c_str());
     SetDlgItemInt(_headerWnd, edtPSGSRWidth, _currentFile.header().sn76489_shift_register_width(), FALSE);
 
     // GD3 tag
@@ -741,8 +743,7 @@ void Gui::convert_dropped_files(HDROP hDrop) const
 
     DragFinish(hDrop);
 
-    show_conversion_progress(Utils::format("%d of %d file(s) successfully converted in %dms", numConverted, numFiles,
-        GetTickCount() - startTime));
+    show_conversion_progress(std::format("{} of {} file(s) successfully converted in {}ms", numConverted, numFiles, GetTickCount() - startTime));
 }
 
 void Gui::update_header()
@@ -760,7 +761,7 @@ void Gui::update_header()
     }
     else
     {
-        throw std::runtime_error(Utils::format("Invalid version \"%s\"", s.c_str()));
+        throw std::runtime_error(std::format("Invalid version \"{}\"", s));
     }
 
     _currentFile.header().set_clock(VgmHeader::Chip::SN76489, get_int(_headerWnd, edtPSGClock));
@@ -815,13 +816,13 @@ void Gui::optimize(const std::string& filename) const
     gzclose(in);
     const auto fileSizeAfter = VGMHeader.EoFOffset + EOFDELTA;
 
-    if (show_question_message_box(Utils::format(
+    if (show_question_message_box(std::format(
         "File optimised to\n"
-        "%s\n"
-        "%d offsets/silent PSG writes removed, \n"
-        "Uncompressed file size %d -> %d bytes (%+.2f%%)\n"
+        "{}\n"
+        "{} offsets/silent PSG writes removed, \n"
+        "Uncompressed file size {} -> {} bytes ({:+.2f}%)\n"
         "Do you want to open it in the associated program?",
-        filename.c_str(),
+        filename,
         NumOffsetsRemoved,
         fileSizeBefore,
         fileSizeAfter,
@@ -1031,9 +1032,9 @@ void Gui::strip_checked(const std::string& filename) const
 
     show_status("Data stripping complete");
 
-    if (show_question_message_box(Utils::format(
-        "Stripped VGM data written to\n%s\nDo you want to open it in the associated program?",
-        Outfilename.c_str())) == IDYES)
+    if (show_question_message_box(std::format(
+        "Stripped VGM data written to\n{}\nDo you want to open it in the associated program?",
+        Outfilename)) == IDYES)
     {
         ShellExecute(_hWndMain, "open", Outfilename.c_str(), nullptr, nullptr, SW_NORMAL);
     }
@@ -1412,7 +1413,7 @@ void Gui::copy_lengths_to_clipboard() const
     WideCharToMultiByte(CP_ACP, 0, result.data(), static_cast<int>(result.size()), strTo.data(), sizeNeeded, nullptr,
         nullptr);
 
-    show_status(Utils::format("Copied: \"%s\"", strTo.c_str()));
+    show_status(std::format("Copied: \"{}\"", strTo));
 }
 
 // Check checkboxes and show numbers for how many times each channel/data type is used
@@ -1487,7 +1488,7 @@ void Gui::update_write_count(const std::vector<int>& ids, const std::vector<int>
         // And add the new one
         if (counts[i] > 0)
         {
-            s = Utils::format("%s (%d)", s.c_str(), counts[i]);
+            s = std::format("{} ({})", s, counts[i]);
         }
         SetDlgItemText(_stripWnd, ids[i], s.c_str());
         EnableWindow(GetDlgItem(_stripWnd, ids[i]), counts[i] > 0);
