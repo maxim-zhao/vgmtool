@@ -101,24 +101,20 @@ int main_utf8(int argc, char** argv)
         app.add_flag("-v, --verbose", callback.is_verbose, "Print messages while working");
 
         auto* toTextVerb = app.add_subcommand("totext", "Emits a text file conversion of the VGM file");
-        toTextVerb->add_option("--output", "Fllename to output to. If not specified, output to stdout.");
+        toTextVerb->add_option("--output", "Filename to output to. If not specified, output to stdout.")->check(CLI::NonexistentPath);
+        toTextVerb->add_flag("--fortxt", "Emit only the title and times for use in generating a description text file");
 
         auto* trimVerb = app.add_subcommand("trim", "Trim the file");
-        int start;
-        int loop = -1;
-        int end;
-        bool logTrim;
-        trimVerb->add_option("--start", start, "Trim start point in samples")->required()->
+        trimVerb->add_option("--start", "Trim start point in samples")->required()->
                   check(CLI::NonNegativeNumber);
-        trimVerb->add_option("--loop", loop, "Trim loop point in samples")->check(CLI::NonNegativeNumber);
-        trimVerb->add_option("--end", end, "Trim end point in samples")->required()->check(CLI::NonNegativeNumber);
-        trimVerb->add_flag("--log", logTrim, "Log trim points to editpoints.txt");
+        trimVerb->add_option("--loop", "Trim loop point in samples")->check(CLI::NonNegativeNumber);
+        trimVerb->add_option("--end", "Trim end point in samples")->required()->check(CLI::NonNegativeNumber);
+        trimVerb->add_flag("--log", "Log trim points to editpoints.txt");
 
         const auto* checkVerb = app.add_subcommand("check", "Check the VGM file(s) for errors");
 
         auto* compressVerb = app.add_subcommand("compress", "Compress VGM file(s)");
-        int compressionIterations;
-        compressVerb->add_option("--iterations", compressionIterations, "Zopfli compression iterations")
+        compressVerb->add_option("--iterations", "Zopfli compression iterations")
                     ->default_val(15);
 
         auto* decompressVerb = app.add_subcommand("decompress", "Decompress VGM file(s)");
@@ -138,13 +134,20 @@ int main_utf8(int argc, char** argv)
         {
             if (toTextVerb->parsed())
             {
-                auto* output = toTextVerb->get_option("--output");
+                const auto* output = toTextVerb->get_option("--output");
                 write_to_text(filename, callback, output->empty(), output->as<std::string>());
             }
 
             if (trimVerb->parsed())
             {
-                trim(filename, start, loop, end, false, logTrim, callback);
+                trim(
+                    filename,
+                    trimVerb->get_option("--start")->as<int>(),
+                    trimVerb->get_option("--loop")->as<int>(),
+                    trimVerb->get_option("--end")->as<int>(),
+                    false,
+                    trimVerb->get_option("--logTrim")->as<bool>(),
+                    callback);
             }
 
             if (checkVerb->parsed())
@@ -154,7 +157,7 @@ int main_utf8(int argc, char** argv)
 
             if (compressVerb->parsed())
             {
-                Utils::compress(filename, compressionIterations);
+                Utils::compress(filename, compressVerb->get_option("--iterations")->as<int>());
             }
 
             if (decompressVerb->parsed())
