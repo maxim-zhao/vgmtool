@@ -141,6 +141,21 @@ void VgmHeader::from_binary(BinaryData& data)
         _ym2203ay8910Flags = data.read_uint8();
         _ym2608ay8910Flags = data.read_uint8();
 
+        // Pull out "dual chip" bits
+        check_second_chip_bit(Chip::YM2413);
+        check_second_chip_bit(Chip::YM2612);
+        check_second_chip_bit(Chip::YM2151);
+        check_second_chip_bit(Chip::YM2203);
+        check_second_chip_bit(Chip::YM2608);
+        check_second_chip_bit(Chip::YM2610);
+        check_second_chip_bit(Chip::YM3812);
+        check_second_chip_bit(Chip::YM3526);
+        check_second_chip_bit(Chip::Y8950);
+        check_second_chip_bit(Chip::YMF262);
+        check_second_chip_bit(Chip::YMF278B);
+        check_second_chip_bit(Chip::YMF271);
+        check_second_chip_bit(Chip::YMZ280B);
+
         if (_version.at_least(1, 60))
         {
             _volumeModifier = data.read_uint8();
@@ -291,4 +306,12 @@ bool VgmHeader::flag(const Flag flag) const
         return false;
     }
     return it->second;
+}
+
+void VgmHeader::check_second_chip_bit(Chip chip)
+{
+    // Set flag from bit 30
+    _haveSecondChip[chip] = (_clocks[chip] & (1 << 30)) != 0;
+    // Clear bits 30-31
+    _clocks[chip] &= 0b00111111111111111111111111111111;
 }

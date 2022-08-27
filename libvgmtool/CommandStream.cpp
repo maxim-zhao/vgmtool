@@ -7,7 +7,11 @@
 CommandStream::CommandStream()
 {
     // Register all the commands we have handlers for
+    // 0x30 to 0x4e: reserved
+    register_command<VgmCommands::ReservedCommand<1>>(0x30, 0x4e);
+    // 0x4f: GG stereo
     register_command<VgmCommands::GGStereo>();
+    // 0x50-0x5f: chip commands
     register_command<VgmCommands::SN76489>();
     register_command<VgmCommands::YM2413>();
     register_command<VgmCommands::YM2612Port0>();
@@ -25,46 +29,56 @@ CommandStream::CommandStream()
     register_command<VgmCommands::YMF262Port0>();
     register_command<VgmCommands::YMF262Port1>();
     // 0x60 undefined
-    register_command<VgmCommands::Wait>();
+    // 0x61-0x63: wait commands
+    register_command<VgmCommands::Wait16bit>();
     register_command<VgmCommands::Wait60th>();
     register_command<VgmCommands::Wait50th>();
     // 0x64, 0x65 undefined
+    // 0x66-0x68: end, data blocks, PCM writes
     register_command<VgmCommands::End>();
     register_command<VgmCommands::DataBlock>();
     register_command<VgmCommands::PcmRamWrite>();
     // 0x69 to 0x6f undefined
-    register_command<VgmCommands::WaitN<0x70>>();
-    register_command<VgmCommands::WaitN<0x71>>();
-    register_command<VgmCommands::WaitN<0x72>>();
-    register_command<VgmCommands::WaitN<0x73>>();
-    register_command<VgmCommands::WaitN<0x74>>();
-    register_command<VgmCommands::WaitN<0x75>>();
-    register_command<VgmCommands::WaitN<0x76>>();
-    register_command<VgmCommands::WaitN<0x77>>();
-    register_command<VgmCommands::WaitN<0x78>>();
-    register_command<VgmCommands::WaitN<0x79>>();
-    register_command<VgmCommands::WaitN<0x7a>>();
-    register_command<VgmCommands::WaitN<0x7b>>();
-    register_command<VgmCommands::WaitN<0x7c>>();
-    register_command<VgmCommands::WaitN<0x7d>>();
-    register_command<VgmCommands::WaitN<0x7e>>();
-    register_command<VgmCommands::WaitN<0x7f>>();
-    register_command<VgmCommands::YM2612Sample<0x80>>();
-    register_command<VgmCommands::YM2612Sample<0x81>>();
-    register_command<VgmCommands::YM2612Sample<0x82>>();
-    register_command<VgmCommands::YM2612Sample<0x83>>();
-    register_command<VgmCommands::YM2612Sample<0x84>>();
-    register_command<VgmCommands::YM2612Sample<0x85>>();
-    register_command<VgmCommands::YM2612Sample<0x86>>();
-    register_command<VgmCommands::YM2612Sample<0x87>>();
-    register_command<VgmCommands::YM2612Sample<0x88>>();
-    register_command<VgmCommands::YM2612Sample<0x89>>();
-    register_command<VgmCommands::YM2612Sample<0x8a>>();
-    register_command<VgmCommands::YM2612Sample<0x8b>>();
-    register_command<VgmCommands::YM2612Sample<0x8c>>();
-    register_command<VgmCommands::YM2612Sample<0x8d>>();
-    register_command<VgmCommands::YM2612Sample<0x8e>>();
-    register_command<VgmCommands::YM2612Sample<0x8f>>();
+    // 0x70-0x7f: 4-bit waits
+    register_command<VgmCommands::Wait4bit>(0x70, 0x7f);
+    // 0x80-0x8f: YM2612 samples with waits
+    register_command<VgmCommands::YM2612Sample>(0x80, 0x8f);
+    // 0x90-0x95: DAC stream control
+    register_command<VgmCommands::DacStreamControlSetup>();
+    // 0xa0-0xaf: AY8910, and "second" YM chips
+    register_command<VgmCommands::AY8910>();
+    register_command<VgmCommands::YM2413_Second>();
+    register_command<VgmCommands::YM2612Port0_Second>();
+    register_command<VgmCommands::YM2612Port1_Second>();
+    register_command<VgmCommands::YM2151_Second>();
+    register_command<VgmCommands::YM2203_Second>();
+    register_command<VgmCommands::YM2608Port0_Second>();
+    register_command<VgmCommands::YM2608Port1_Second>();
+    register_command<VgmCommands::YM2610Port0_Second>();
+    register_command<VgmCommands::YM2610Port1_Second>();
+    register_command<VgmCommands::YM3812_Second>();
+    register_command<VgmCommands::YM3526_Second>();
+    register_command<VgmCommands::Y8950_Second>();
+    register_command<VgmCommands::YMZ280B_Second>();
+    register_command<VgmCommands::YMF262Port0_Second>();
+    register_command<VgmCommands::YMF262Port1_Second>();
+    // 0xb0-0xbf: 2-byte commands
+    register_command<VgmCommands::RF5C68Register>();
+    register_command<VgmCommands::RF5C164Register>();
+    register_command<VgmCommands::PWM>();
+    register_command<VgmCommands::ReservedCommand<2>>(0xb3, 0xbf);
+    // 0xc0-0xcf: 3-byte commands
+    register_command<VgmCommands::SegaPCM>();
+    register_command<VgmCommands::RF5C68Memory>();
+    register_command<VgmCommands::RF5C164Memory>();
+    register_command<VgmCommands::ReservedCommand<3>>(0xc3, 0xcf);
+    // 0xd0-0xdf: 3-byte commands
+    register_command<VgmCommands::YMF278B>();
+    register_command<VgmCommands::YMF271>();
+    register_command<VgmCommands::ReservedCommand<3>>(0xd2, 0xdf);
+    // 0xe0-0xef: 4-byte commands
+    register_command<VgmCommands::PCMSeek>();
+    register_command<VgmCommands::ReservedCommand<4>>(0xe1, 0xef);
 
     // Then register everything else
     // - Some ranges are reserved
@@ -93,7 +107,7 @@ void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t e
             _data.push_back(new VgmCommands::LoopPoint());
         }
 
-        const auto marker = data.read_uint8();
+        const auto marker = data.peek();
         auto it = _commandGenerators.find(marker);
         if (it == _commandGenerators.end())
         {
@@ -102,7 +116,7 @@ void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t e
         auto pCommand = it->second(data);
         _data.push_back(pCommand);
 
-        if (marker == VgmCommands::End::get_marker_static())
+        if (dynamic_cast<VgmCommands::End*>(pCommand) != nullptr)
         {
             if (data.offset() != end_offset)
             {
@@ -122,8 +136,35 @@ void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t e
 template <typename T>
 void CommandStream::register_command()
 {
-    _commandGenerators.insert(std::make_pair(T::get_marker_static(), [&](BinaryData& data)
+    // We make one temporarily in order to get its marker
+    T temp;
+    const auto marker = temp.get_marker();
+    if (_commandGenerators.contains(marker))
     {
-        return new T(data);
+        throw std::runtime_error(std::format("Registering type {:x} for a second time", marker));
+    }
+    _commandGenerators.insert(std::make_pair(marker, [&](BinaryData& data)
+    {
+        T* t = new T();
+        t->from_data(data);
+        return t;
     }));
+}
+
+template <typename T>
+void CommandStream::register_command(uint8_t min, uint8_t max)
+{
+    for (auto marker = min; marker <= max; ++marker)
+    {
+        if (_commandGenerators.contains(marker))
+        {
+            throw std::runtime_error(std::format("Registering type {:x} for a second time", marker));
+        }
+        _commandGenerators.insert(std::make_pair(marker, [&](BinaryData& data)
+        {
+            T* t = new T();
+            t->from_data(data);
+            return t;
+        }));
+    }
 }

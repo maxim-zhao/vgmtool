@@ -10,6 +10,11 @@ public:
     VgmHeader() = default;
     ~VgmHeader() = default;
 
+    VgmHeader(const VgmHeader& other) = delete;
+    VgmHeader(VgmHeader&& other) noexcept = delete;
+    VgmHeader& operator=(const VgmHeader& other) = delete;
+    VgmHeader& operator=(VgmHeader&& other) noexcept = delete;
+
     void from_binary(BinaryData& data);
 
     enum class ay8910_chip_types
@@ -84,7 +89,7 @@ public:
         return _segaPcmInterfaceRegister;
     }
 
-    [[nodiscard]] ::VgmHeader::ay8910_chip_types ay8910_chip_type() const
+    [[nodiscard]] ay8910_chip_types ay8910_chip_type() const
     {
         return _ay8910ChipType;
     }
@@ -251,6 +256,8 @@ public:
     [[nodiscard]] bool flag(Flag flag) const;
 
 private:
+    void check_second_chip_bit(::VgmHeader::Chip chip);
+
     uint32_t _eofOffset{};
     BcdVersion _version{};
     std::unordered_map<Chip, uint32_t> _clocks;
@@ -266,11 +273,12 @@ private:
     uint32_t _dataOffset{};
     uint32_t _segaPcmInterfaceRegister{};
 
-    ay8910_chip_types _ay8910ChipType;
+    ay8910_chip_types _ay8910ChipType{};
     uint8_t _ay8910Flags{};
     uint8_t _ym2203ay8910Flags{};
     uint8_t _ym2608ay8910Flags{};
     uint8_t _volumeModifier{};
     uint8_t _loopBase{};
     uint8_t _loopModifier{};
+    std::unordered_map<Chip, bool> _haveSecondChip{};
 };

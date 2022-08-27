@@ -20,6 +20,11 @@ void BinaryData::seek(const unsigned int offset)
     _offset = offset;
 }
 
+uint8_t BinaryData::peek() const
+{
+    return _data[_offset]; // No increment
+}
+
 uint8_t BinaryData::read_uint8()
 {
     return _data[_offset++];

@@ -21,6 +21,8 @@ public:
 private:
     template <typename T>
     void register_command();
+    template <typename T>
+    void register_command(uint8_t min, uint8_t max);
 
     std::vector<VgmCommands::ICommand*> _data;
     std::unordered_map<uint8_t, std::function<VgmCommands::ICommand*(BinaryData& data)>> _commandGenerators;

@@ -87,7 +87,7 @@ void VgmFile::check_header(bool fix)
 
     for (const auto* pCommand : _data.commands())
     {
-        if (auto* pWait = dynamic_cast<const VgmCommands::IWait*>(pCommand); pWait != nullptr)
+        if (auto* pWait = dynamic_cast<const VgmCommands::Wait*>(pCommand); pWait != nullptr)
         {
             totalSampleCount += pWait->duration();
         }

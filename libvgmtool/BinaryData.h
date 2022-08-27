@@ -16,6 +16,7 @@ public:
 
     void seek(unsigned int offset);
 
+    uint8_t peek() const;
     uint8_t read_uint8();
     uint16_t read_uint16();
     uint32_t read_uint24();
