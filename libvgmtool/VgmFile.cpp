@@ -56,7 +56,7 @@ void VgmFile::save_file(const std::string& filename)
 
     // Then the data
     // TODO if the header size changes then the pointers need to be rewritten
-    // TODO data.add_range(_data);
+    // TODO data.write_range(_data);
 
     // Then the GD3 tag. We could move this before the data now...
     if (!_gd3Tag.empty())

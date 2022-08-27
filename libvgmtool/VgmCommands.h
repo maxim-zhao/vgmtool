@@ -97,106 +97,83 @@ namespace VgmCommands
             : AddressDataCommand(data) {}
     };
 
-    /*
-        class YM2203 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x55;
-            }
-        };
-    
-        class YM2608Port0 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x56;
-            }
-        };
-    
-        class YM2608Port1 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x57;
-            }
-        };
-    
-        class YM2610Port0 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x58;
-            }
-        };
-    
-        class YM2610Port1 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x59;
-            }
-        };
-    
-        class YM3812 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x5a;
-            }
-        };
-    
-        class YM3526 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x5b;
-            }
-        };
-    
-        class Y8950 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x5c;
-            }
-        };
-    
-        class YMZ280B : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x5d;
-            }
-        };
-    
-        class YMF262Port0 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x5e;
-            }
-        };
-    
-        class YMF262Port1 : public AddressDataCommand
-        {
-        public:
-            uint8_t get_marker() override
-            {
-                return 0x5f;
-            }
-        };
-    */
+    class YM2203 : public AddressDataCommand, public IMarked<0x55>
+    {
+    public:
+        explicit YM2203(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class YM2608Port0 : public AddressDataCommand, public IMarked<0x56>
+    {
+    public:
+        explicit YM2608Port0(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class YM2608Port1 : public AddressDataCommand, public IMarked<0x57>
+    {
+    public:
+        explicit YM2608Port1(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class YM2610Port0 : public AddressDataCommand, public IMarked<0x58>
+    {
+    public:
+        explicit YM2610Port0(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class YM2610Port1 : public AddressDataCommand, public IMarked<0x59>
+    {
+    public:
+        explicit YM2610Port1(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class YM3812 : public AddressDataCommand, public IMarked<0x5a>
+    {
+    public:
+        explicit YM3812(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class YM3526 : public AddressDataCommand, public IMarked<0x5b>
+    {
+    public:
+        explicit YM3526(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class Y8950 : public AddressDataCommand, public IMarked<0x5c>
+    {
+    public:
+        explicit Y8950(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class YMZ280B : public AddressDataCommand, public IMarked<0x5d>
+    {
+    public:
+        explicit YMZ280B(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class YMF262Port0 : public AddressDataCommand, public IMarked<0x5e>
+    {
+    public:
+        explicit YMF262Port0(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
+    class YMF262Port1 : public AddressDataCommand, public IMarked<0x5f>
+    {
+    public:
+        explicit YMF262Port1(BinaryData& data)
+            : AddressDataCommand(data) {}
+    };
+
     class IWait
     {
     public:
@@ -246,10 +223,56 @@ namespace VgmCommands
         }
     };
 
+    template <int marker>
+    class WaitN : public NoDataCommand, public IWait, public IMarked<marker>
+    {
+    public:
+        explicit WaitN(BinaryData&) { }
+
+        [[nodiscard]] uint16_t duration() const override
+        {
+            return (marker & 1) + 1;
+        }
+    };
+
     class End : public NoDataCommand, public IMarked<0x66>
     {
     public:
         End(BinaryData&) { }
+    };
+
+    class DataBlock : public ICommand, public IMarked<0x67>
+    {
+    public:
+        explicit DataBlock(BinaryData& data);
+        void from_data(BinaryData& data) override;
+        void to_data(BinaryData& data) const override;
+        uint8_t _type{};
+        BinaryData _data;
+    };
+
+    class PcmRamWrite : public ICommand, public IMarked<0x68>
+    {
+    public:
+        explicit PcmRamWrite(BinaryData& data);
+        void from_data(BinaryData& data) override;
+        void to_data(BinaryData& data) const override;
+        uint8_t _chipType{};
+        uint32_t _sourceOffset{};
+        uint32_t _destinationOffset{};
+        uint32_t _size{};
+    };
+
+    template <int marker>
+    class YM2612Sample : public NoDataCommand, public IWait, public IMarked<marker>
+    {
+    public:
+        explicit YM2612Sample(BinaryData&) { }
+
+        [[nodiscard]] uint16_t duration() const override
+        {
+            return (marker & 1) + 1;
+        }
     };
 
     class LoopPoint : public NoDataCommand {};

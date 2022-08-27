@@ -32,6 +32,14 @@ uint16_t BinaryData::read_uint16()
     return result;
 }
 
+uint32_t BinaryData::read_uint24()
+{
+    uint32_t result = read_uint8();
+    result |= read_uint8() << 8;
+    result |= read_uint8() << 16;
+    return result;
+}
+
 uint32_t BinaryData::read_uint32()
 {
     uint32_t result = read_uint8();
@@ -41,11 +49,11 @@ uint32_t BinaryData::read_uint32()
     return result;
 }
 
-std::string BinaryData::read_ascii_string(const int length)
+std::string BinaryData::read_ascii_string(const uint32_t length)
 {
     std::string result;
     result.reserve(length);
-    for (auto i = 0; i < length; ++i)
+    for (auto i = 0u; i < length; ++i)
     {
         result.append(1, static_cast<char>(read_uint8()));
     }
@@ -65,6 +73,14 @@ std::wstring BinaryData::read_null_terminated_utf16_string()
         }
         result.append(1, static_cast<wchar_t>(w));
     }
+}
+
+std::vector<uint8_t> BinaryData::read_range(const uint32_t length)
+{
+    std::vector<uint8_t> result;
+    copy_range(result, _offset, length);
+    _offset += length;
+    return result;
 }
 
 void BinaryData::copy_range(std::vector<unsigned char>& destination, uint32_t startIndex, uint32_t byteCount) const
@@ -103,6 +119,14 @@ void BinaryData::write_uint32(const uint32_t i)
     _data[_offset++] = (i >> 24) & 0xff;
 }
 
+void BinaryData::write_uint24(uint32_t i)
+{
+    check_write_space(3);
+    _data[_offset++] = (i >> 0) & 0xff;
+    _data[_offset++] = (i >> 8) & 0xff;
+    _data[_offset++] = (i >> 16) & 0xff;
+}
+
 void BinaryData::write_uint16(const uint16_t i)
 {
     check_write_space(2);
@@ -126,7 +150,7 @@ void BinaryData::write_terminated_utf16_string(const std::wstring& s)
     write_uint16(0);
 }
 
-void BinaryData::add_range(const std::vector<unsigned char>& data)
+void BinaryData::write_range(const std::vector<unsigned char>& data)
 {
     check_write_space(data.size());
     std::ranges::copy(data, _data.begin() + _offset);
