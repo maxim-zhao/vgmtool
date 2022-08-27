@@ -93,6 +93,11 @@
     <Image Include="Imagelist.bmp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\libpu8\libpu8.vcxproj">
+      <Project>{b48e58cf-9561-4e18-a7b7-3e8e40db3d6c}</Project>
+      <Private>false</Private>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
     <ProjectReference Include="..\libvgmtool\libvgmtool.vcxproj">
       <Project>{9ac351cf-f0ae-43c4-8db2-68257b077f19}</Project>
       <Private>false</Private>

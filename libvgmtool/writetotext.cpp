@@ -5,12 +5,15 @@
 #include "writetotext.h"
 
 #include <format>
+#include <fstream>
 #include <string>
 #include <vector>
 
 #include "IVGMToolCallback.h"
 #include "vgm.h"
 #include "utils.h"
+#include "VgmFile.h"
+#include <libpu8.h>
 
 #define ON(x) ((x)?" on":"off")
 
@@ -29,8 +32,18 @@ std::string note_name(const double frequencyHz)
         "{:>2}{:<2} {:>+3}",
         noteNames[abs(nearestNote - 21) % 12],
         (nearestNote - 24) / 12 + 1,
-        static_cast<int>((midiNote - nearestNote) * 100 + ((nearestNote < midiNote) ? +0.5 : -0.5))
+        static_cast<int>((midiNote - nearestNote) * 100 + ((nearestNote < midiNote)
+            ? +0.5
+            : -0.5))
     );
+}
+
+std::string make_noise_description(const std::string& prefix, uint32_t clock, int shift)
+{
+    return std::format(
+        "{} ({}Hz)",
+        prefix,
+        clock / 32 / (16 << shift));
 }
 
 // Write VGM data from filename to filename.txt
@@ -42,10 +55,6 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
 {
     int SampleCount = 0;
     int b0, b1, b2;
-    char tempstr[32] = "xxxx";
-    int i;
-    // We write into these
-    std::vector<std::string> noiseTypes{{"high (", "med (", "low (", "ch 2"}};
     const std::vector<std::string> ym2413Instruments{
         "User instrument",
         "Violin", "Guitar", "Piano", "Flute", "Clarinet",
@@ -66,174 +75,156 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
     // ---------------------------------- PSG ---------------------------------------
     // tone, vol for each channel
     // Tone freqs: 0, 2, 4, test using !(PSGLatchedRegister%2)&&(PSGLatchedRegister<5)
-    unsigned short int PSGRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
-    int PSGLatchedRegister = 0;
+    unsigned short int psgRegisters[8] = {0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
+    int psgLatchedRegister = 0;
 
     if (!Utils::file_exists(filename))
     {
         return;
     }
 
-    FILE* out;
+    std::ostream* out;
+    std::ofstream outputFile;
+
     if (toStdOut)
     {
-        out = stdout;
+        out = &std::cout;
     }
     else
     {
-        auto outFilename = filename.empty() ? filename + ".txt" : outputFilename;
-        out = fopen(outFilename.c_str(), "w");
+        auto outFilename = filename.empty()
+            ? filename + ".txt"
+            : outputFilename;
+        outputFile.open(outFilename.c_str(), std::ios::trunc | std::ios::out);
+        out = &outputFile;
         callback.show_status(std::format("Writing VGM data to text in \"{}\"...", outFilename));
     }
 
+    VgmFile file;
+    file.load_file(filename);
+
+    // SN76489 noise descriptions are based on the clock rate
+    std::vector<std::string> noiseTypes
+    {
+        make_noise_description("high", file.header().clock(VgmHeader::Chip::SN76489), 0),
+        make_noise_description("med", file.header().clock(VgmHeader::Chip::SN76489), 1),
+        make_noise_description("low", file.header().clock(VgmHeader::Chip::SN76489), 2),
+        "ch 2"
+    };
+
+    *out << std::format("VGM Header:\n")
+        << std::format("End-of-file offset   {:#08x} (absolute)\n", file.header().eof_offset())
+        << std::format("VGM version          {}\n", file.header().version().string())
+        << std::format("PSG speed            {} Hz\n", file.header().clock(VgmHeader::Chip::SN76489))
+        << std::format("PSG noise feedback   {}\n", file.header().sn76489_feedback())
+        << std::format("PSG shift register width {} bits\n", file.header().sn76489_shift_register_width())
+        << std::format("YM2413 speed         {} Hz\n", file.header().clock(VgmHeader::Chip::YM2413))
+        << std::format("YM2612 speed         {} Hz\n", file.header().clock(VgmHeader::Chip::YM2612))
+        << std::format("YM2151 speed         {} Hz\n", file.header().clock(VgmHeader::Chip::YM2151))
+        << std::format("GD3 tag offset       0x{:08x} (absolute)\n", file.header().gd3_offset())
+        << std::format("Total length         {} samples ({:.2f}s)\n", file.header().sample_count(),
+            file.header().sample_count() / 44100.0)
+        << std::format("Loop point offset    0x{:08x} (absolute)\n", file.header().loop_offset(), file.header().loop_sample_count())
+        << std::format("Loop length          {} samples ({:.2f}s)\n", file.header().loop_sample_count(),
+            file.header().loop_sample_count() / 44100.0)
+        << std::format("Recording rate       {} Hz\n", file.header().frame_rate())
+        << "\nVGM data:\n";
+
     gzFile in = gzopen(filename.c_str(), "rb");
-
-    // Read header
-    OldVGMHeader vgmHeader;
-    if (!ReadVGMHeader(in, &vgmHeader, callback))
-    {
-        gzclose(in);
-        return;
-    }
-
     gzseek(in, 0x40, SEEK_SET);
-
-    fprintf(out,
-        "VGM Header:\n"
-        "VGM marker           \"%c%c%c%c\"\n"
-        "End-of-file offset   0x%08x (relative) 0x%08x (absolute)\n"
-        "VGM version          0x%08x (%x.%02x)\n"
-        "PSG speed            %d Hz\n"
-        "PSG noise feedback   %d\n"
-        "PSG shift register width %d bits\n"
-        "YM2413 speed         %d Hz\n"
-        "YM2612 speed         %d Hz\n"
-        "YM2151 speed         %d Hz\n"
-        "GD3 tag offset       0x%08x (relative) 0x%08x (absolute)\n"
-        "Total length         %d samples (%.2fs)\n"
-        "Loop point offset    0x%08x (relative) 0x%08x (absolute)\n"
-        "Loop length          %d samples (%.2fs)\n"
-        "Recording rate       %d Hz\n\n"
-        "VGM data:\n"
-        ,
-        vgmHeader.VGMIdent[0],
-        vgmHeader.VGMIdent[1],
-        vgmHeader.VGMIdent[2],
-        vgmHeader.VGMIdent[3],
-        vgmHeader.EoFOffset,
-        vgmHeader.EoFOffset + EOFDELTA,
-        vgmHeader.Version,
-        vgmHeader.Version >> 8,
-        vgmHeader.Version & 0xff,
-        vgmHeader.PSGClock,
-        vgmHeader.PSGWhiteNoiseFeedback,
-        vgmHeader.PSGShiftRegisterWidth,
-        vgmHeader.YM2413Clock,
-        vgmHeader.YM2612Clock,
-        vgmHeader.YM2151Clock,
-        vgmHeader.GD3Offset,
-        vgmHeader.GD3Offset + GD3DELTA,
-        vgmHeader.TotalLength,
-        vgmHeader.TotalLength / 44100.0,
-        vgmHeader.LoopOffset,
-        vgmHeader.LoopOffset + LOOPDELTA,
-        vgmHeader.LoopLength,
-        vgmHeader.LoopLength / 44100.0,
-        vgmHeader.RecordingRate
-    );
-
-    for (i = 0; i < 3; ++i)
-    {
-        noiseTypes[i] += _itoa(vgmHeader.PSGClock / 32 / (16 << i), tempstr, 10);
-        noiseTypes[i] += "Hz)";
-    }
 
     do
     {
         filePos = gztell(in);
-        if (filePos == static_cast<long>(vgmHeader.LoopOffset) + LOOPDELTA)
+        if (filePos == static_cast<long>(file.header().loop_offset()))
         {
-            fprintf(out, "------- Loop point -------\n");
+            *out << "------- Loop point -------\n";
         }
         b0 = gzgetc(in);
-        fprintf(out, "0x%08lx: %02x ", filePos, b0);
+        *out << std::format("0x{:08x}: {:02x} ", filePos, b0);
+        constexpr int SAMPLES_PER_MINUTE = 60 * 44100;
         switch (b0)
         {
         case VGM_GGST: // GG stereo (1 byte data)
-            b1 = gzgetc(in);
-            strcpy(tempstr, "012N012N");
-            for (i = 0; i < 8; ++i)
             {
-                if (!(b1 >> i & 1))
+                auto mask = gzgetc(in);
+                *out << std::format("{:02x}    GG st:  ", mask);
+                static const std::string bits("012N012N");
+                for (int i = 0; i < 8; ++i)
                 {
-                    tempstr[7 - i] = '-';
+                    if ((mask >> i & 1) == 0)
+                    {
+                        *out << '-';
+                    }
+                    else
+                    {
+                        *out << bits[i];
+                    }
                 }
+                *out << '\n';
             }
-            fprintf(out, "%02x    GG st:  %s\n", b1, tempstr);
             break;
         case VGM_PSG: // PSG write (1 byte data)
             b1 = gzgetc(in);
-            fprintf(out, "%02x    PSG:    ", b1);
-            if (b1 & 0x80)
+            *out << std::format("{:02x}    PSG:    ", b1);
+            if ((b1 & 0x80) != 0)
             {
                 // Latch/data byte   %1 cc t dddd
-                fprintf(out, "Latch/data: ");
-                PSGLatchedRegister = b1 >> 4 & 0x07;
-                PSGRegisters[PSGLatchedRegister] =
-                    (PSGRegisters[PSGLatchedRegister] & 0x3f0) // zero low 4 bits
+                *out << "Latch/data: ";
+                psgLatchedRegister = b1 >> 4 & 0x07;
+                psgRegisters[psgLatchedRegister] =
+                    (psgRegisters[psgLatchedRegister] & 0x3f0) // zero low 4 bits
                     | (b1 & 0xf); // and replace with data
             }
             else
             {
                 // Data byte
-                fprintf(out, "Data:       ");
-                if (!(PSGLatchedRegister % 2) && PSGLatchedRegister < 5)
+                *out << "Data:       ";
+                if (((psgLatchedRegister % 2) == 0) && psgLatchedRegister < 5)
                 {
                     // Tone register
-                    PSGRegisters[PSGLatchedRegister] =
-                        (PSGRegisters[PSGLatchedRegister] & 0x00f) // zero high 6 bits
+                    psgRegisters[psgLatchedRegister] =
+                        (psgRegisters[psgLatchedRegister] & 0x00f) // zero high 6 bits
                         | ((b1 & 0x3f) << 4); // and replace with data
                 }
                 else
                 {
                     // Other register
-                    PSGRegisters[PSGLatchedRegister] = b1 & 0x0f; // Replace with data
+                    psgRegisters[psgLatchedRegister] = b1 & 0x0f; // Replace with data
                 }
             }
         // Analyse:
-            switch (PSGLatchedRegister)
+            switch (psgLatchedRegister)
             {
             case 0:
             case 2:
             case 4: // Tone registers
                 {
-                    double frequencyHz;
-                    if (PSGRegisters[PSGLatchedRegister])
-                    {
-                        frequencyHz = static_cast<double>(vgmHeader.PSGClock) / 32 / PSGRegisters[PSGLatchedRegister];
-                    }
-                    else
-                    {
-                        frequencyHz = 0.0;
-                    }
-                    fprintf(out, "Tone ch %d -> 0x%03x = %8.2f Hz = %s\n",
-                        PSGLatchedRegister / 2, // Channel
-                        PSGRegisters[PSGLatchedRegister], // Value
+                    double frequencyHz = psgRegisters[psgLatchedRegister] == 0u
+                        ? 0.0
+                        : static_cast<double>(file.header().clock(VgmHeader::Chip::SN76489)) / 32 / psgRegisters
+                        [psgLatchedRegister];
+                    *out << std::format(
+                        "Tone ch {} -> 0x{:03x} = {:8.2f} Hz = {}\n",
+                        psgLatchedRegister / 2, // Channel
+                        psgRegisters[psgLatchedRegister], // Value
                         frequencyHz, // Frequency
                         note_name(frequencyHz).c_str() // Note
                     );
                 }
                 break;
             case 6: // Noise
-                fprintf(out, "Noise: %s, %s\n",
+                *out << std::format(
+                    "Noise: {}, {}\n",
                     (b1 & 0x4) == 0x4 ? "white" : "synchronous",
-                    noiseTypes[b1 & 0x3].c_str());
+                    noiseTypes[b1 & 0x3]);
                 break;
             default: // Volume
-                fprintf(out, "Volume: ch %d -> 0x%x = %d%%\n",
-                    PSGLatchedRegister / 2,
-                    PSGRegisters[PSGLatchedRegister],
-                    (15 - PSGRegisters[PSGLatchedRegister]) * 100 / 15
+                *out << std::format(
+                    "Volume: ch {} -> 0x{:x} = {}%\n",
+                    psgLatchedRegister / 2,
+                    psgRegisters[psgLatchedRegister],
+                    (15 - psgRegisters[psgLatchedRegister]) * 100 / 15 // TODO this is wrong!
                 );
                 break;
             } // end switch
@@ -241,7 +232,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         case VGM_YM2413: // YM2413
             b1 = gzgetc(in);
             b2 = gzgetc(in);
-            fprintf(out, "%02x %02x YM2413: ", b1, b2);
+            *out << std::format("{:02x} {:02x} YM2413: ", b1, b2);
             switch (b1 >> 4)
             {
             // go by 1st digit first
@@ -250,63 +241,79 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                 case 0x00:
                 case 0x01:
-                    fprintf(out, "Tone user inst (%s): MSWH 0x%1x, key scale rate %d, sustain %s, vibrato %s, AM %s\n",
-                        b1 ? "car" : "mod", b2 & 0xf, b2 & 1 << 4, ON(b2& 1<<5), ON(b2& 1<<6), ON(b2& 1<<7));
+                    *out << std::format(
+                        "Tone user inst ({}): MSWH 0x{:x}, key scale rate {}, sustain {}, vibrato {}, AM {}\n",
+                        b1 == 1 ? "car" : "mod",
+                        b2 & 0xf,
+                        b2 & 1 << 4,
+                        ON(b2& 1<<5),
+                        ON(b2& 1<<6),
+                        ON(b2& 1<<7));
                     break;
                 case 0x02:
-                    fprintf(out, "Tone user inst (mod): key scale level %1d, total level 0x%x\n", b2 >> 6, b2 & 0x3f);
+                    *out << std::format(
+                        "Tone user inst (mod): key scale level {}, total level 0x{:x}\n",
+                        b2 >> 6,
+                        b2 & 0x3f);
                     break;
                 case 0x03:
-                    fprintf(
-                        out,
-                        "Tone user inst (car): key scale level %1d, rectification distortion to car %s, mod %s, FM feedback %1d\n",
-                        b2 >> 6, ON(b2& 1<<3), ON(b2& 1<<4), b2 & 0x7);
+                    *out << std::format(
+                        "Tone user inst (car): key scale level {}, rectification distortion to car {}, mod {}, FM feedback {}\n",
+                        b2 >> 6,
+                        ON(b2& 1<<3),
+                        ON(b2& 1<<4),
+                        b2 & 0x7);
                     break;
                 case 0x04:
                 case 0x05:
-                    fprintf(out, "Tone user inst (%s): attack rate 0x%1x, decay rate 0x%1x\n", b1 - 4 ? "car" : "mod",
-                        b2 & 0xf, b2 >> 4);
+                    *out << std::format(
+                        "Tone user inst ({}): attack rate 0x{:x}, decay rate 0x{:x}\n",
+                        (b1 - 4) != 0
+                        ? "car"
+                        : "mod",
+                        b2 & 0xf,
+                        b2 >> 4);
                     break;
                 case 0x06:
                 case 0x07:
-                    fprintf(out, "Tone user inst (%s): sustain level 0x%1x, release rate 0x%1x\n",
-                        b1 - 6 ? "car" : "mod", b2 & 0xf, b2 >> 4);
+                    *out << std::format(
+                        "Tone user inst ({}): sustain level 0x{:x}, release rate 0x{:x}\n",
+                        (b1 - 6) != 0
+                        ? "car"
+                        : "mod", b2 & 0xf, b2 >> 4);
                     break;
                 case 0x0E: // Percussion
                     {
                         rhythmMode = b2 & 0x20;
-                        std::string s = "Percussion (";
-                        s += ON(rhythmMode);
-                        s += ")";
+                        *out << "Percussion (" << ON(rhythmMode) << ")";
                         for (int bitIndex = 0; bitIndex < 5; ++bitIndex)
                         {
-                            if (b2 >> bitIndex & 1)
+                            if ((b2 >> bitIndex & 1) != 0)
                             {
-                                s += ", ";
-                                s += ym2413RhythmInstrumentNames[bitIndex];
+                                *out << ", " << ym2413RhythmInstrumentNames[bitIndex];
                             }
                         }
-                        s += "\n";
-                        fputs(s.c_str(), out);
+                        *out << "\n";
                     }
                     break;
                 default:
-                    fprintf(out, "Invalid register 0x%x\n", b1);
+                    *out << std::format("Invalid register 0x{:x}\n", b1);
                     break;
                 }
                 break;
             case 0x1: // Tone F-number low 8 bits
                 if (b1 > 0x18)
                 {
-                    fprintf(out, "Invalid register 0x%x\n", b1);
+                    *out << std::format("Invalid register 0x{:x}\n", b1);
                 }
                 else
                 {
                     int channel = b1 & 0xf;
                     ym2413FNumbers[channel] = (ym2413FNumbers[channel] & 0x100) | b2; // Update low bits of F-number
-                    double frequencyHz = static_cast<double>(ym2413FNumbers[channel]) * vgmHeader.YM2413Clock / 72 / (1
-                        << (19 - ym2413Blocks[channel]));
-                    fprintf(out, "Tone F-num low bits: ch %1d -> %03d(%1d) = %8.2f Hz = %s",
+                    double frequencyHz = static_cast<double>(ym2413FNumbers[channel]) * file.header().clock(VgmHeader::Chip::YM2413)
+                        / 72 / (1
+                            << (19 - ym2413Blocks[channel]));
+                    *out << std::format("Tone F-num low bits: ch {} -> {:03d}({}) = {:8.2f} Hz = {}",
                         channel,
                         ym2413FNumbers[channel],
                         ym2413Blocks[channel],
@@ -314,18 +321,18 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                         note_name(frequencyHz).c_str());
                     if (b1 >= 0x16)
                     {
-                        fprintf(out, " OR Percussion F-num\n");
+                        *out << " OR Percussion F-num\n";
                     }
                     else
                     {
-                        fprintf(out, "\n");
+                        *out << "\n";
                     }
                 }
                 break;
             case 0x2: // Tone more stuff including key
                 if (b1 > 0x28)
                 {
-                    fprintf(out, "Invalid register 0x%x\n", b1);
+                    *out << std::format("Invalid register 0x{:x}\n", b1);
                 }
                 else
                 {
@@ -336,9 +343,11 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                         double freq;
                         ym2413FNumbers[chan] = ym2413FNumbers[chan] & 0xff | (b2 & 1) << 8;
                         ym2413Blocks[chan] = (b2 & 0xE) >> 1;
-                        freq = static_cast<double>(ym2413FNumbers[chan]) * vgmHeader.YM2413Clock / 72 / (1 << (19 -
-                            ym2413Blocks[chan]));
-                        fprintf(out, "Tone F-n/bl/sus/key: ch %1d -> %03d(%1d) = %8.2f Hz = %s; sustain %s, key %s\n",
+                        freq = static_cast<double>(ym2413FNumbers[chan]) * file.header().clock(VgmHeader::Chip::YM2413) / 72 / (1 <<
+                            (19 -
+                                ym2413Blocks[chan]));
+                        *out << std::format(
+                            "Tone F-n/bl/sus/key: ch {} -> {:03d}({}) = {:8.2f} Hz = {}; sustain {}, key {}\n",
                             chan,
                             ym2413FNumbers[chan],
                             ym2413Blocks[chan],
@@ -349,14 +358,14 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     }
                     else
                     {
-                        fprintf(out, "Tone F-n/bl/sus/key (ch %1d, key off)", b1 & 0xf);
+                        *out << std::format("Tone F-n/bl/sus/key (ch {}, key off)", b1 & 0xf);
                         if (b1 >= 0x26)
                         {
-                            fprintf(out, " OR Percussion F-num/bl\n");
+                            *out << " OR Percussion F-num/bl\n";
                         }
                         else
                         {
-                            fprintf(out, "\n");
+                            *out << "\n";
                         }
                     }
                 }
@@ -364,11 +373,11 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
             case 0x3: // Tone instruments and volume/percussion volume
                 if (b1 >= YM2413NumRegs)
                 {
-                    fprintf(out, "Invalid register 0x%x\n", b1);
+                    *out << std::format("Invalid register 0x{:02x}\n", b1);
                 }
                 else
                 {
-                    fprintf(out, "Tone vol/instrument: ch %1d -> vol 0x%1x = %3d%%; inst 0x%1x = %-17s",
+                    *out << std::format("Tone vol/instrument: ch {} -> vol 0x{:x} = {:3}%; inst 0x{:x} = {:>17}",
                         b1 & 0xf,
                         b2 & 0xf,
                         static_cast<int>((15 - (b2 & 0xf)) / 15.0 * 100),
@@ -391,27 +400,27 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                             i2 = 2;
                             break;
                         }
-                        fprintf(out, " OR Percussion volume:   %s -> vol 0x%1x = %3d%%",
+                        *out << std::format(" OR Percussion volume:   {} -> vol 0x{:x} = {:3}%",
                             ym2413RhythmInstrumentNames[i1].c_str(), b2 & 0xf,
                             static_cast<int>((15 - (b2 & 0xf)) / 15.0 * 100));
                         if (i2 > -1)
                         {
-                            fprintf(out, "; %s -> vol 0x%1x = %3d%%", ym2413RhythmInstrumentNames[i2].c_str(), b2 >> 4,
+                            *out << std::format("; {} -> vol 0x{:x} = {:3}%", ym2413RhythmInstrumentNames[i2].c_str(), b2 >> 4,
                                 static_cast<int>((15 - (b2 >> 4)) / 15.0 * 100));
                         }
                     }
-                    fprintf(out, "\n");
+                    *out << "\n";
                 }
                 break;
             default:
-                fprintf(out, "Invalid register 0x%x\n", b1);
+                *out << std::format("Invalid register 0x{:02x}\n", b1);
                 break;
             }
             break;
         case VGM_YM2612_0: // YM2612 port 0
             b1 = gzgetc(in); // Port
             b2 = gzgetc(in); // Data
-            fprintf(out, "%02x %02x YM2612: ", b1, b2);
+            *out << std::format("{:02x} {:02x} YM2612: ", b1, b2);
             switch (b1 >> 4)
             {
             // Go by first digit first
@@ -422,58 +431,67 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     if (b2 & 0x8)
                     {
                         // ON
-                        const char* LFOFreqs[] = {"3.98", "5.56", "6.02", "6.37", "6.88", "9.63", "48.1", "72.2"};
-                        fprintf(out, "Low Frequency Oscillator: %s Hz\n", LFOFreqs[b2 & 7]);
+                        static const std::vector<std::string> lfoFreqs{
+                            "3.98", "5.56", "6.02", "6.37", "6.88", "9.63", "48.1", "72.2"
+                        };
+                        *out << std::format("Low Frequency Oscillator: {} Hz\n", lfoFreqs[b2 & 7]);
                     }
                     else
                     {
                         // OFF
-                        fprintf(out, "Low Frequency Oscillator: disabled\n");
+                        *out << "Low Frequency Oscillator: disabled\n";
                     }
                     break;
                 case 0x24: // Timer A MSB
                     ym2612TimerA = ym2612TimerA & 0x3 | b2 << 2;
-                    fprintf(out, "Timer A MSBs: length %d = %d �s\n", ym2612TimerA, 18 * (1024 - ym2612TimerA));
+                    *out << std::format("Timer A MSBs: length {} = {} μs\n", ym2612TimerA, 18 * (1024 - ym2612TimerA));
                     break;
                 case 0x25: // Timer A LSB
                     ym2612TimerA = ym2612TimerA & 0x3fc | b2 & 0x3;
-                    fprintf(out, "Timer A LSBs: length %d = %d �s\n", ym2612TimerA, 18 * (1024 - ym2612TimerA));
+                    *out << std::format("Timer A LSBs: length {} = {} μs\n", ym2612TimerA, 18 * (1024 - ym2612TimerA));
                     break;
                 case 0x26: // Timer B
-                    fprintf(out, "Timer B: length %d = %d �s\n", b2, 288 * (256 - b2));
+                    *out << std::format("Timer B: length {} = {} μs\n", b2, 288 * (256 - b2));
                     break;
                 case 0x27: // Timer control/ch 3 mode
-                    fprintf(out, "Timer control/ch 3 mode: ");
-                    fprintf(out, "timer A %s, set flag on overflow %s%s, ", ON(b2&0x1), ON(b2&4),
-                        b2 & 0x10 ? ", reset flag" : "");
-                    fprintf(out, "timer B %s, set flag on overflow %s%s, ", ON(b2&0x2), ON(b2&8),
-                        b2 & 0x20 ? ", reset flag" : "");
-                    fprintf(out, "ch 3 %s\n",
+                    *out << "Timer control/ch 3 mode: ";
+                    *out << std::format("timer A {}, set flag on overflow {}{}, ", ON(b2&0x1), ON(b2&4),
+                        b2 & 0x10
+                        ? ", reset flag"
+                        : "");
+                    *out << std::format("timer B {}, set flag on overflow {}{}, ", ON(b2&0x2), ON(b2&8),
+                        b2 & 0x20
+                        ? ", reset flag"
+                        : "");
+                    *out << std::format("ch 3 {}\n",
                         (b2 & 0xc0) == 0
-                            ? "normal mode"
-                            : (b2 & 0xc0) == 1
-                            ? "special mode"
-                            : "invalid mode bits");
+                        ? "normal mode"
+                        : (b2 & 0xc0) == 0x80
+                        ? "special mode"
+                        : "invalid mode bits");
                     break;
                 case 0x28: // Operator enabling
-                    strcpy(tempstr, "1234");
-                    for (i = 0; i < 4; ++i)
+                    *out << std::format("Operator control: channel {} -> ", b2 & 0x7);
+                    for (int i = 3; i >= 0; --i)
                     {
-                        if (!((b2 >> (i + 4)) & 1))
+                        if (((b2 >> (i + 4)) & 1) == 0)
                         {
-                            tempstr[3 - i] = '-';
+                            *out << '-';
+                        }
+                        else
+                        {
+                            *out << '1' + i; // TODO is this right?
                         }
                     }
-                    fprintf(out, "Operator control: channel %d -> %s\n", b2 & 0x7, tempstr);
                     break;
                 case 0x2a: // DAC
-                    fprintf(out, "DAC -> %d\n", b2);
+                    *out << std::format("DAC -> {}\n", b2);
                     break;
                 case 0x2b: // DAC enable
-                    fprintf(out, "DAC %s\n", ON(b2&0x80));
+                    *out << std::format("DAC {}\n", ON(b2&0x80));
                     break;
                 default:
-                    fprintf(out, "invalid data (port 0 reg 0x%02x data 0x%02x)\n", b1, b2);
+                    *out << std::format("invalid data (port 0 reg 0x{:02x} data 0x{:02x})\n", b1, b2);
                     break;
                 }
                 break;
@@ -481,33 +499,35 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                     int ch = (b2 & 0xf) % 4;
                     int op = (b2 & 0xf) / 4;
-                    fprintf(out, "Detune/multiple: ");
+                    *out << "Detune/multiple: ";
                     if (ch != 4)
                     {
                         // Valid
-                        fprintf(out, "ch %d op %d ", ch, op);
+                        *out << std::format("ch {} op {} frequency*", ch, op);
                         // Multiple:
                         if ((b2 & 0xf) == 0)
                         {
-                            strcpy(tempstr, "0.5");
+                            *out << "0.5";
                         }
                         else
                         {
-                            sprintf(tempstr, "%d", b2 & 0xf);
+                            *out << (b2 & 0xf);
                         }
-                        fprintf(out, "frequency*%s", tempstr);
                         // Detune:
-                        if (b2 >> 4 & 0x3)
+                        if ((b2 >> 4 & 0x3) != 0)
                         {
                             // detune !=0
-                            fprintf(out, "*(1%c%depsilon)", b2 & 0x40 ? '+' : '-', b2 >> 4 & 0x3);
+                            *out << std::format(
+                                "*(1{}{}epsilon)",
+                                b2 & 0x40 ? '+' : '-',
+                                b2 >> 4 & 0x3);
                         }
-                        fprintf(out, "\n");
+                        *out << "\n";
                     }
                     else
                     {
                         // Invalid
-                        fprintf(out, "Invalid data\n");
+                        *out << "Invalid data\n";
                     }
                 }
                 break;
@@ -515,18 +535,21 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                     int ch = (b2 & 0xf) % 4;
                     int op = (b2 & 0xf) / 4;
-                    fprintf(out, "Total level: ");
+                    *out << "Total level: ";
                     if (ch != 4)
                     {
                         // Valid
-                        fprintf(out, "ch %d op %d ", ch, op);
-                        fprintf(out, "-> 0x%02x = %3d%%\n", b2 & 0x7f,
+                        *out << std::format(
+                            "ch {} op {} -> 0x{:02x} = {:3}%%\n",
+                            ch,
+                            op,
+                            b2 & 0x7f,
                             static_cast<int>((127 - (b2 & 0x7f)) / 127.0 * 100));
                     }
                     else
                     {
                         // Invalid
-                        fprintf(out, "Invalid data\n");
+                        *out << "Invalid data\n";
                     }
                 }
                 break;
@@ -534,17 +557,21 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                     int ch = (b2 & 0xf) % 4;
                     int op = (b2 & 0xf) / 4;
-                    fprintf(out, "Rate scaling/attack rate: ");
+                    *out << "Rate scaling/attack rate: ";
                     if (ch != 4)
                     {
                         // Valid
-                        fprintf(out, "ch %d op %d ", ch, op);
-                        fprintf(out, "RS 1/%d, AR %d\n", 1 << (3 - (b2 >> 6)), b2 & 0x1f);
+                        *out << std::format(
+                            "ch {} op {} RS 1/{}, AR {}\n",
+                            ch,
+                            op,
+                            1 << (3 - (b2 >> 6)),
+                            b2 & 0x1f);
                     }
                     else
                     {
                         // Invalid
-                        fprintf(out, "Invalid data\n");
+                        *out << "Invalid data\n";
                     }
                 }
                 break;
@@ -552,17 +579,21 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                     int ch = (b2 & 0xf) % 4;
                     int op = (b2 & 0xf) / 4;
-                    fprintf(out, "Amplitude modulation/1st decay rate: ");
+                    *out << "Amplitude modulation/1st decay rate: ";
                     if (ch != 4)
                     {
                         // Valid
-                        fprintf(out, "ch %d op %d ", ch, op);
-                        fprintf(out, "AM %s, D1R %d\n", ON(b2>>7), b2 & 0x1f);
+                        *out << std::format(
+                            "ch {} op {} AM {}, D1R {}\n",
+                            ch,
+                            op,
+                            ON(b2>>7),
+                            b2 & 0x1f);
                     }
                     else
                     {
                         // Invalid
-                        fprintf(out, "Invalid data\n");
+                        *out << "Invalid data\n";
                     }
                 }
                 break;
@@ -570,17 +601,16 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                     int ch = (b2 & 0xf) % 4;
                     int op = (b2 & 0xf) / 4;
-                    fprintf(out, "2nd decay rate: ");
+                    *out << "2nd decay rate: ";
                     if (ch != 4)
                     {
                         // Valid
-                        fprintf(out, "ch %d op %d ", ch, op);
-                        fprintf(out, "D2R %d\n", b2 & 0x1f);
+                        *out << std::format("ch {} op {} D2R {}\n", ch, op, b2 & 0x1f);
                     }
                     else
                     {
                         // Invalid
-                        fprintf(out, "Invalid data\n");
+                        *out << "Invalid data\n";
                     }
                 }
                 break;
@@ -588,35 +618,35 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                 {
                     int ch = (b2 & 0xf) % 4;
                     int op = (b2 & 0xf) / 4;
-                    fprintf(out, "1st decay end level/release rate: ");
+                    *out << "1st decay end level/release rate: ";
                     if (ch != 4)
                     {
                         // Valid
-                        fprintf(out, "ch %d op %d ", ch, op);
-                        fprintf(out, "D1L %d, RR %d\n", (b2 >> 4) * 8, (b2 & 0xf) << 1 & 1);
+                        *out << std::format("ch {} op {} D1L {}, RR {}\n", ch, op, (b2 >> 4) * 8, (b2 & 0xf) << 1 & 1);
+                        // TODO this is illogical
                     }
                     else
                     {
                         // Invalid
-                        fprintf(out, "Invalid data\n");
+                        *out << "Invalid data\n";
                     }
                 }
                 break;
             default:
-                fprintf(out, "port 0 reg 0x%02x data 0x%02x\n", b1, b2);
+                *out << std::format("port 0 reg 0x{:02x} data 0x{:02x}\n", b1, b2);
                 break;
             }
             break;
         case VGM_YM2612_1: // YM2612 port 1
             b1 = gzgetc(in);
             b2 = gzgetc(in);
-            fprintf(out, "%02x %02x YM2612: ", b1, b2);
-            fprintf(out, "port 1 reg 0x%02x data 0x%02x\n", b1, b2);
+            *out << std::format("{:02x} {:02x} YM2612: ", b1, b2);
+            *out << std::format("port 1 reg 0x{:02x} data 0x{:02x}\n", b1, b2);
             break;
         case VGM_YM2151: // YM2151
             b1 = gzgetc(in);
             b2 = gzgetc(in);
-            fprintf(out, "%02x %02x YM2151 reg 0x%02x data 0x%02x\n", b1, b2, b1, b2);
+            *out << std::format("{:02x} {:02x} YM2151 reg 0x{:02x} data 0x{:02x}\n", b1, b2, b1, b2);
             break;
         case 0x55: // Reserved up to 0x5f
         case 0x56: // All have 2 bytes of data
@@ -631,31 +661,35 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         case 0x5f:
             b1 = gzgetc(in);
             b2 = gzgetc(in);
-            fprintf(out, "%02x %02x YM????\n", b1, b2);
+            *out << std::format("{:02x} {:02x} YM????\n", b1, b2);
             break;
         case VGM_PAUSE_WORD: // Wait n samples
             b1 = gzgetc(in);
             b2 = gzgetc(in);
             SampleCount += b1 | b2 << 8;
-            fprintf(out, "%02x %02x Wait:   %5d samples (%7.2f ms) (total %8d samples (%d:%05.2f))\n", b1, b2,
-                b1 | b2 << 8, (b1 | b2 << 8) / 44.1, SampleCount, SampleCount / 2646000,
-                SampleCount % 2646000 / 44100.0);
+            *out << std::format(
+                "{:02x} {:02x} Wait:   {:5} samples ({:7.2f} ms) (total {:8} samples ({}:{:05.2f}))\n",
+                b1,
+                b2,
+                b1 | b2 << 8,
+                (b1 | b2 << 8) / 44.1,
+                SampleCount,
+                SampleCount / SAMPLES_PER_MINUTE,
+                SampleCount % SAMPLES_PER_MINUTE / 44100.0);
             break;
         case VGM_PAUSE_60TH: // Wait 1/60 s
             SampleCount += LEN60TH;
-            fprintf(out, "      Wait:     735 samples (1/60s)      (total %8d samples (%d:%05.2f))\n", SampleCount,
-                SampleCount / 2646000, SampleCount % 2646000 / 44100.0);
+            *out << std::format(
+                "      Wait:     735 samples (1/60s)      (total {:8} samples ({}:{:05.2f}))\n", 
+                SampleCount,
+                SampleCount / SAMPLES_PER_MINUTE,
+                SampleCount % SAMPLES_PER_MINUTE / 44100.0);
             break;
         case VGM_PAUSE_50TH: // Wait 1/50 s
             SampleCount += LEN50TH;
-            fprintf(out, "      Wait:   882 samples (1/50s)      (total %8d samples (%d:%05.2f))\n", SampleCount,
-                SampleCount / 2646000, SampleCount % 2646000 / 44100.0);
+            *out << std::format("      Wait:   882 samples (1/50s)      (total {:8} samples ({}:{:05.2f}))\n", SampleCount,
+                SampleCount / SAMPLES_PER_MINUTE, SampleCount % SAMPLES_PER_MINUTE / 44100.0);
             break;
-        //    case VGM_PAUSE_BYTE: // Wait n samples (byte)
-        //      b1=gzgetc(in);
-        //      SampleCount+=b1;
-        //      fprintf(out, "%02x    Wait:   %5d samples (%7.2f ms) (total %8d samples (%d:%05.2f))\n", b1, b1, b1/44.1, SampleCount, SampleCount/2646000, SampleCount%2646000/44100.0);
-        //      break;
         case 0x70:
         case 0x71:
         case 0x72:
@@ -674,16 +708,14 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         case 0x7f: // Wait 1-16 samples
             b1 = (b0 & 0xf) + 1;
             SampleCount += b1;
-            fprintf(out, "      Wait:   %5d samples (%7.2f ms) (total %8d samples (%d:%05.2f))\n", b1, b1 / 44.1,
-                SampleCount, SampleCount / 2646000, SampleCount % 2646000 / 44100.0);
+            *out << std::format("      Wait:   {:5} samples ({:7.2f} ms) (total {:8} samples ({}:{:05.2f}))\n", b1, b1 / 44.1,
+                SampleCount, SampleCount / SAMPLES_PER_MINUTE, SampleCount % SAMPLES_PER_MINUTE / 44100.0);
             break;
         case VGM_END: // End of sound data... report
-            fputs("      End of music data\n", out);
-            gzclose(in);
-            fclose(out);
-            return;
+            *out << "End of music data\n";
+            break;
         default:
-            fputs("Unknown/invalid data\n", out);
+            *out << "Unknown/invalid data\n";
             break;
         }
     }
@@ -695,9 +727,16 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
 #endif;
 
     gzclose(in);
+
+    if (!file.gd3().empty())
+    {
+        *out << "\n\nGD3 tag:\n";
+        *out << std::format("Title (EN):\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::TitleEn)));
+    }
+
     if (!toStdOut)
     {
-        fclose(out);
+        outputFile.close();
     }
 
     callback.show_status("Write to text complete");

@@ -101,7 +101,7 @@ int main_utf8(int argc, char** argv)
         app.add_flag("-v, --verbose", callback.is_verbose, "Print messages while working");
 
         auto* toTextVerb = app.add_subcommand("totext", "Emits a text file conversion of the VGM file");
-        toTextVerb->add_option("--output", "Filename to output to. If not specified, output to stdout.")->check(CLI::NonexistentPath);
+        toTextVerb->add_option("--output", "Filename to output to. If not specified, output to stdout.");
         toTextVerb->add_flag("--fortxt", "Emit only the title and times for use in generating a description text file");
 
         auto* trimVerb = app.add_subcommand("trim", "Trim the file");
@@ -135,7 +135,14 @@ int main_utf8(int argc, char** argv)
             if (toTextVerb->parsed())
             {
                 const auto* output = toTextVerb->get_option("--output");
-                write_to_text(filename, callback, output->empty(), output->as<std::string>());
+                if (toTextVerb->get_option("--fortxt")->as<bool>())
+                {
+                    // TODO here
+                }
+                else
+                {
+                    write_to_text(filename, callback, output->empty(), output->as<std::string>());
+                }
             }
 
             if (trimVerb->parsed())

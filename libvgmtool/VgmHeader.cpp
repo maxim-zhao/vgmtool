@@ -3,7 +3,6 @@
 #include <format>
 #include <stdexcept>
 
-#include "utils.h"
 #include "BinaryData.h"
 
 namespace
@@ -42,7 +41,7 @@ void VgmHeader::from_binary(BinaryData& data)
     _version.from_binary(data);
     if (_version.major() != 1)
     {
-        throw std::runtime_error(std::format("Unsupported version {}.{:02d}", _version.major(), _version.minor()));
+        throw std::runtime_error(std::format("Unsupported version {}", _version.string()));
     }
 
     const auto offsetC = data.read_uint32();

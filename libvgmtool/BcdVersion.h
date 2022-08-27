@@ -1,5 +1,6 @@
 #pragma once
 #include <inttypes.h>
+#include <string>
 
 class BinaryData;
 
@@ -32,6 +33,7 @@ public:
     }
 
     [[nodiscard]] bool at_least(int major, int minor) const;
+    [[nodiscard]] std::string string();
 
 private:
     static int from_bcd(uint32_t bcd);

@@ -52,3 +52,8 @@ bool BcdVersion::at_least(const int major, const int minor) const
     return _major > major ||
         (_major == major && _minor >= minor);
 }
+
+std::string BcdVersion::string()
+{
+    return std::format("{}.{:02}", _major, _minor);
+}

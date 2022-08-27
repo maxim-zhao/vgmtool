@@ -25,7 +25,7 @@ void Gd3Tag::from_binary(BinaryData& data)
 
     if (_version.major() != 1 || _version.minor() != 0)
     {
-        throw std::runtime_error(std::format("Invalid GD3 version {}.{:02}", _version.major(), _version.minor()));
+        throw std::runtime_error(std::format("Invalid GD3 version {}", _version.string()));
     }
 
     // Now read the strings
