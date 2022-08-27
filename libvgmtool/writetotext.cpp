@@ -46,14 +46,13 @@ std::string make_noise_description(const std::string& prefix, uint32_t clock, in
         clock / 32 / (16 << shift));
 }
 
-// Write VGM data from filename to filename.txt
+// Write VGM data from filename to outputFilename
 // Incomplete handling of YM2612
 // No handling of YM2151
 // YM2413 needs checking
-// TODO: display GD3 too - maybe use UTF-8?
 void write_to_text(const std::string& filename, const IVGMToolCallback& callback, bool toStdOut, const std::string& outputFilename)
 {
-    int SampleCount = 0;
+    int sampleCount = 0;
     int b0, b1, b2;
     const std::vector<std::string> ym2413Instruments{
         "User instrument",
@@ -66,7 +65,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         "High hat", "Cymbal", "Tom-tom", "Snare drum", "Bass drum"
     };
     int ym2413FNumbers[9] = {0};
-    char ym2413Blocks[9] = {0};
+    int ym2413Blocks[9] = {0};
     int rhythmMode = 1;
     long int filePos;
     int ym2612TimerA = 0;
@@ -133,14 +132,29 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
     gzFile in = gzopen(filename.c_str(), "rb");
     gzseek(in, 0x40, SEEK_SET);
 
-    do
+    for (bool atEnd = false; !atEnd;)
     {
         filePos = gztell(in);
         if (filePos == static_cast<long>(file.header().loop_offset()))
         {
             *out << "------- Loop point -------\n";
         }
+        else if (filePos == static_cast<long>(file.header().gd3_offset()))
+        {
+            *out << "ERROR: reached GD3 offset while parsing data";
+            break;
+        }
+        else if (filePos == static_cast<long>(file.header().eof_offset()))
+        {
+            *out << "ERROR: reached EOF offset while parsing data";
+            break;
+        }
         b0 = gzgetc(in);
+        if (b0 == -1)
+        {
+            *out << "ERROR: reached EOF while parsing data";
+            break;
+        }
         *out << std::format("0x{:08x}: {:02x} ", filePos, b0);
         constexpr int SAMPLES_PER_MINUTE = 60 * 44100;
         switch (b0)
@@ -313,7 +327,7 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
                     double frequencyHz = static_cast<double>(ym2413FNumbers[channel]) * file.header().clock(VgmHeader::Chip::YM2413)
                         / 72 / (1
                             << (19 - ym2413Blocks[channel]));
-                    *out << std::format("Tone F-num low bits: ch {} -> {:03d}({}) = {:8.2f} Hz = {}",
+                    *out << std::format("Tone F-num low bits: ch {} -> {:03d}({:1}) = {:8.2f} Hz = {}",
                         channel,
                         ym2413FNumbers[channel],
                         ym2413Blocks[channel],
@@ -666,29 +680,29 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         case VGM_PAUSE_WORD: // Wait n samples
             b1 = gzgetc(in);
             b2 = gzgetc(in);
-            SampleCount += b1 | b2 << 8;
+            sampleCount += b1 | b2 << 8;
             *out << std::format(
                 "{:02x} {:02x} Wait:   {:5} samples ({:7.2f} ms) (total {:8} samples ({}:{:05.2f}))\n",
                 b1,
                 b2,
                 b1 | b2 << 8,
                 (b1 | b2 << 8) / 44.1,
-                SampleCount,
-                SampleCount / SAMPLES_PER_MINUTE,
-                SampleCount % SAMPLES_PER_MINUTE / 44100.0);
+                sampleCount,
+                sampleCount / SAMPLES_PER_MINUTE,
+                sampleCount % SAMPLES_PER_MINUTE / 44100.0);
             break;
         case VGM_PAUSE_60TH: // Wait 1/60 s
-            SampleCount += LEN60TH;
+            sampleCount += LEN60TH;
             *out << std::format(
                 "      Wait:     735 samples (1/60s)      (total {:8} samples ({}:{:05.2f}))\n", 
-                SampleCount,
-                SampleCount / SAMPLES_PER_MINUTE,
-                SampleCount % SAMPLES_PER_MINUTE / 44100.0);
+                sampleCount,
+                sampleCount / SAMPLES_PER_MINUTE,
+                sampleCount % SAMPLES_PER_MINUTE / 44100.0);
             break;
         case VGM_PAUSE_50TH: // Wait 1/50 s
-            SampleCount += LEN50TH;
-            *out << std::format("      Wait:   882 samples (1/50s)      (total {:8} samples ({}:{:05.2f}))\n", SampleCount,
-                SampleCount / SAMPLES_PER_MINUTE, SampleCount % SAMPLES_PER_MINUTE / 44100.0);
+            sampleCount += LEN50TH;
+            *out << std::format("      Wait:   882 samples (1/50s)      (total {:8} samples ({}:{:05.2f}))\n", sampleCount,
+                sampleCount / SAMPLES_PER_MINUTE, sampleCount % SAMPLES_PER_MINUTE / 44100.0);
             break;
         case 0x70:
         case 0x71:
@@ -707,31 +721,44 @@ void write_to_text(const std::string& filename, const IVGMToolCallback& callback
         case 0x7e:
         case 0x7f: // Wait 1-16 samples
             b1 = (b0 & 0xf) + 1;
-            SampleCount += b1;
+            sampleCount += b1;
             *out << std::format("      Wait:   {:5} samples ({:7.2f} ms) (total {:8} samples ({}:{:05.2f}))\n", b1, b1 / 44.1,
-                SampleCount, SampleCount / SAMPLES_PER_MINUTE, SampleCount % SAMPLES_PER_MINUTE / 44100.0);
+                sampleCount, sampleCount / SAMPLES_PER_MINUTE, sampleCount % SAMPLES_PER_MINUTE / 44100.0);
             break;
         case VGM_END: // End of sound data... report
             *out << "End of music data\n";
+            atEnd = true;
             break;
         default:
             *out << "Unknown/invalid data\n";
             break;
         }
     }
-    while
-#ifdef STOPWRITEAT4KB
-    ((gztell(in)<0x1000) && (b0!=EOF));
-#else
-    (b0 != EOF);
-#endif;
 
     gzclose(in);
 
     if (!file.gd3().empty())
     {
-        *out << "\n\nGD3 tag:\n";
+        *out << "\nGD3 tag:\n";
         *out << std::format("Title (EN):\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::TitleEn)));
+        *out << std::format("Title (JP):\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::TitleJp)));
+        *out << std::format("Author (EN):\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::AuthorEn)));
+        *out << std::format("Author (JP):\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::AuthorJp)));
+        *out << std::format("Game (EN):\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::GameEn)));
+        *out << std::format("Game (JP):\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::GameJp)));
+        *out << std::format("System (EN):\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::SystemEn)));
+        *out << std::format("System (JP):\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::SystemJp)));
+        *out << std::format("Release date:\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::ReleaseDate)));
+        *out << std::format("Creator:\t{}\n", u8narrow(file.gd3().get_text(Gd3Tag::Key::Creator)));
+        const auto notes = u8narrow(file.gd3().get_text(Gd3Tag::Key::Notes));
+        if (notes.find('\n') == std::string::npos)
+        {
+            *out << std::format("Notes:\t{}\n", notes);
+        }
+        else
+        {
+            *out << std::format("Notes:\n============================\n{}\n============================\n", notes);
+        }
     }
 
     if (!toStdOut)
