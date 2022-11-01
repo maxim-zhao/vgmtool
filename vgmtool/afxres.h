@@ -1,0 +1,3 @@
+#pragma once
+// We add this file because Visual Studio keeps changing the resource file to include it...
+#include <winres.h>

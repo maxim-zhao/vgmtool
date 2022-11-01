@@ -79,6 +79,7 @@
     <ClCompile Include="vgmtool.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="afxres.h" />
     <ClInclude Include="gui.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
