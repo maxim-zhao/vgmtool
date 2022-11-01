@@ -29,6 +29,9 @@ namespace VgmCommands
         {
             return _marker;
         }
+
+    protected:
+        void check_marker(BinaryData& data) const;
     };
 
     // A command with a marker byte and no additional data
