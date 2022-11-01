@@ -30,7 +30,6 @@ BEGIN
     MAINDIALOGUE, DIALOG
     BEGIN
         LEFTMARGIN, 2
-        RIGHTMARGIN, 431
         TOPMARGIN, 3
         BOTTOMMARGIN, 192
     END
@@ -91,22 +90,23 @@ END
 // Dialog
 //
 
-MAINDIALOGUE DIALOGEX 0, 0, 433, 194
-STYLE DS_SETFONT | DS_SETFOREGROUND | DS_FIXEDSYS | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
+MAINDIALOGUE DIALOGEX 0, 0, 375, 194
+STYLE DS_SETFONT | DS_SETFOREGROUND | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_ACCEPTFILES | WS_EX_CONTROLPARENT
-FONT 8, "MS Shell Dlg", 0, 0, 0x1
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
-    LTEXT           "&Filename:",IDC_STATIC,6,3,33,12,SS_CENTERIMAGE
-    EDITTEXT        edtFileName,39,3,392,12,ES_AUTOHSCROLL | ES_READONLY
-    CONTROL         "Tab1",tcMain,"SysTabControl32",WS_TABSTOP,2,18,429,153
-    LTEXT           "Welcome to VGMTool 2 :)",txtStatusBar,2,181,355,11,SS_CENTERIMAGE,WS_EX_STATICEDGE
-    RTEXT           ".:VGMTool",IDC_STATIC,358,184,35,8
-    ICON            MAINICON,IDC_STATIC,395,172,21,20
+    LTEXT           "&Filename:", IDC_STATIC, 2, 3, 33, 12, SS_CENTERIMAGE
+    EDITTEXT        edtFileName, 53, 3, 320, 12, ES_AUTOHSCROLL | ES_READONLY
+    CONTROL         "Tab1", tcMain, "SysTabControl32", WS_TABSTOP, 2, 18, 371, 153
+    LTEXT           "Welcome to VGMTool 2 :)", txtStatusBar, 2, 181, 310, 11, 
+                    SS_CENTERIMAGE, WS_EX_STATICEDGE
+    RTEXT           ".:VGMTool", IDC_STATIC, 314, 184, 35, 8
+    ICON            MAINICON, IDC_STATIC, 353, 172, 20, 20
 END
 
 DlgVGMHeader DIALOGEX 0, 0, 362, 135
 STYLE DS_SETFONT | DS_CONTROL | WS_CHILD | WS_VISIBLE
-FONT 8, "Verdana", 0, 0, 0x0
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
     GROUPBOX        "Lengths",IDC_STATIC,4,4,84,77
     CONTROL         "&Total:",IDC_STATIC,"Static",SS_LEFTNOWORDWRAP | SS_CENTERIMAGE | WS_GROUP,8,16,20,12
@@ -148,9 +148,9 @@ BEGIN
 END
 
 DlgTrimming DIALOGEX 0, 0, 363, 135
-STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_TRANSPARENT
-FONT 8, "Verdana", 0, 0, 0x1
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
     GROUPBOX        "Trimming",IDC_STATIC,4,4,108,127
     CONTROL         "&Start:",IDC_STATIC,"Static",SS_LEFTNOWORDWRAP | SS_CENTERIMAGE | WS_GROUP,9,15,19,12
@@ -180,7 +180,7 @@ END
 
 DlgGD3 DIALOGEX 0, 0, 362, 135
 STYLE DS_SETFONT | DS_CONTROL | WS_CHILD | WS_VISIBLE
-FONT 8, "Verdana", 0, 0, 0x0
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
     CTEXT           "English",IDC_STATIC,55,2,95,8
     CTEXT           "Japanese",IDC_STATIC,152,2,95,8
@@ -213,7 +213,7 @@ END
 DlgStripping DIALOGEX 0, 0, 362, 135
 STYLE DS_SETFONT | DS_CONTROL | WS_CHILD | WS_VISIBLE
 EXSTYLE WS_EX_TRANSPARENT
-FONT 8, "Verdana", 0, 0, 0x1
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
     GROUPBOX        "PSG",gbPSG,4,4,126,52
     CONTROL         "&Tone:",cbPSGTone,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,13,47,10
@@ -257,7 +257,7 @@ END
 DlgConvert DIALOGEX 0, 0, 363, 135
 STYLE DS_SETFONT | DS_CONTROL | WS_CHILD | WS_VISIBLE
 EXSTYLE WS_EX_ACCEPTFILES | WS_EX_TRANSPARENT
-FONT 8, "Verdana", 0, 0, 0x1
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
     LTEXT           "Drop multiple GYM, CYM and SSL files onto the box below to convert them to VGM.\nNote that converted files are often NOT as good quality as rips originally made in VGM format!\nResults:",IDC_STATIC,4,4,355,26
     EDITTEXT        edtConvertResults,4,31,355,100,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
@@ -266,7 +266,7 @@ END
 DlgMisc DIALOGEX 0, 0, 362, 135
 STYLE DS_SETFONT | DS_CONTROL | WS_CHILD | WS_VISIBLE
 EXSTYLE WS_EX_ACCEPTFILES
-FONT 8, "Verdana", 0, 0, 0x1
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
     PUSHBUTTON      "Write to te&xt",btnWriteToText,4,6,62,12
     LTEXT           "Create a text file detailing the information contained in the VGM file in human-readable form",-1,74,4,167,17

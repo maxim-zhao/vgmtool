@@ -40,6 +40,12 @@ namespace
         {"BBC Model B+", L""},
         {"BBC Master 128", L""}
     };
+
+    BOOL CALLBACK set_child_font(HWND hwndChild, LPARAM lParam)
+    {
+        return SUCCEEDED(SendMessage(hwndChild, WM_SETFONT, lParam, TRUE));
+    }
+
 }
 
 Gui* Gui::_pThis = nullptr;
@@ -176,6 +182,14 @@ void Gui::run()
             load_file(_commandLine);
         }
     }
+
+    // Use the system message box font
+    NONCLIENTMETRICS ncm;
+    ncm.cbSize = sizeof(ncm);
+    SystemParametersInfo(SPI_GETNONCLIENTMETRICS, ncm.cbSize, &ncm, 0);
+    HFONT hDlgFont = CreateFontIndirect(&(ncm.lfMessageFont));
+    // Send message to main window and descendants to use this font
+    EnumChildWindows(_hWndMain, set_child_font, reinterpret_cast<LPARAM>(hDlgFont));
 
     ShowWindow(_hWndMain, _showCommand);
     MSG msg;
