@@ -30,7 +30,7 @@ void VgmFile::load_file(const std::string& filename)
     data.seek(dataOffset);
     // The data either runs up to EOF or the GD3
     auto endOffset = _header.eof_offset();
-    if (_header.gd3_offset() < _header.eof_offset() && _header.gd3_offset() > 0)
+    if (_header.gd3_offset() < _header.eof_offset() && _header.gd3_offset() > dataOffset)
     {
         endOffset = gd3Offset;
     }
