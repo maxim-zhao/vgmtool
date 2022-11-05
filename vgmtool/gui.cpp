@@ -662,10 +662,7 @@ void Gui::load_file(const std::string& filename)
     }
 
     // Version
-    SetDlgItemText(_headerWnd, edtVersion, std::format(
-        "{}:{:02d}", 
-        _currentFile.header().version().major(),
-        _currentFile.header().version().minor()).c_str());
+    SetDlgItemText(_headerWnd, edtVersion, _currentFile.header().version().string().c_str());
 
     // Clock speeds
     SetDlgItemInt(_headerWnd, edtPSGClock, _currentFile.header().clock(VgmHeader::Chip::SN76489), FALSE);
