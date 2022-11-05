@@ -26,6 +26,11 @@ void VgmHeader::from_binary(BinaryData& data)
     }
 
     _eofOffset = data.read_uint32() + EOF_DELTA;
+    if (_eofOffset == EOF_DELTA)
+    {
+        // Assume it's the whole file
+        _eofOffset = data.size();
+    }
     // Do we have more (or less) data than expected?
     // This seems to often be wrong due to bugs in tools, so we ignore it
     /*

@@ -29,7 +29,11 @@ void VgmFile::load_file(const std::string& filename)
     const auto dataOffset = _header.data_offset();
     data.seek(dataOffset);
     // The data either runs up to EOF or the GD3
-    const auto endOffset = gd3Offset < dataOffset ? _header.eof_offset() : gd3Offset;
+    auto endOffset = _header.eof_offset();
+    if (_header.gd3_offset() < _header.eof_offset() && _header.gd3_offset() > 0)
+    {
+        endOffset = gd3Offset;
+    }
     if (endOffset <= dataOffset)
     {
         throw std::runtime_error("Invalid data offsets imply no data");
