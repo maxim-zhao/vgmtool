@@ -5,7 +5,6 @@
 #include <ranges>
 
 #include "BinaryData.h"
-#include "utils.h"
 
 namespace
 {
