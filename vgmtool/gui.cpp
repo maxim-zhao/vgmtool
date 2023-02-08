@@ -239,12 +239,14 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 }
                 else
                 {
-                    const int filenameLength = DragQueryFile(hDrop, 0, nullptr, 0) + 1;
-                    std::string droppedFilename(filenameLength, '\0');
-                    // Allocate memory for the filename
-                    DragQueryFile(hDrop, 0, droppedFilename.data(), filenameLength);
+                    const int filenameLength = DragQueryFile(hDrop, 0, nullptr, 0);
+                    // The API wants to null-terminate, so we make the string big enough for that...
+                    std::string droppedFilename(filenameLength + 1, '\0');
                     // Get filename of first file, discard the rest
+                    DragQueryFile(hDrop, 0, droppedFilename.data(), filenameLength + 1);
                     DragFinish(hDrop); // Tell Windows I've finished
+                    // But now our string has a trailing \0, so we remove that
+                    droppedFilename.erase(filenameLength);
                     load_file(droppedFilename);
                 }
             }
