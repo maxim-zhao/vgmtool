@@ -20,6 +20,7 @@
     <ClCompile Include="convert.cpp" />
     <ClCompile Include="gd3.cpp" />
     <ClCompile Include="Gd3Tag.cpp" />
+    <ClCompile Include="KeyValuePrinter.cpp" />
     <ClCompile Include="optimise.cpp" />
     <ClCompile Include="trim.cpp" />
     <ClCompile Include="utils.cpp" />
@@ -37,6 +38,7 @@
     <ClInclude Include="gd3.h" />
     <ClInclude Include="Gd3Tag.h" />
     <ClInclude Include="IVGMToolCallback.h" />
+    <ClInclude Include="KeyValuePrinter.h" />
     <ClInclude Include="optimise.h" />
     <ClInclude Include="trim.h" />
     <ClInclude Include="utils.h" />

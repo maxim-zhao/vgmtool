@@ -1,16 +1,13 @@
 #include "CLI11.hpp"
 #include "libvgmtool/IVGMToolCallback.h"
 #include <libvgmtool/trim.h>
-#include <libvgmtool/writetotext.h>
 
 #include "libvgmtool/convert.h"
-#include "libvgmtool/Gd3Tag.h"
 #include "libvgmtool/utils.h"
 #include "libvgmtool/vgm.h"
 #include "libvgmtool/VgmFile.h"
 
 #include <libpu8/libpu8/libpu8.h>
-
 
 #ifdef WIN32
 #include <Windows.h>
@@ -48,46 +45,43 @@ public:
     }
 } callback;
 
-
-void print_tag(const std::string& description, const Gd3Tag& tag, Gd3Tag::Key key)
+void write_to_text(const std::string& filename, const std::string& outputFilename, bool gd3Only, bool forTextFile)
 {
-    const auto& text = u8narrow(tag.get_text(key));
-    if (text.empty())
+    // Read in file
+    VgmFile f(filename);
+    // Write to stdout if no filename is given
+    auto* s = outputFilename.empty() ? &std::cout : new std::ofstream(outputFilename);
+
+    if (gd3Only)
     {
-        return;
+        if (f.gd3().empty())
+        {
+            *s << "No GD3 tag";
+        }
+        else
+        {
+            *s << f.gd3().write_to_text();
+        }
     }
-    if (text.find('\n') != std::string::npos)
+    else if (forTextFile)
     {
-        // Text with line breaks
-        printf("%s:\n========================\n%s\n========================\n", description.c_str(), text.c_str());
+        const auto& length = Utils::samples_to_display_text(f.header().sample_count(), false);
+        *s << std::format(
+            "{: <{}} {}   {}",
+            u8narrow(f.gd3().get_text(Gd3Tag::Key::TitleEn)),
+            39 - length.length(),
+            length,
+            Utils::samples_to_display_text(f.header().loop_sample_count(), false));
     }
     else
     {
-        printf("%s:\t%s\n", description.c_str(), text.c_str());
+        f.write_to_text(*s, callback);
     }
-}
 
-void show_gd3(const std::string& filename)
-{
-    VgmFile file(filename);
-    if (file.header().gd3_offset() == 0)
+    if (!outputFilename.empty())
     {
-        printf("No GD3 tag");
-        return;
+        delete s;
     }
-
-    const auto& tag = file.gd3();
-    print_tag("Title (EN)", tag, Gd3Tag::Key::TitleEn);
-    print_tag("Title (JP)", tag, Gd3Tag::Key::TitleJp);
-    print_tag("Author (EN)", tag, Gd3Tag::Key::AuthorEn);
-    print_tag("Author (EN)", tag, Gd3Tag::Key::AuthorJp);
-    print_tag("Game (EN)", tag, Gd3Tag::Key::GameEn);
-    print_tag("Game (JP)", tag, Gd3Tag::Key::GameJp);
-    print_tag("System (EN)", tag, Gd3Tag::Key::SystemEn);
-    print_tag("System (JP)", tag, Gd3Tag::Key::SystemJp);
-    print_tag("Release date", tag, Gd3Tag::Key::ReleaseDate);
-    print_tag("Creator", tag, Gd3Tag::Key::Creator);
-    print_tag("Notes", tag, Gd3Tag::Key::Notes);
 }
 
 int main_utf8(int argc, char** argv)
@@ -103,6 +97,7 @@ int main_utf8(int argc, char** argv)
         auto* toTextVerb = app.add_subcommand("totext", "Emits a text file conversion of the VGM file");
         toTextVerb->add_option("--output", "Filename to output to. If not specified, output to stdout.");
         toTextVerb->add_flag("--fortxt", "Emit only the title and times for use in generating a description text file");
+        toTextVerb->add_flag("--gd3", "Emit only the GD3 tag");
 
         auto* trimVerb = app.add_subcommand("trim", "Trim the file");
         trimVerb->add_option("--start", "Trim start point in samples")->required()->
@@ -121,8 +116,6 @@ int main_utf8(int argc, char** argv)
 
         const auto* convertVerb = app.add_subcommand("convert", "Convert GYM, CYM, SSL files to VGM");
 
-        const auto* showGd3Verb = app.add_subcommand("showgd3", "Show the GD3 tag");
-
         std::vector<std::string> filenames;
         app.add_option("filename", filenames, "The file(s) to process")
            ->required()
@@ -135,14 +128,11 @@ int main_utf8(int argc, char** argv)
             if (toTextVerb->parsed())
             {
                 const auto* output = toTextVerb->get_option("--output");
-                if (toTextVerb->get_option("--fortxt")->as<bool>())
-                {
-                    // TODO here
-                }
-                else
-                {
-                    write_to_text(filename, callback, output->empty(), output->as<std::string>());
-                }
+                write_to_text(
+                    filename,
+                    output->as<std::string>(),
+                    toTextVerb->get_option("--gd3")->as<bool>(),
+                    toTextVerb->get_option("--fortxt")->as<bool>());
             }
 
             if (trimVerb->parsed())
@@ -175,11 +165,6 @@ int main_utf8(int argc, char** argv)
             if (convertVerb->parsed())
             {
                 Convert::to_vgm(filename, callback);
-            }
-
-            if (showGd3Verb->parsed())
-            {
-                show_gd3(filename);
             }
         }
 

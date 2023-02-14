@@ -18,6 +18,11 @@ public:
         return _data;
     }
 
+    const std::vector<VgmCommands::ICommand*>& commands() const
+    {
+        return _data;
+    }
+
 private:
     template <typename T>
     void register_command();

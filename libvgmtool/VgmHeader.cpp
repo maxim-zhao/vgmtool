@@ -1,9 +1,12 @@
 #include "VgmHeader.h"
 
 #include <format>
+#include <sstream>
 #include <stdexcept>
+#include <ranges>
 
 #include "BinaryData.h"
+#include "KeyValuePrinter.h"
 
 namespace
 {
@@ -318,5 +321,80 @@ void VgmHeader::check_second_chip_bit(Chip chip)
     // Set flag from bit 30
     _haveSecondChip[chip] = (_clocks[chip] & (1 << 30)) != 0;
     // Clear bits 30-31
-    _clocks[chip] &= 0b00111111111111111111111111111111;
+    _clocks[chip] &= 0b00111111'11111111'11111111'11111111;
+}
+
+std::string VgmHeader::write_to_text() const
+{
+    KeyValuePrinter printer;
+
+    // VGM 1.00
+    printer.add("End-of-file offset", std::format("{:#010x} (absolute)", eof_offset()));
+    printer.add("VGM version", version().string());
+    printer.add("SN76489 clock", std::format("{} Hz", clock(Chip::SN76489)));
+    printer.add(
+        _version.at_least(1, 10) ? "YM2413 clock" : "FM clock",
+        std::format("{} Hz", clock(Chip::YM2413)));
+    printer.add("GD3 tag offset", std::format("{:#010x} (absolute)", gd3_offset()));
+    printer.add("Total length", std::format("{} samples ({:.2f}s)", sample_count(), sample_count() / 44100.0));
+    printer.add("Loop point offset", std::format("{:#08x} (absolute)", loop_offset()));
+    printer.add("Loop length", std::format("{} samples ({:.2f}s)", loop_sample_count(), loop_sample_count() / 44100.0));
+    if (_version.at_least(1, 1))
+    {
+        printer.add("Recording rate", std::format("{} Hz", frame_rate()));
+    }
+    if (_version.at_least(1, 10))
+    {
+        printer.add("SN76489 noise feedback", std::format("{:#06x}", sn76489_feedback()));
+        printer.add("SN76489 shift register width", std::format("{} bits", sn76489_shift_register_width()));
+    }
+    if (_version.at_least(1, 51))
+    {
+        printer.add("SN76489 flags", std::format("{:#04x}", sn76489_flags()));
+    }
+    if (_version.at_least(1, 10))
+    {
+        printer.add("YM2612 clock", std::format("{} Hz", clock(Chip::YM2612)));
+        printer.add("YM2151 clock", std::format("{} Hz", clock(Chip::YM2612)));
+    }
+    if (_version.at_least(1, 50))
+    {
+        printer.add("VGM data offset", std::format("{:#010x}", data_offset()));
+    }
+    if (_version.at_least(1, 51))
+    {
+        printer.add("Sega PCM clock", std::format("{} Hz", clock(Chip::SegaPCM)));
+        printer.add("Sega PCM interface register", std::format("{:#010x}", sega_pcm_interface_register()));
+        printer.add("RF5C68 clock", std::format("{} Hz", clock(Chip::RF5C68)));
+        printer.add("YM2203 clock", std::format("{} Hz", clock(Chip::YM2203)));
+        printer.add("YM2608 clock", std::format("{} Hz", clock(Chip::YM2608)));
+        printer.add("YM2610/YM2610B clock", std::format("{} Hz", clock(Chip::YM2610)));
+        printer.add("YM2610/YM2610B identity", flag(Flag::IsYM2610B) ? "YM2610" : "YM2610B");
+        printer.add("YM3812 clock", std::format("{} Hz", clock(Chip::YM3812)));
+        printer.add("YM3526 clock", std::format("{} Hz", clock(Chip::YM3526)));
+        printer.add("Y8950 clock", std::format("{} Hz", clock(Chip::Y8950)));
+        printer.add("YMF262 clock", std::format("{} Hz", clock(Chip::YMF262)));
+        printer.add("YMF278B clock", std::format("{} Hz", clock(Chip::YMF278B)));
+        printer.add("YMF271 clock", std::format("{} Hz", clock(Chip::YMF271)));
+        printer.add("YMZ280B clock", std::format("{} Hz", clock(Chip::YMZ280B)));
+        printer.add("RF5C164 clock", std::format("{} Hz", clock(Chip::RF5C164)));
+        printer.add("YM2608 clock", std::format("{} Hz", clock(Chip::YM2608)));
+        printer.add("PWM clock", std::format("{} Hz", clock(Chip::PWM)));
+        printer.add("AY8910 clock", std::format("{} Hz", clock(Chip::AY8910)));
+        printer.add("AY8910 chip type", std::format("{}", static_cast<int>(ay8910_chip_type())));
+        printer.add("AY8910 flags", std::format("{}", ay8910_flags()));
+        printer.add("YM2203/AY8910 flags", std::format("{}", ym2203_ay8910_flags()));
+        printer.add("YM2608/AY8910 flags", std::format("{}", ym2608_ay8910_flags()));
+    }
+    if (_version.at_least(1, 60))
+    {
+        printer.add("Volume modifier", std::format("{:#04x}", volume_modifier()));
+        printer.add("Loop base", std::format("{}", loop_base()));
+    }
+    if (_version.at_least(1, 51))
+    {
+        printer.add("Loop modifier", std::format("{}", loop_modifier()));
+    }
+
+    return printer.string();
 }

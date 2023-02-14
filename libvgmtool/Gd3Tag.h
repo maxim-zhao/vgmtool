@@ -34,6 +34,8 @@ public:
     [[nodiscard]] std::wstring get_text(Key key) const;
     void set_text(Key key, const std::wstring& value);
 
+    std::string write_to_text() const;
+
 private:
     BcdVersion _version{};
     std::unordered_map<Key, std::wstring> _text;

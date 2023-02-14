@@ -5,6 +5,8 @@
 #include <ranges>
 
 #include "BinaryData.h"
+#include "KeyValuePrinter.h"
+#include "libpu8.h"
 
 namespace
 {
@@ -96,4 +98,30 @@ std::wstring Gd3Tag::get_text(const Key key) const
 void Gd3Tag::set_text(const Key key, const std::wstring& value)
 {
     _text[key] = value;
+}
+
+std::string Gd3Tag::write_to_text() const
+{
+    KeyValuePrinter printer;
+    printer.add("Title (EN)", u8narrow(get_text(Key::TitleEn)));
+    printer.add("Title (JP)", u8narrow(get_text(Key::TitleJp)));
+    printer.add("Author (EN)", u8narrow(get_text(Key::AuthorEn)));
+    printer.add("Author (JP)", u8narrow(get_text(Key::AuthorJp)));
+    printer.add("Game (EN)", u8narrow(get_text(Key::GameEn)));
+    printer.add("Game (JP)", u8narrow(get_text(Key::GameJp)));
+    printer.add("System (EN)", u8narrow(get_text(Key::SystemEn)));
+    printer.add("System (JP)", u8narrow(get_text(Key::SystemJp)));
+    printer.add("Release date", u8narrow(get_text(Key::ReleaseDate)));
+    printer.add("Creator", u8narrow(get_text(Key::Creator)));;
+    const auto notes = u8narrow(get_text(Key::Notes));
+    if (notes.find('\n') == std::string::npos)
+    {
+        printer.add("Notes", notes);
+    }
+    else
+    {
+        printer.add("Notes", std::format("\n============================\n{}\n============================\n", notes));
+    }
+
+    return printer.string();
 }

@@ -33,4 +33,6 @@ public:
 
     // Converts LSB b1, MSB b2 into an integer
     static int make_word(int b1, int b2);
+
+    static std::string samples_to_display_text(uint32_t samples, bool withMilliseconds = false);
 };

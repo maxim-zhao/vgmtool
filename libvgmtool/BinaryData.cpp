@@ -93,6 +93,12 @@ void BinaryData::copy_range(std::vector<unsigned char>& destination, uint32_t st
     std::copy_n(_data.begin() + startIndex, byteCount, std::back_inserter(destination));
 }
 
+void BinaryData::reset()
+{
+    _data.clear();
+    _offset = 0;
+}
+
 void BinaryData::check_write_space(const size_t size)
 {
     const auto requiredSize = _offset + size;

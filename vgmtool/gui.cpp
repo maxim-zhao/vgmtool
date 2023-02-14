@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cmath>
 #include <format>
+#include <fstream>
 #include <ranges>
 #include <regex>
 #include <sstream>
@@ -286,7 +287,11 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                     *this);
                 break;
             case btnWriteToText:
-                write_to_text(_currentFilename, *this, false, "");
+                {
+                    std::ofstream f(_currentFilename + ".txt");
+                    _currentFile.write_to_text(f, *this);
+                    f.close();
+                }
                 break;
             case btnOptimise:
                 optimize(_currentFilename);

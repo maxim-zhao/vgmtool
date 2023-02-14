@@ -5,6 +5,7 @@
 #include "Gd3Tag.h"
 #include "VgmHeader.h"
 
+class IVGMToolCallback;
 
 class VgmFile
 {
@@ -31,4 +32,6 @@ public:
 
     // Checks the header. Throws on any errors found if fix=false, else tries to fix them.
     void check_header(bool fix);
+
+    void write_to_text(std::ostream& s, const IVGMToolCallback& callback) const;
 };

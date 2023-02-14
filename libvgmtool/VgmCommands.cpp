@@ -7,7 +7,7 @@ void VgmCommands::MarkedCommand::check_marker(BinaryData& data) const
 {
     if (const uint8_t marker = data.read_uint8(); marker != get_marker())
     {
-        throw std::runtime_error(std::format("Read marker {:X} instead of expected {:X}", marker, get_marker()));
+        throw std::runtime_error(std::format("Read marker {:x} instead of expected {:x}", marker, get_marker()));
     }
 }
 
@@ -174,12 +174,12 @@ void VgmCommands::Wait16bit::to_data(BinaryData& data) const
     data.write_uint16(_duration);
 }
 
-VgmCommands::Wait60th::Wait60th(): NoDataCommand(0x62)
+VgmCommands::Wait60th::Wait60th(): NoDataCommand(0x62, VgmHeader::Chip::Nothing)
 {
     _duration = 44100 / 60;
 }
 
-VgmCommands::Wait50th::Wait50th(): NoDataCommand(0x63)
+VgmCommands::Wait50th::Wait50th(): NoDataCommand(0x63, VgmHeader::Chip::Nothing)
 {
     _duration = 44100 / 50;
 }
@@ -198,7 +198,7 @@ void VgmCommands::Wait4bit::from_data(BinaryData& data)
     const auto b = data.read_uint8();
     if ((b & 0xf0) != 0x70)
     {
-        throw std::runtime_error(std::format("Read marker {:X} instead of expected 0x70..0x7f", b));
+        throw std::runtime_error(std::format("Read marker {:x} instead of expected 0x70..0x7f", b));
     }
     _sampleCount = (b & 0xf) + 1;
 }
@@ -288,7 +288,7 @@ void VgmCommands::YM2612Sample::from_data(BinaryData& data)
     const auto b = data.read_uint8();
     if ((b & 0xf0) != 0x80)
     {
-        throw std::runtime_error(std::format("Read marker {:X} instead of expected 0x70..0x7f", b));
+        throw std::runtime_error(std::format("Read marker {:x} instead of expected 0x70..0x7f", b));
     }
     _duration = b & 0xf;
 }

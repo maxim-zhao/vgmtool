@@ -17,6 +17,8 @@ public:
 
     void from_binary(BinaryData& data);
 
+    [[nodiscard]] std::string write_to_text() const;
+
     enum class ay8910_chip_types
     {
         AY8910 = 0x00,
@@ -223,6 +225,7 @@ public:
 
     enum class Chip
     {
+        Nothing,
         SN76489,
         YM2413,
         YM2612,
@@ -241,7 +244,8 @@ public:
         YMZ280B,
         RF5C164,
         PWM,
-        AY8910
+        AY8910,
+        GenericDAC
     };
 
     enum class Flag

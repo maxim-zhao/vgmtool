@@ -71,6 +71,9 @@ public:
         return _data;
     }
 
+    // Reset to empty
+    void reset();
+
 private:
     void check_write_space(size_t size);
 

@@ -143,3 +143,20 @@ int Utils::make_word(const int b1, const int b2)
     return ((b1 & 0xff) << 0) |
         ((b2 & 0xff) << 8);
 }
+
+std::string Utils::samples_to_display_text(uint32_t samples, bool withMilliseconds)
+{
+    if (samples == 0)
+    {
+        return "-";
+    }
+    int seconds = static_cast<int>(samples) / 44100;
+    int minutes = seconds / 60;
+    seconds %= 60;
+    if (withMilliseconds)
+    {
+        auto milliseconds = static_cast<double>(samples % 44100u) / 44100.0 + seconds;
+        return std::format("{}:{:06.3f}", minutes, milliseconds);
+    }
+    return std::format("{}:{:02}", minutes, seconds);
+}
