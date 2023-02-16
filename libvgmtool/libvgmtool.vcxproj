@@ -22,6 +22,7 @@
     <ClCompile Include="Gd3Tag.cpp" />
     <ClCompile Include="KeyValuePrinter.cpp" />
     <ClCompile Include="optimise.cpp" />
+    <ClCompile Include="SN76489State.cpp" />
     <ClCompile Include="trim.cpp" />
     <ClCompile Include="utils.cpp" />
     <ClCompile Include="vgm.cpp" />
@@ -40,6 +41,7 @@
     <ClInclude Include="IVGMToolCallback.h" />
     <ClInclude Include="KeyValuePrinter.h" />
     <ClInclude Include="optimise.h" />
+    <ClInclude Include="SN76489State.h" />
     <ClInclude Include="trim.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="vgm.h" />

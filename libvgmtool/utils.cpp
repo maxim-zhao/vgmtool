@@ -160,3 +160,23 @@ std::string Utils::samples_to_display_text(uint32_t samples, bool withMillisecon
     }
     return std::format("{}:{:02}", minutes, seconds);
 }
+
+std::string Utils::note_name(double frequencyHz)
+{
+    if (frequencyHz < 1)
+    {
+        return "notanote";
+    }
+
+    const double midiNote = (log(frequencyHz) - log(440)) / log(2) * 12 + 69;
+    const int nearestNote = static_cast<int>(std::round(midiNote));
+    const char* noteNames[] = {"A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"};
+    return std::format(
+        "{:>2}{:<2} {:>+3}",
+        noteNames[abs(nearestNote - 21) % 12],
+        (nearestNote - 24) / 12 + 1,
+        static_cast<int>((midiNote - nearestNote) * 100 + ((nearestNote < midiNote)
+            ? +0.5
+            : -0.5))
+    );
+}

@@ -6,6 +6,7 @@
 #include "BinaryData.h"
 #include "IVGMToolCallback.h"
 #include "libpu8.h"
+#include "SN76489State.h"
 #include "utils.h"
 
 VgmFile::VgmFile(const std::string& filename)
@@ -146,7 +147,7 @@ void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) c
 
     size_t offset = _header.data_offset();
     int time = 0;
-    //SN76489State psgState;
+    SN76489State psgState(_header);
     BinaryData scratch;
 
     for (const auto* pCommand : _data.commands())
@@ -167,7 +168,7 @@ void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) c
         }
 
         // Increment the offset accordingly
-        offset += scratch.buffer().size() + 1;
+        offset += scratch.buffer().size();
 
         switch (pCommand->chip())
         {
@@ -183,11 +184,13 @@ void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) c
                     duration / 44.1,
                     time,
                     Utils::samples_to_display_text(time, true));
+            } else if (auto* pLoopPoint = dynamic_cast<const VgmCommands::LoopPoint*>(pCommand); pLoopPoint != nullptr)
+            {
+                s << "=============== LOOP POINT ===============";
             }
             break;
         case VgmHeader::Chip::SN76489:
-            //psgState.add(pCommand);
-            //ss << 
+            s << psgState.add_with_text(pCommand);
             break;
         case VgmHeader::Chip::YM2413: break;
         case VgmHeader::Chip::YM2612: break;

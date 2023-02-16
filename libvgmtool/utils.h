@@ -34,5 +34,9 @@ public:
     // Converts LSB b1, MSB b2 into an integer
     static int make_word(int b1, int b2);
 
+    // Prints a 44100Hz sample count as time in m:ss[.fff] form
     static std::string samples_to_display_text(uint32_t samples, bool withMilliseconds = false);
+
+    // Converts a frequency in Hz to a standard MIDI note representation
+    static std::string note_name(double frequencyHz);
 };
