@@ -74,7 +74,7 @@ namespace VgmCommands
     public:
         RegisterDataCommand(uint8_t marker, VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
 
-        [[nodiscard]] uint8_t register_() const;
+        [[nodiscard]] uint8_t registerIndex() const;
         void set_register(uint8_t register_);
         [[nodiscard]] uint8_t value() const;
         void set_value(uint8_t value);

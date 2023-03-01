@@ -66,6 +66,9 @@
     <ClCompile Include="SN76489State.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="YM2413State.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="convert.h">
@@ -117,6 +120,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SN76489State.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="YM2413State.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

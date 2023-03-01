@@ -8,6 +8,7 @@
 #include "libpu8.h"
 #include "SN76489State.h"
 #include "utils.h"
+#include "YM2413State.h"
 
 VgmFile::VgmFile(const std::string& filename)
 {
@@ -148,6 +149,7 @@ void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) c
     size_t offset = _header.data_offset();
     int time = 0;
     SN76489State psgState(_header);
+    YM2413State ym2413State(_header);
     BinaryData scratch;
 
     for (const auto* pCommand : _data.commands())
@@ -192,7 +194,9 @@ void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) c
         case VgmHeader::Chip::SN76489:
             s << psgState.add_with_text(pCommand);
             break;
-        case VgmHeader::Chip::YM2413: break;
+        case VgmHeader::Chip::YM2413:
+            s << ym2413State.add_with_text(pCommand);
+            break;
         case VgmHeader::Chip::YM2612: break;
         case VgmHeader::Chip::YM2151: break;
         case VgmHeader::Chip::SegaPCM: break;

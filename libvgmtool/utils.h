@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "VgmCommands.h"
+
 class IVGMToolCallback;
 
 class Utils
@@ -39,4 +41,16 @@ public:
 
     // Converts a frequency in Hz to a standard MIDI note representation
     static std::string note_name(double frequencyHz);
+
+    // Bit index as "on" (1) or "off" (0)
+    static const std::string& on_off(uint8_t value, int bitIndex);
+
+    // Bit index as 1 or 0
+    static int bit_value(uint8_t value, int bitIndex);
+
+    // Bit index as boolean
+    static bool bit_set(uint8_t value, int bitIndex);
+
+    // dB attenuation to percentage; 0 dB -> 100%, more dB -> less percent
+    static double db_to_percent(double attenuation);
 };

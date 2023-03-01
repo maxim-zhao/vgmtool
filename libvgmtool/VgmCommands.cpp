@@ -43,7 +43,7 @@ void VgmCommands::OneByteCommand::to_data(BinaryData& data) const
     data.write_uint8(_value);
 }
 
-uint8_t VgmCommands::RegisterDataCommand::register_() const
+uint8_t VgmCommands::RegisterDataCommand::registerIndex() const
 {
     return _register;
 }

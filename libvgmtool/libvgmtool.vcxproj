@@ -30,6 +30,7 @@
     <ClCompile Include="VgmFile.cpp" />
     <ClCompile Include="VgmHeader.cpp" />
     <ClCompile Include="writetotext.cpp" />
+    <ClCompile Include="YM2413State.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BcdVersion.h" />
@@ -49,6 +50,7 @@
     <ClInclude Include="VgmFile.h" />
     <ClInclude Include="VgmHeader.h" />
     <ClInclude Include="writetotext.h" />
+    <ClInclude Include="YM2413State.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

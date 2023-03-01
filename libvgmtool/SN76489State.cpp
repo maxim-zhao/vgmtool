@@ -1,9 +1,9 @@
 #include "SN76489State.h"
 
 #include <format>
-#include <format>
 
 #include "utils.h"
+#include "VgmCommands.h"
 
 SN76489State::SN76489State(const VgmHeader& header)
     : _clockRate(header.clock(VgmHeader::Chip::SN76489))
@@ -18,11 +18,9 @@ SN76489State::SN76489State(const VgmHeader& header)
     for (int i = 0; i < 15; ++i)
     {
         const int dB = i * 2;
-        const double amplitude = std::pow(10, -0.1 * i);
-        const int percentage = static_cast<int>(std::round(amplitude * 100));
-        _volumeDescriptions.emplace_back(std::format("{:#x} = -{}dB = {}%", i, dB, percentage));
+        _volumeDescriptions.emplace_back(std::format("{:#x} = {:2} dB = {:3.0f}%", i, dB, Utils::db_to_percent(dB)));
     }
-    _volumeDescriptions.emplace_back(std::format("{:#x} = {}%", 15, 0));
+    _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
 }
 
 std::string SN76489State::add_with_text(const VgmCommands::ICommand* pCommand)
@@ -72,7 +70,6 @@ std::string SN76489State::add_with_text(const VgmCommands::ICommand* pCommand)
                 return std::format(
                     "SN76489: Volume: ch {} -> {}",
                     channel,
-                    registerValue,
                     _volumeDescriptions[registerValue]);
             }
         } // end switch
@@ -87,18 +84,21 @@ void SN76489State::add(const VgmCommands::GGStereo* pStereo)
 
 void SN76489State::add(const VgmCommands::SN76489* pCommand)
 {
-    const auto value = pCommand->value();
-    if ((value & 0b10000000) != 0)
+    if (const auto value = pCommand->value();
+        (value & 0b10000000) != 0)
     {
+        // ReSharper disable CommentTypo
         // Latch/data byte %1nnvdddd
         // nnv = register index
         // dddd = low 4 bits of data
+        // ReSharper restore CommentTypo
         _latchedRegisterIndex = (value & 0b01110000) >> 4;
         _registers[_latchedRegisterIndex] &= 0b1111110000;
         _registers[_latchedRegisterIndex] |= value & 0b1111;
     }
     else
     {
+        // ReSharper disable once CommentTypo
         // Data byte %0ddddddd
         if (_latchedRegisterIndex % 2 == 0 && _latchedRegisterIndex < 5)
         {
@@ -115,7 +115,7 @@ void SN76489State::add(const VgmCommands::SN76489* pCommand)
 }
 
 
-std::string SN76489State::print_stereo_mask(uint8_t mask)
+std::string SN76489State::print_stereo_mask(const uint8_t mask)
 {
     std::string bits("012N012N");
     for (int i = 0; i < 8; ++i)

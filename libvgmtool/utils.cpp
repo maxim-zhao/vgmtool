@@ -19,7 +19,7 @@ int Utils::file_size(const std::string& filename)
     return static_cast<int>(std::filesystem::file_size(filename));
 }
 
-void Utils::compress(const std::string& filename, int iterations)
+void Utils::compress(const std::string& filename, const int iterations)
 {
     // Read file into memory
     std::vector<uint8_t> data;
@@ -131,7 +131,7 @@ std::string Utils::to_lower(const std::string& s)
     std::ranges::transform(
         s,
         result.begin(),
-        [](std::string::value_type c)
+        [](const std::string::value_type c)
         {
             return static_cast<std::string::value_type>(std::tolower(c));
         });
@@ -144,7 +144,7 @@ int Utils::make_word(const int b1, const int b2)
         ((b2 & 0xff) << 8);
 }
 
-std::string Utils::samples_to_display_text(uint32_t samples, bool withMilliseconds)
+std::string Utils::samples_to_display_text(const uint32_t samples, const bool withMilliseconds)
 {
     if (samples == 0)
     {
@@ -161,10 +161,11 @@ std::string Utils::samples_to_display_text(uint32_t samples, bool withMillisecon
     return std::format("{}:{:02}", minutes, seconds);
 }
 
-std::string Utils::note_name(double frequencyHz)
+std::string Utils::note_name(const double frequencyHz)
 {
     if (frequencyHz < 1)
     {
+        // ReSharper disable once StringLiteralTypo
         return "notanote";
     }
 
@@ -179,4 +180,26 @@ std::string Utils::note_name(double frequencyHz)
             ? +0.5
             : -0.5))
     );
+}
+
+const std::string& Utils::on_off(const uint8_t value, const int bitIndex)
+{
+    static const std::string on("on");
+    static const std::string off("off");
+    return bit_set(value, bitIndex) ? on : off;
+}
+
+int Utils::bit_value(const uint8_t value, const int bitIndex)
+{
+    return (value >> bitIndex) & 1;
+}
+
+bool Utils::bit_set(const uint8_t value, const int bitIndex)
+{
+    return bit_value(value, bitIndex) == 1;
+}
+
+double Utils::db_to_percent(const double attenuation)
+{
+    return std::pow(10, -0.1 * attenuation) * 100;
 }
