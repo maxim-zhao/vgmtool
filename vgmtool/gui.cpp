@@ -22,7 +22,6 @@
 #include "libvgmtool/utils.h"
 #include "libvgmtool/vgm.h"
 #include "libvgmtool/VgmFile.h"
-#include "libvgmtool/writetotext.h"
 
 namespace
 {

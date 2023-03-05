@@ -36,9 +36,6 @@
     <ClCompile Include="vgm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="writetotext.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Gd3Tag.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -87,9 +84,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="vgm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="writetotext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="IVGMToolCallback.h">
