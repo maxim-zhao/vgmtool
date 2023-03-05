@@ -258,14 +258,8 @@ namespace VgmCommands
 
     class Wait4bit : public Wait, public ICommand
     {
-        int _sampleCount = 0;
     public:
-        [[nodiscard]] int sample_count() const
-        {
-            return _sampleCount;
-        }
-
-        void set_sample_count(int sampleCount);
+        void set_duration(int sampleCount);
 
         void from_data(BinaryData& data) override;
         void to_data(BinaryData& data) const override;
@@ -292,6 +286,17 @@ namespace VgmCommands
 
         void from_data(BinaryData& data) override;
         void to_data(BinaryData& data) const override;
+
+        [[nodiscard]] unsigned int length() const
+        {
+            return _data.size();
+        }
+
+        [[nodiscard]] uint8_t type() const
+        {
+            return _type;
+        }
+
     private:
         uint8_t _type{};
         BinaryData _data;

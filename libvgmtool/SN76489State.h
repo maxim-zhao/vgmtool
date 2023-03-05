@@ -19,7 +19,7 @@ public:
 
     void add(const VgmCommands::GGStereo* pStereo);
     void add(const VgmCommands::SN76489* pCommand);
-    std::string add_with_text(const VgmCommands::ICommand* pCommand);
+    void add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s);
 
 private:
     static std::string print_stereo_mask(uint8_t mask);

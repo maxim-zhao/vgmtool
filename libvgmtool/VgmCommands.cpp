@@ -184,13 +184,13 @@ VgmCommands::Wait50th::Wait50th(): NoDataCommand(0x63, VgmHeader::Chip::Nothing)
     _duration = 44100 / 50;
 }
 
-void VgmCommands::Wait4bit::set_sample_count(const int sampleCount)
+void VgmCommands::Wait4bit::set_duration(const int sampleCount)
 {
     if (sampleCount <= 0 || sampleCount >= 16)
     {
         throw std::runtime_error(std::format("Length out of range 1..16: {}", sampleCount));
     }
-    _sampleCount = sampleCount;
+    _duration = static_cast<uint16_t>(sampleCount);
 }
 
 void VgmCommands::Wait4bit::from_data(BinaryData& data)
@@ -200,12 +200,12 @@ void VgmCommands::Wait4bit::from_data(BinaryData& data)
     {
         throw std::runtime_error(std::format("Read marker {:x} instead of expected 0x70..0x7f", b));
     }
-    _sampleCount = (b & 0xf) + 1;
+    _duration = (b & 0xf) + 1;
 }
 
 void VgmCommands::Wait4bit::to_data(BinaryData& data) const
 {
-    data.write_uint8(static_cast<uint8_t>((_sampleCount - 1) | 0x70));
+    data.write_uint8(static_cast<uint8_t>((_duration - 1) | 0x70));
 }
 
 void VgmCommands::End::from_data(BinaryData& data)
@@ -234,6 +234,7 @@ void VgmCommands::DataBlock::to_data(BinaryData& data) const
 {
     data.write_uint8(get_marker());
     data.write_uint8(0x66);
+    data.write_uint8(_type);
     data.write_uint32(_data.size());
     data.write_range(_data.buffer());
 }

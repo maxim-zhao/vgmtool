@@ -7,6 +7,7 @@
 
 #include "BinaryData.h"
 #include "KeyValuePrinter.h"
+#include "utils.h"
 
 namespace
 {
@@ -336,9 +337,9 @@ std::string VgmHeader::write_to_text() const
         _version.at_least(1, 10) ? "YM2413 clock" : "FM clock",
         std::format("{} Hz", clock(Chip::YM2413)));
     printer.add("GD3 tag offset", std::format("{:#010x} (absolute)", gd3_offset()));
-    printer.add("Total length", std::format("{} samples ({:.2f}s)", sample_count(), sample_count() / 44100.0));
+    printer.add("Total length", std::format("{} samples ({})", sample_count(), Utils::samples_to_display_text(sample_count(), true)));
     printer.add("Loop point offset", std::format("{:#08x} (absolute)", loop_offset()));
-    printer.add("Loop length", std::format("{} samples ({:.2f}s)", loop_sample_count(), loop_sample_count() / 44100.0));
+    printer.add("Loop length", std::format("{} samples ({})", loop_sample_count(), Utils::samples_to_display_text(loop_sample_count(), true)));
     if (_version.at_least(1, 1))
     {
         printer.add("Recording rate", std::format("{} Hz", frame_rate()));

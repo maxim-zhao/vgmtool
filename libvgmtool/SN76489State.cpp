@@ -1,6 +1,7 @@
 #include "SN76489State.h"
 
 #include <format>
+#include <iostream>
 
 #include "utils.h"
 #include "VgmCommands.h"
@@ -23,19 +24,25 @@ SN76489State::SN76489State(const VgmHeader& header)
     _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
 }
 
-std::string SN76489State::add_with_text(const VgmCommands::ICommand* pCommand)
+void SN76489State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s)
 {
     if (const auto* pStereo = dynamic_cast<const VgmCommands::GGStereo*>(pCommand); pStereo != nullptr)
     {
         add(pStereo);
-        return std::format("SN76489: Stereo: {}", print_stereo_mask(_stereoMask));
+        s << "Stereo: " << print_stereo_mask(_stereoMask);
+        return;
     }
     if (const auto* p = dynamic_cast<const VgmCommands::SN76489*>(pCommand); p != nullptr)
     {
         add(p);
-        const char* description = (p->value() & 0b10000000) == 0
-            ? "SN76489: Data:       "
-            : "SN76489: Latch/data: ";
+        if ((p->value() & 0b10000000) == 0)
+        {
+            s << "Data:       ";
+        }
+        else
+        {
+            s << "Latch/data: ";
+        }
         const int registerValue = _registers[_latchedRegisterIndex];
         switch (_latchedRegisterIndex)
         {
@@ -45,13 +52,11 @@ std::string SN76489State::add_with_text(const VgmCommands::ICommand* pCommand)
             {
                 const int channel = _latchedRegisterIndex / 2;
                 double frequencyHz = tone_length_to_hz(registerValue);
-                return std::format("{} Tone ch {} -> 0x{:03x} = {:8.2f} Hz = {}",
-                    description,
-                    channel, // Channel
-                    registerValue, // Value
-                    frequencyHz, // Frequency
-                    Utils::note_name(frequencyHz) // Note
-                );
+                s << "Tone ch " << channel
+                    << std::format(" -> {:#05x}", registerValue)
+                    << std::format(" = {:8.2f} Hz", frequencyHz)
+                    << " = " << Utils::note_name(frequencyHz);
+                return;
             }
         case 6: // Noise
             {
@@ -59,18 +64,14 @@ std::string SN76489State::add_with_text(const VgmCommands::ICommand* pCommand)
                     ? "synchronous"
                     : "white";
                 const int noiseSpeed = registerValue & 0b011;
-                return std::format(
-                    "Noise: {}, {}",
-                    noiseType,
-                    _noiseSpeedDescriptions[noiseSpeed]);
+                s << "Noise: " << noiseType << ", " << _noiseSpeedDescriptions[noiseSpeed];
+                return;
             }
         default: // Volume
             {
                 const int channel = _latchedRegisterIndex / 2;
-                return std::format(
-                    "SN76489: Volume: ch {} -> {}",
-                    channel,
-                    _volumeDescriptions[registerValue]);
+                s << "Attenuation ch " << channel << " -> " << _volumeDescriptions[registerValue];
+                return;
             }
         } // end switch
     }

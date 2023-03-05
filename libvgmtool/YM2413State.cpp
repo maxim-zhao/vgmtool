@@ -131,7 +131,7 @@ double YM2413State::frequency(const int channel) const
     return static_cast<double>(f_number(channel)) * _clockRate / 72 / (1 << (19 - block(channel)));
 }
 
-std::string YM2413State::add_with_text(const VgmCommands::ICommand* pCommand)
+void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s)
 {
     const auto* p = dynamic_cast<const VgmCommands::YM2413*>(pCommand);
     if (p == nullptr)
@@ -147,7 +147,8 @@ std::string YM2413State::add_with_text(const VgmCommands::ICommand* pCommand)
     // Check if valid
     if (!validRegisters.contains(p->registerIndex()))
     {
-        return std::format("YM2413: Invalid register index {:03x}", p->registerIndex());
+        s << "Invalid register index " << std::format("{:03x}", p->registerIndex());
+        return;
     }
 
     // Check for custom instrument
@@ -156,59 +157,54 @@ std::string YM2413State::add_with_text(const VgmCommands::ICommand* pCommand)
     {
     case 0x00:
     case 0x01:
-        return std::format(
-            "YM2413: Tone user instrument ({}): multiplier {}, key scale rate {}, {} tone, vibrato {}, AM {}",
-            registerIndex == 1 ? "carrier" : "modulator",
-            customInstrumentMultiplyingFactors[value & 0b1111],
-            Utils::bit_value(value, 4),
-            Utils::bit_set(value, 5) ? "sustained" : "percussive",
-            Utils::on_off(value, 6),
-            Utils::on_off(value, 7));
+        s << "Tone user instrument ("
+            << (registerIndex == 1 ? "carrier" : "modulator")
+            << "): multiplier " << customInstrumentMultiplyingFactors[value & 0b1111]
+            << ", key scale rate " << Utils::bit_value(value, 4)
+            << ", " << (Utils::bit_set(value, 5) ? "sustained" : "percussive") << " tone, vibrato "
+            << Utils::on_off(value, 6)
+            << ", AM " << Utils::on_off(value, 7);
+        return;
     case 0x02:
         {
-            double keyScaleLevel = 1.5 * (value >> 6);
-            double attenuation = 0.75 * (value & 0b111111);
-            return std::format(
-                "YM2413: Tone user instrument: modulator key scale level {} dB/oct, total level {} dB = {:3.0f}%",
-                keyScaleLevel,
-                attenuation,
-                Utils::db_to_percent(attenuation));
+            const double keyScaleLevel = 1.5 * (value >> 6);
+            const double attenuation = 0.75 * (value & 0b111111);
+            s << "Tone user instrument: modulator key scale level " << keyScaleLevel << " dB/oct, total level "
+                << attenuation << " dB = " << std::format("{:3.0f}%", Utils::db_to_percent(attenuation));
+            return;
         }
     case 0x03:
-        return std::format(
-            "YM2413: Tone user instrument: carrier key scale level {} db/oct, carrier {}rectified, modulator {}rectified, feedback modulation {}",
-            1.5 * (value >> 6),
-            Utils::bit_set(value, 4) ? "" : "not ",
-            Utils::bit_set(value, 3) ? "" : "not ",
-            customInstrumentFeedbackModulations[value & 0b111]);
+        {
+            const double keyScaleLevel = 1.5 * (value >> 6);
+            s << "Tone user instrument: carrier key scale level " << keyScaleLevel << " db/oct"
+                << ", carrier " << (Utils::bit_set(value, 4) ? "" : "not ") << "rectified"
+                << ", modulator " << (Utils::bit_set(value, 3) ? "" : "not ") << "rectified"
+                << ", feedback modulation " << customInstrumentFeedbackModulations[value & 0b111];
+            return;
+        }
     case 0x04:
     case 0x05:
         {
-            int attackRate = value >> 4;
-            int decayRate = value & 0xf;
-            return std::format(
-                "YM2413: Tone user instrument ({}): attack rate {}, decay rate {}",
-                p->registerIndex() == 4 ? "modulator" : "carrier",
-                attackRate,
-                decayRate);
+            const int attackRate = value >> 4;
+            const int decayRate = value & 0xf;
+            s << "Tone user instrument (" << (p->registerIndex() == 4 ? "modulator" : "carrier") << "): "
+                << "attack rate " << attackRate
+                << ", decay rate " << decayRate;
+            return;
         }
     case 0x06:
     case 0x07:
         {
-            int sustainLevel = 3 * (value >> 4);
-            int releaseRate = value & 0xf;
-            return std::format(
-                "YM2413: Tone user instrument ({}): sustain level {} dB = {:3.0f}%, release rate {}",
-                p->registerIndex() == 6 ? "modulator" : "carrier",
-                sustainLevel,
-                Utils::db_to_percent(sustainLevel),
-                releaseRate);
+            const int sustainLevel = 3 * (value >> 4);
+            const int releaseRate = value & 0xf;
+            s << "Tone user instrument (" << (p->registerIndex() == 6 ? "modulator" : "carrier") << "): "
+                << "sustain level " << sustainLevel << " dB = " << std::format("{:3.0f}%", Utils::db_to_percent(sustainLevel))
+                << ", release rate " << releaseRate;
+            return;
         }
     case 0x0e: // Percussion
-        return std::format(
-            "YM2413: Rhythm control: percussion {}, instruments: {}",
-            Utils::on_off(value, 5),
-            percussion_instruments(value));
+        s << "Rhythm control: percussion " << Utils::on_off(value, 5) << ", instruments: " << percussion_instruments(value);
+        return;
     case 0x10:
     case 0x11:
     case 0x12:
@@ -219,15 +215,15 @@ std::string YM2413State::add_with_text(const VgmCommands::ICommand* pCommand)
     case 0x17:
     case 0x18: // Tone F-number low 8 bits
         {
-            auto channel = p->registerIndex() & 0xf;
-            auto frequency = this->frequency(channel);
-            return std::format("YM2413: Tone frequency: ch {} -> {:03d}({}) = {:8.2f} Hz = {}{}",
-                channel,
-                f_number(channel),
-                block(channel),
-                frequency,
-                Utils::note_name(frequency),
-                channel >= 6 ? " OR Percussion F-num" : "");
+            const auto channel = p->registerIndex() & 0xf;
+            const auto frequency = this->frequency(channel);
+            s << "Tone frequency: ch " << channel << " -> " << std::format("{:03d}", f_number(channel))
+                << "(" << block(channel) << ") = " << std::format("{:8.2f}", frequency) << " Hz = " << Utils::note_name(frequency);
+            if (channel >= 6)
+            {
+                s << " OR Percussion F-num";
+            }
+            return;
         }
     case 0x20:
     case 0x21:
@@ -241,7 +237,7 @@ std::string YM2413State::add_with_text(const VgmCommands::ICommand* pCommand)
         {
             auto channel = p->registerIndex() & 0xf;
             auto frequency = this->frequency(channel);
-            return std::format("YM2413: Tone frequency/key: ch {} -> {:03d}({}) = {:8.2f} Hz = {}; sustain {}, key {}{}",
+            s << std::format("YM2413: Tone frequency/key: ch {} -> {:03d}({}) = {:8.2f} Hz = {}; sustain {}, key {}{}",
                 channel,
                 f_number(channel),
                 block(channel),
@@ -250,6 +246,7 @@ std::string YM2413State::add_with_text(const VgmCommands::ICommand* pCommand)
                 Utils::on_off(value, 5),
                 Utils::on_off(value, 4),
                 channel >= 6 ? " OR Percussion F-num" : "");
+            return;
         }
     case 0x30:
     case 0x31:
@@ -265,7 +262,7 @@ std::string YM2413State::add_with_text(const VgmCommands::ICommand* pCommand)
             const auto instrument = value >> 4;
             const auto volume = value & 0b1111;
             const auto attenuation = 3 * volume;
-            return std::format("YM2413: Tone volume/instrument: ch {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; inst 0x{:x} = {}{}",
+            s << std::format("YM2413: Tone volume/instrument: ch {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; inst 0x{:x} = {}{}",
                 channel,
                 volume,
                 attenuation,
@@ -273,6 +270,7 @@ std::string YM2413State::add_with_text(const VgmCommands::ICommand* pCommand)
                 instrument,
                 instrumentNames[instrument],
                 channel < 6 ? "" : " OR Percussion volumes " + percussion_volumes(p));
+            return;
         }
     }
 
