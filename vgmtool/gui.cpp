@@ -2,7 +2,6 @@
 #include "resource.h"
 
 #include <cstdio>
-#include <cmath>
 #include <format>
 #include <fstream>
 #include <ranges>
@@ -13,6 +12,7 @@
 
 #include <Windows.h>
 #include <Uxtheme.h>
+#include <zlib.h>
 
 #include "libvgmtool/convert.h"
 #include "libvgmtool/gd3.h"
@@ -563,9 +563,99 @@ void Gui::make_tabbed_dialog()
 {
     // Load images for tabs
     InitCommonControls(); // required before doing imagelist stuff
-    const HIMAGELIST imageList = ImageList_LoadImage(_hInstance, reinterpret_cast<LPCSTR>(tabimages), 16, 0, RGB(255, 0, 255),
-        IMAGE_BITMAP, LR_CREATEDIBSECTION);
 
+    // We want to scale the image by the DPI
+    HIMAGELIST imageList;
+    const auto currentDpi = GetDpiForWindow(_hWndMain);
+    if (currentDpi == 0 || currentDpi == USER_DEFAULT_SCREEN_DPI) 
+    {
+        // No scaling required
+        imageList = ImageList_LoadImage(_hInstance, reinterpret_cast<LPCSTR>(tabimages), 16, 0, RGB(255, 0, 255),
+            IMAGE_BITMAP, LR_CREATEDIBSECTION);
+    }
+    else
+    {
+        // Load the bitmap
+        const auto hBitmap = static_cast<HBITMAP>(LoadImage(
+            _hInstance,
+            MAKEINTRESOURCE(tabimages),
+            IMAGE_BITMAP,
+            0,
+            0,
+            LR_CREATEDIBSECTION // Create a DIB section for easier manipulation
+        ));
+
+        // Get the dimensions
+        BITMAP bm{};
+        GetObject(hBitmap, sizeof(bm), &bm);
+        // Compute the new image size. We want it each image to be the same size so we compute that and scale up.
+        const auto numImages = bm.bmWidth / bm.bmHeight;
+        const auto newImageSize = bm.bmHeight * currentDpi / USER_DEFAULT_SCREEN_DPI;
+        const auto newWidth = newImageSize * numImages;
+        const auto newHeight = newImageSize;
+
+        // Create a memory DC for drawing
+        const HDC hdcScreen = GetDC(nullptr); // Get DC for the screen
+        const HDC hdcMemSrc = CreateCompatibleDC(hdcScreen); // Source DC
+        const HDC hdcMemDst = CreateCompatibleDC(hdcScreen); // Destination DC for scaled bitmap
+        ReleaseDC(nullptr, hdcScreen);
+
+        // Select the original bitmap into the source DC
+        const auto hbmOldSrc = static_cast<HBITMAP>(SelectObject(hdcMemSrc, hBitmap));
+
+        // 5. Create a new DIB section for the scaled bitmap
+        // This provides a good format for ImageList and is easy to draw into.
+        BITMAPINFO bmi = {};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = static_cast<LONG>(newWidth);
+        bmi.bmiHeader.biHeight = -static_cast<LONG>(newHeight); // Negative height for top-down DIB
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32; // Use 32-bit for alpha support and general compatibility
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        VOID* pvBits = nullptr; // Pointer to the bitmap's pixel data
+
+        const auto hScaledBitmap = CreateDIBSection(hdcMemDst, &bmi, DIB_RGB_COLORS, &pvBits, nullptr, 0);
+
+        // Select the scaled bitmap into the destination DC
+        const auto hbmOldDst = static_cast<HBITMAP>(SelectObject(hdcMemDst, hScaledBitmap));
+
+        // 6. Set the stretch mode for better quality
+        // HALFTONE is generally the best compromise for quality when scaling.
+        SetStretchBltMode(hdcMemDst, HALFTONE);
+
+        // 7. Perform the actual scaling using StretchBlt
+        // This will stretch the original bitmap from hdcMemSrc to hdcMemDst
+        const BOOL bStretchSuccess = StretchBlt(
+            hdcMemDst,              // Destination DC
+            0, 0,                   // Destination top-left
+            static_cast<int>(newWidth),       // Destination width
+            static_cast<int>(newHeight),      // Destination height
+            hdcMemSrc,              // Source DC
+            0, 0,                   // Source top-left
+            bm.bmWidth,     // Source width
+            bm.bmHeight,    // Source height
+            SRCCOPY                 // Raster operation code
+        );
+        if (!bStretchSuccess) {
+            DeleteObject(hScaledBitmap);
+        }
+        SelectObject(hdcMemDst, hbmOldDst);
+        DeleteDC(hdcMemDst);
+        // Clean up temporary DCs and unselect bitmaps
+        SelectObject(hdcMemSrc, hbmOldSrc);
+        DeleteDC(hdcMemSrc);
+        DeleteObject(hBitmap); // Done with the original bitmap
+
+        imageList = ImageList_Create(
+            static_cast<int>(newHeight), 
+            static_cast<int>(newHeight),
+            ILC_COLOR32 | ILC_MASK, // Use 32-bit color and mask
+            1, // Initial count of images
+            1); // Grow by 1 (or more)
+        ImageList_AddMasked(imageList, hScaledBitmap, RGB(255, 0, 255));
+    }
+    // Apply the imagelist to the tab control
     const HWND tabCtrlWnd = GetDlgItem(_hWndMain, tcMain);
     TabCtrl_SetImageList(tabCtrlWnd, imageList);
 
@@ -857,7 +947,7 @@ void Gui::optimize(const std::string& filename) const
         (fileSizeAfter - fileSizeBefore) * 100.0 / fileSizeBefore
     )) == IDYES)
     {
-        ShellExecute(_hWndMain, "Play", filename.c_str(), nullptr, nullptr, SW_NORMAL);
+        ShellExecute(_hWndMain, "open", filename.c_str(), nullptr, nullptr, SW_NORMAL);
     }
 }
 

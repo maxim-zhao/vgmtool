@@ -95,13 +95,12 @@ STYLE DS_SETFONT | DS_SETFOREGROUND | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS
 EXSTYLE WS_EX_ACCEPTFILES | WS_EX_CONTROLPARENT
 FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
-    LTEXT           "&Filename:", IDC_STATIC, 2, 3, 33, 12, SS_CENTERIMAGE
-    EDITTEXT        edtFileName, 53, 3, 320, 12, ES_AUTOHSCROLL | ES_READONLY
-    CONTROL         "Tab1", tcMain, "SysTabControl32", WS_TABSTOP, 2, 18, 371, 153
-    LTEXT           "Welcome to VGMTool 2 :)", txtStatusBar, 2, 181, 310, 11, 
-                    SS_CENTERIMAGE, WS_EX_STATICEDGE
-    RTEXT           ".:VGMTool", IDC_STATIC, 314, 184, 35, 8
-    ICON            MAINICON, IDC_STATIC, 353, 172, 20, 20
+    LTEXT           "&Filename:",IDC_STATIC,2,3,33,12,SS_CENTERIMAGE
+    EDITTEXT        edtFileName,53,3,320,12,ES_AUTOHSCROLL | ES_READONLY
+    CONTROL         "Tab1",tcMain,"SysTabControl32",WS_TABSTOP,2,18,371,153
+    LTEXT           "Welcome to VGMTool 2 :)",txtStatusBar,2,181,310,11,SS_CENTERIMAGE,WS_EX_STATICEDGE
+    RTEXT           ".:VGMTool",IDC_STATIC,314,184,35,8
+    ICON            MAINICON,IDC_STATIC,353,175,10,8
 END
 
 DlgVGMHeader DIALOGEX 0, 0, 362, 135
