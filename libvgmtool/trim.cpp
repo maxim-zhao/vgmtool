@@ -1168,7 +1168,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
 
     optimise_vgm_pauses(outFilename, callback);
 
-    Utils::compress(outFilename);
+    Utils::compress(outFilename, callback);
 
     if (overWrite)
     {

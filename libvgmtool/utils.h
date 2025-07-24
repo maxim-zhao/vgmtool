@@ -21,7 +21,7 @@ public:
     // Returns the size of filename in bytes
     static int file_size(const std::string& filename);
     // Compresses filename in place with zopfli
-    static void compress(const std::string& filename, int iterations = -1);
+    static void compress(const std::string& filename, const IVGMToolCallback& callback, int iterations = -1);
     // Decompresses filename in place
     static void decompress(const std::string& filename);
     // Reads a file into RAM, possibly decompressing it at the same time
@@ -53,4 +53,7 @@ public:
 
     // dB attenuation to percentage; 0 dB -> 100%, more dB -> less percent
     static double db_to_percent(double attenuation);
+
+    // Given two numbers, express the second as a percentage reduction compared to the first
+    static double percentReduction(int before, int after);
 };

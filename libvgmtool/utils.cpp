@@ -5,8 +5,11 @@
 
 #include <fstream>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 #include <zopfli.h>
+
+#include "IVGMToolCallback.h"
 
 bool Utils::file_exists(const std::string& filename)
 {
@@ -19,11 +22,20 @@ int Utils::file_size(const std::string& filename)
     return static_cast<int>(std::filesystem::file_size(filename));
 }
 
-void Utils::compress(const std::string& filename, const int iterations)
+void Utils::compress(const std::string& filename, const IVGMToolCallback& callback, const int iterations)
 {
+    auto sizeBefore = file_size(filename);
+
     // Read file into memory
     std::vector<uint8_t> data;
     load_file(data, filename);
+
+    callback.show_status(std::format(
+        "{} before: {} bytes ({} bytes uncompressed, {:.4}% compression)", 
+        filename, 
+        sizeBefore, 
+        data.size(), 
+        percentReduction(static_cast<int>(data.size()), sizeBefore)));
 
     // Now compress
     ZopfliOptions options{};
@@ -37,6 +49,15 @@ void Utils::compress(const std::string& filename, const int iterations)
     size_t outSize = 0;
     ZopfliCompress(&options, ZOPFLI_FORMAT_GZIP, data.data(), data.size(), &out, &outSize);
 
+    // If it is not smaller, do not save
+    if (std::cmp_greater_equal(outSize, sizeBefore))
+    {
+        callback.show_status(std::format(
+            "Compressed to {} bytes, not overwriting...",
+            outSize));
+        return;
+    }
+
     // Write to disk, over the original file
     std::ofstream of;
     of.open(filename, std::ios::binary | std::ios::trunc | std::ios::out);
@@ -45,6 +66,14 @@ void Utils::compress(const std::string& filename, const int iterations)
 
     // And free
     free(out);
+
+    const auto sizeAfter = file_size(filename);
+    callback.show_status(std::format(
+        "{} after: {} bytes ({:.2}% smaller, {:.4}% compression)", 
+        filename, 
+        sizeAfter, 
+        percentReduction(sizeBefore, sizeAfter), 
+        percentReduction(static_cast<int>(data.size()), sizeAfter)));
 }
 
 void Utils::decompress(const std::string& filename)
@@ -202,4 +231,9 @@ bool Utils::bit_set(const uint8_t value, const int bitIndex)
 double Utils::db_to_percent(const double attenuation)
 {
     return std::pow(10, -0.1 * attenuation) * 100;
+}
+
+double Utils::percentReduction(int before, int after)
+{
+    return static_cast<double>(before - after) / static_cast<double>(before) * 100;
 }

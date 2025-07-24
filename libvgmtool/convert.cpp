@@ -342,7 +342,7 @@ bool Convert::to_vgm(const std::string& filename, const IVGMToolCallback& callba
         write_vgm_header(outFilename, vgmHeader, callback);
 
         // Do a final compression round
-        Utils::compress(outFilename);
+        Utils::compress(outFilename, callback);
 
         // Report
         callback.show_conversion_progress(std::format(R"(Converted "{}" to "{}")", filename, outFilename));

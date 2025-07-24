@@ -256,7 +256,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
             {
             case btnUpdateHeader:
                 update_header();
-                Utils::compress(_currentFilename);
+                Utils::compress(_currentFilename, *this);
                 load_file(_currentFilename);
                 break;
             case btnCheckLengths:
@@ -294,7 +294,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 break;
             case btnOptimise:
                 optimize(_currentFilename);
-                Utils::compress(_currentFilename);
+                Utils::compress(_currentFilename, *this);
                 load_file(_currentFilename);
                 break;
             case btnDecompress:
@@ -329,7 +329,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 break;
             case btnUpdateGD3:
                 update_gd3();
-                Utils::compress(_currentFilename);
+                Utils::compress(_currentFilename, *this);
                 load_file(_currentFilename);
                 break;
             case btnGD3Clear:
@@ -464,7 +464,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 }
                 break;
             case btnCompress:
-                Utils::compress(_currentFilename);
+                Utils::compress(_currentFilename, *this);
                 load_file(_currentFilename);
                 break;
             case btnNewTrim:

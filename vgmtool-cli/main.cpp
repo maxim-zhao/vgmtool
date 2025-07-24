@@ -9,78 +9,77 @@
 
 #include <libpu8/libpu8/libpu8.h>
 
-#ifdef WIN32
-#include <Windows.h>
-#endif
-
-class Callback : public IVGMToolCallback
+namespace
 {
-public:
-    bool is_verbose = false;
-
-    void show_message(const std::string& message) const override
+    class Callback final : public IVGMToolCallback
     {
-        printf("%s\n", message.c_str());
-    }
+    public:
+        bool is_verbose = false;
 
-    void show_error(const std::string& message) const override
-    {
-        fprintf(stderr, "%s\n", message.c_str()); // NOLINT(cert-err33-c)
-    }
-
-    void show_status(const std::string& message) const override
-    {
-        if (is_verbose)
+        void show_message(const std::string& message) const override
         {
             printf("%s\n", message.c_str());
         }
-    }
 
-    void show_conversion_progress(const std::string& message) const override
-    {
-        if (is_verbose)
+        void show_error(const std::string& message) const override
         {
-            printf("%s\n", message.c_str());
+            fprintf(stderr, "%s\n", message.c_str()); // NOLINT(cert-err33-c)
         }
-    }
-} callback;
 
-void write_to_text(const std::string& filename, const std::string& outputFilename, bool gd3Only, bool forTextFile)
-{
-    // Read in file
-    VgmFile f(filename);
-    // Write to stdout if no filename is given
-    auto* s = outputFilename.empty() ? &std::cout : new std::ofstream(outputFilename);
-
-    if (gd3Only)
-    {
-        if (f.gd3().empty())
+        void show_status(const std::string& message) const override
         {
-            *s << "No GD3 tag";
+            if (is_verbose)
+            {
+                printf("%s\n", message.c_str());
+            }
+        }
+
+        void show_conversion_progress(const std::string& message) const override
+        {
+            if (is_verbose)
+            {
+                printf("%s\n", message.c_str());
+            }
+        }
+    } callback;
+
+    void write_to_text(const std::string& filename, const std::string& outputFilename, bool gd3Only, bool forTextFile)
+    {
+        // Read in file
+        VgmFile f(filename);
+        // Write to stdout if no filename is given
+        auto* s = outputFilename.empty() ? &std::cout : new std::ofstream(outputFilename);
+
+        if (gd3Only)
+        {
+            if (f.gd3().empty())
+            {
+                *s << "No GD3 tag";
+            }
+            else
+            {
+                *s << f.gd3().write_to_text();
+            }
+        }
+        else if (forTextFile)
+        {
+            const auto& length = Utils::samples_to_display_text(f.header().sample_count(), false);
+            *s << std::format(
+                "{: <{}} {}   {}",
+                u8narrow(f.gd3().get_text(Gd3Tag::Key::TitleEn)),
+                39 - length.length(),
+                length,
+                Utils::samples_to_display_text(f.header().loop_sample_count(), false));
         }
         else
         {
-            *s << f.gd3().write_to_text();
+            f.write_to_text(*s, callback);
         }
-    }
-    else if (forTextFile)
-    {
-        const auto& length = Utils::samples_to_display_text(f.header().sample_count(), false);
-        *s << std::format(
-            "{: <{}} {}   {}",
-            u8narrow(f.gd3().get_text(Gd3Tag::Key::TitleEn)),
-            39 - length.length(),
-            length,
-            Utils::samples_to_display_text(f.header().loop_sample_count(), false));
-    }
-    else
-    {
-        f.write_to_text(*s, callback);
-    }
 
-    if (!outputFilename.empty())
-    {
-        delete s;
+        if (!outputFilename.empty())
+        {
+            delete s;
+        }
     }
 }
 
@@ -91,81 +90,113 @@ int main_utf8(int argc, char** argv)
         CLI::App app{"VGMTool CLI: VGM file editing utility"};
         app.require_subcommand()
            ->fallthrough()
+           ->allow_windows_style_options()
            ->set_help_all_flag("--help-all", "Show all subcommands help");
-        app.add_flag("-v, --verbose", callback.is_verbose, "Print messages while working");
-
-        auto* toTextVerb = app.add_subcommand("totext", "Emits a text file conversion of the VGM file");
-        toTextVerb->add_option("--output", "Filename to output to. If not specified, output to stdout.");
-        toTextVerb->add_flag("--fortxt", "Emit only the title and times for use in generating a description text file");
-        toTextVerb->add_flag("--gd3", "Emit only the GD3 tag");
-
-        auto* trimVerb = app.add_subcommand("trim", "Trim the file");
-        trimVerb->add_option("--start", "Trim start point in samples")->required()->
-                  check(CLI::NonNegativeNumber);
-        trimVerb->add_option("--loop", "Trim loop point in samples")->check(CLI::NonNegativeNumber);
-        trimVerb->add_option("--end", "Trim end point in samples")->required()->check(CLI::NonNegativeNumber);
-        trimVerb->add_flag("--log", "Log trim points to editpoints.txt");
-
-        const auto* checkVerb = app.add_subcommand("check", "Check the VGM file(s) for errors");
-
-        auto* compressVerb = app.add_subcommand("compress", "Compress VGM file(s)");
-        compressVerb->add_option("--iterations", "Zopfli compression iterations")
-                    ->default_val(15);
-
-        auto* decompressVerb = app.add_subcommand("decompress", "Decompress VGM file(s)");
-
-        const auto* convertVerb = app.add_subcommand("convert", "Convert GYM, CYM, SSL files to VGM");
+        app.add_flag("-v, --verbose", callback.is_verbose)
+           ->description("Print messages while working");
 
         std::vector<std::string> filenames;
-        app.add_option("filename", filenames, "The file(s) to process")
+        app.add_option("filename", filenames)
+           ->description("The file(s) to process")
            ->required()
            ->check(CLI::ExistingFile);
 
-        CLI11_PARSE(app, argc, argv)
-
-        for (const auto& filename : filenames)
+        // TODO I'd like to give the vars scoped storage but the lambda also needs to be able to see them
+        auto* toTextVerb = app.add_subcommand("totext")
+                              ->description("Emits a text file conversion of the VGM file");
+        std::string outputFilename;
+        toTextVerb->add_option("--output", outputFilename)
+                  ->description("Filename to output to. If not specified, output to stdout.");
+        bool forTextFile = false;
+        toTextVerb->add_flag("--fortxt", forTextFile)
+                  ->description("Emit only the title and times for use in generating a description text file");
+        bool gd3Only = false;
+        toTextVerb->add_flag("--gd3", gd3Only)
+                  ->description("Emit only the GD3 tag");
+        toTextVerb->callback([&]
         {
-            if (toTextVerb->parsed())
+            for (const auto& filename : filenames)
             {
-                const auto* output = toTextVerb->get_option("--output");
-                write_to_text(
-                    filename,
-                    output->as<std::string>(),
-                    toTextVerb->get_option("--gd3")->as<bool>(),
-                    toTextVerb->get_option("--fortxt")->as<bool>());
+                write_to_text(filename, outputFilename, gd3Only, forTextFile);
             }
+        });
 
-            if (trimVerb->parsed())
+        auto* trimVerb = app.add_subcommand("trim", "Trim the file");
+        int start;
+        trimVerb->add_option("--start", start)
+                ->description("Trim start point in samples")
+                ->required()
+                ->check(CLI::NonNegativeNumber);
+        int loop;
+        trimVerb->add_option("--loop", loop)
+                ->description("Trim loop point in samples")
+                ->check(CLI::NonNegativeNumber);
+        int end;
+        trimVerb->add_option("--end", end)
+                ->description("Trim end point in samples")
+                ->required()
+                ->check(CLI::NonNegativeNumber);
+        bool logTrim;
+        trimVerb->add_flag("--log", logTrim)
+                ->description("Log trim points to editpoints.txt");
+        trimVerb->callback([&]
+        {
+            for (const auto& filename : filenames)
             {
-                trim(
-                    filename,
-                    trimVerb->get_option("--start")->as<int>(),
-                    trimVerb->get_option("--loop")->as<int>(),
-                    trimVerb->get_option("--end")->as<int>(),
-                    false,
-                    trimVerb->get_option("--logTrim")->as<bool>(),
-                    callback);
+                trim(filename, start, loop, end, false, logTrim, callback);
             }
+        });
 
-            if (checkVerb->parsed())
-            {
-                check_lengths(filename, true, callback);
-            }
+        app.add_subcommand("check")
+           ->description("Check the VGM file(s) for errors")
+           ->callback([&]
+           {
+               for (const auto& filename : filenames)
+               {
+                   check_lengths(filename, true, callback);
+               }
+           });
 
-            if (compressVerb->parsed())
+        auto* compressVerb = app.add_subcommand("compress", "Compress VGM file(s)");
+        int iterations;
+        compressVerb->add_option("--iterations", iterations)
+                    ->description("Zopfli compression iterations")
+                    ->default_val(15);
+        compressVerb->callback([&]
+        {
+            for (const auto& filename : filenames)
             {
-                Utils::compress(filename, compressVerb->get_option("--iterations")->as<int>());
+                Utils::compress(filename, callback, iterations);
             }
+        });
 
-            if (decompressVerb->parsed())
-            {
-                Utils::decompress(filename);
-            }
+        app.add_subcommand("decompress")
+           ->description("Decompress VGM file(s)")
+           ->callback([&]
+           {
+               for (const auto& filename : filenames)
+               {
+                   Utils::decompress(filename);
+               }
+           });
 
-            if (convertVerb->parsed())
-            {
-                Convert::to_vgm(filename, callback);
-            }
+        app.add_subcommand("convert")
+           ->description("Convert GYM, CYM, SSL files to VGM")
+           ->callback([&]
+           {
+               for (const auto& filename : filenames)
+               {
+                   Convert::to_vgm(filename, callback);
+               }
+           });
+
+        try
+        {
+            app.parse(argc, argv);
+        }
+        catch (const CLI::ParseError& e)
+        {
+            return app.exit(e);
         }
 
         return EXIT_SUCCESS;
