@@ -689,7 +689,7 @@ void WriteYM2413State(gzFile out, unsigned char YM2413Regs[YM2413NumRegs], int I
 // the last write (at the last pause, or state write), and stores the
 // current state for comparison next time.
 void trim(const std::string& filename, int start, int loop, int end, bool overWrite, bool logTrims,
-          const IVGMToolCallback& callback)
+          const IVGMToolCallback& callback, std::string outFilename)
 {
     if (!Utils::file_exists(filename))
     {
@@ -725,16 +725,18 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
 
     callback.show_status("Trimming VGM data...");
 
-    std::string outFilename;
-    if (auto dotPosition = filename.find_last_of(".\\/"); dotPosition == std::string::npos || filename[dotPosition] !=
-        '.')
+    if (outFilename.empty())
     {
-        // No dot, just append
-        outFilename = filename + " (trimmed).vgm";
-    }
-    else
-    {
-        outFilename = filename.substr(0, dotPosition) + " (trimmed).vgm";
+        if (auto dotPosition = filename.find_last_of(".\\/"); 
+            dotPosition == std::string::npos || filename[dotPosition] != '.')
+        {
+            // No dot, just append
+            outFilename = filename + " (trimmed).vgm";
+        }
+        else
+        {
+            outFilename = filename.substr(0, dotPosition) + " (trimmed).vgm";
+        }
     }
 
     auto out = gzopen(outFilename.c_str(), "wb0"); // No compression, since I'll recompress it later

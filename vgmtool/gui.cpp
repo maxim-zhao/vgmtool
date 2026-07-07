@@ -283,7 +283,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                     get_int(_trimWnd, edtTrimEnd),
                     false,
                     get_bool(_trimWnd, cbLogTrims),
-                    *this);
+                    *this, "");
                 break;
             case btnWriteToText:
                 {
@@ -648,8 +648,8 @@ void Gui::make_tabbed_dialog()
         DeleteObject(hBitmap); // Done with the original bitmap
 
         imageList = ImageList_Create(
-            static_cast<int>(newHeight), 
-            static_cast<int>(newHeight),
+            static_cast<int>(newImageSize), 
+            static_cast<int>(newImageSize),
             ILC_COLOR32 | ILC_MASK, // Use 32-bit color and mask
             1, // Initial count of images
             1); // Grow by 1 (or more)
@@ -922,11 +922,11 @@ void Gui::optimize(const std::string& filename) const
     if (VGMHeader.LoopLength != 0u)
     {
         trim(filename, 0, static_cast<int>(VGMHeader.TotalLength - VGMHeader.LoopLength),
-            static_cast<int>(VGMHeader.TotalLength), true, false, *this);
+            static_cast<int>(VGMHeader.TotalLength), true, false, *this, "");
     }
     else
     {
-        trim(filename, 0, -1, static_cast<int>(VGMHeader.TotalLength), true, false, *this);
+        trim(filename, 0, -1, static_cast<int>(VGMHeader.TotalLength), true, false, *this, "");
     }
 
     in = gzopen(filename.c_str(), "rb");

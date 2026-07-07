@@ -7,4 +7,4 @@ void log_trim(const std::string& VGMFile, int start, int loop, int end, const IV
 
 bool new_trim(const std::string& filename, int start, int loop, int end, const IVGMToolCallback& callback);
 
-void trim(const std::string& filename, int start, int loop, int end, bool overWrite, bool logTrims, const IVGMToolCallback& callback);
+void trim(const std::string& filename, int start, int loop, int end, bool overWrite, bool logTrims, const IVGMToolCallback& callback, std::string outFilename);
