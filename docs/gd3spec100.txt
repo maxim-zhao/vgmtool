@@ -1,0 +1,50 @@
+GD3 v1.00 tag spec:
+The GD3 tag is a bit like an ID3 tag only used for games.
+All values are written in Intel byte order.
+The GD3 tag begins with a "Gd3 " string.
+Next four bytes are the version number (current is 0x00,0x01,0x00,0x00)
+Next four bytes are a 32-bit length of the following data in bytes.
+The following data is a series of null-terminated strings of this form:
+
+"Track name (in English characters)\0"
+"Track name (in Japanese characters)\0"
+"Game name (in English characters)\0"
+"Game name (in Japanese characters)\0"
+"System name (in English characters)\0"
+"System name (in Japanese characters)\0"
+"Name of Original Track Author (in English characters)\0"
+"Name of Original Track Author (in Japanese characters)\0"
+"Date of game's release written in the form yyyy/mm/dd, or just yyyy/mm or yyyy if month and day is not known\0"
+"Name of person who converted it to a VGM file.\0"
+"Notes\0"
+
+NOTE that two bytes are used to store every character, even English characters.
+The null terminators are two zeros.
+e.g. 0x54 0x00 0x72 0x00 0x61 0x00 0x63 0x00 ... 0x00 0x00
+New-line characters should only be in the notes field,
+where they are represented by 0x00 0x0a only.
+You can write 16-bit strings in Visual C++ like this:
+unsigned short *MyString=L"Track name";
+
+If a field in not used or unknown, it should be a empty string (i.e. two zero bytes
+for the null terminator).
+
+Be careful to include the system name in a standard form.
+Here are some standard system names:
+"Sega Master System"
+"Sega Game Gear"
+"Sega Master System / Game Gear"
+"Sega Mega Drive / Genesis"
+"Sega Game 1000"
+"Sega Computer 3000"
+"Sega System 16"
+"Capcom Play System 1"
+"Colecovision"
+"BBC Model B"
+"BBC Model B+"
+"BBC Master 128"
+
+Keep spelling, spacing and capitalization the same.
+
+Note that the "Original Track Author" might be the composer, arranger, programmer
+or any combination of these.
