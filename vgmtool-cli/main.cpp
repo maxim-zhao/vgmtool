@@ -95,15 +95,15 @@ int main_utf8(int argc, char** argv)
         app.add_flag("-v, --verbose", callback.is_verbose)
            ->description("Print messages while working");
 
-        std::vector<std::string> filenames;
-        app.add_option("filename", filenames)
-           ->description("The file(s) to process")
-           ->required()
-           ->check(CLI::ExistingFile);
-
         {
             auto* toTextVerb = app.add_subcommand("totext")
                                   ->description("Emits a text file conversion of the VGM file");
+            std::vector<std::string> filenames;
+            toTextVerb->add_option("filename", filenames)
+                      ->description("The file(s) to process")
+                      ->required()
+                      ->check(CLI::ExistingFile);
+
             std::string outputFilename;
             toTextVerb->add_option("--output", outputFilename)
                       ->description("Filename to output to. If not specified, output to stdout.");
@@ -125,6 +125,11 @@ int main_utf8(int argc, char** argv)
         {
             auto* trimVerb = app.add_subcommand("trim", "Trim the file");
             int start;
+            std::string filename;
+            trimVerb->add_option("filename", filename)
+                    ->description("The file to process")
+                    ->required()
+                    ->check(CLI::ExistingFile);
             trimVerb->add_option("--start", start)
                     ->description("Trim start point in samples")
                     ->required()
@@ -144,26 +149,29 @@ int main_utf8(int argc, char** argv)
             std::string outputFilename;
             trimVerb->add_option("--output", outputFilename)
                     ->required()
-                    ->description("Filename to output to. If not specified, a filename is picked automatically.");
+                    ->description("Filename to output to");
             trimVerb->callback([&]
             {
-                for (const auto& filename : filenames)
-                {
-                    trim(filename, start, loop, end, false, logTrim, callback, outputFilename);
-                }
+                trim(filename, start, loop, end, false, logTrim, callback, outputFilename);
             });
         }
 
         {
-            app.add_subcommand("check")
-               ->description("Check the VGM file(s) for errors")
-               ->callback([&]
-               {
-                   for (const auto& filename : filenames)
-                   {
-                       check_lengths(filename, true, callback);
-                   }
-               });
+            const auto verb = app.add_subcommand("check")
+                           ->description("Check the VGM file(s) for errors");
+            std::vector<std::string> filenames;
+            verb->add_option("filename", filenames)
+                ->description("The file(s) to process")
+                ->required()
+                ->check(CLI::ExistingFile);
+
+            verb->callback([&]
+            {
+                for (const auto& filename : filenames)
+                {
+                    check_lengths(filename, true, callback);
+                }
+            });
         }
 
         {
