@@ -40,7 +40,7 @@ void remove_gd3(const std::string& filename, const IVGMToolCallback& callback)
     }
 
     VGMHeader.GD3Offset = 0;
-    VGMHeader.EoFOffset = gztell(out) - EOFDELTA; // Update EoF offset in header
+    VGMHeader.EoFOffset = static_cast<uint32_t>(gztell(out) - EOFDELTA); // Update EoF offset in header
 
     gzclose(in);
     gzclose(out);

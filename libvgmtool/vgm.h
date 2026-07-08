@@ -42,6 +42,7 @@ struct OldVGMHeader
     uint8_t Reserved{};
     uint32_t YM2612Clock{}; // typically 3579545, 0 for no YM2612
     uint32_t YM2151Clock{}; // typically 3579545, 0 for no YM2151
+    uint8_t padding[12]{}; // Padding up to 0x40
 
 public:
     bool is_valid() const;
