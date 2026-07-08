@@ -147,7 +147,7 @@ BEGIN
 END
 
 DlgTrimming DIALOGEX 0, 0, 363, 135
-STYLE DS_SETFONT | DS_FIXEDSYS | DS_CONTROL | WS_CHILD
+STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_TRANSPARENT
 FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
@@ -163,17 +163,10 @@ BEGIN
     LTEXT           "samples",IDC_STATIC,78,42,28,12,SS_CENTERIMAGE
     CONTROL         "&Include looping",cbLoop,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,58,62,12
     PUSHBUTTON      "&Round times",btnRoundTimes,44,87,62,12
-    PUSHBUTTON      "&Trim (new code)",btnNewTrim,44,115,62,12
-    PUSHBUTTON      "Trim (old code)",btnTrim,44,100,62,12
+    PUSHBUTTON      "&Trim",btnTrim,44,100,62,12
     GROUPBOX        "Optimise VGM",IDC_STATIC,116,4,74,55
     CONTROL         "Re&move silent PSG/offsets",cbRemoveOffset,"Button",BS_AUTOCHECKBOX | BS_MULTILINE | WS_TABSTOP,122,15,62,17
     PUSHBUTTON      "&Optimise",btnOptimise,122,42,62,12
-    PUSHBUTTON      "Remove offsets",btnRemoveOffsets,277,34,66,14
-    GROUPBOX        "New trim debugging",IDC_STATIC,268,4,91,105
-    PUSHBUTTON      "Trim only",btnTrimOnly,277,17,66,14
-    PUSHBUTTON      "Optimise data",btnOptimiseVGMData,277,52,66,14
-    PUSHBUTTON      "Optimise pauses",btnOptimisePauses,277,68,66,14
-    PUSHBUTTON      "Compress",btnCompress,277,86,66,14
     CONTROL         "Log to editpoints.txt",cbLogTrims,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,72,96,12
 END
 

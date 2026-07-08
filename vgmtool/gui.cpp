@@ -443,23 +443,6 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 remove_gd3(_currentFilename, *this);
                 load_file(_currentFilename);
                 break;
-            case btnRemoveOffsets:
-                remove_offset(_currentFilename, *this);
-                load_file(_currentFilename);
-                break;
-            case btnOptimiseVGMData:
-                //      OptimiseVGMData(_current_filename);
-                show_error("TODO: OptimiseVGMData() fixing");
-                load_file(_currentFilename);
-                break;
-            case btnOptimisePauses:
-                optimise_vgm_pauses(_currentFilename, *this);
-                load_file(_currentFilename);
-                break;
-            case btnCompress:
-                Utils::compress(_currentFilename, *this);
-                load_file(_currentFilename);
-                break;
             case btnGetCounts:
                 check_write_counts(_currentFilename);
                 break;

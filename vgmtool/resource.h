@@ -103,11 +103,6 @@
 #define tcMain                          1090
 #define btnCopyLengths                  1101
 #define edtConvertResults               1109
-#define btnNewTrim                      1112
-#define btnRemoveOffsets                1114
-#define btnTrimOnly                     1115
-#define btnOptimiseVGMData              1116
-#define btnOptimisePauses               1117
 #define btnCompress                     1118
 #define cbLogTrims                      1119
 #define IDC_COMBO2                      1121
