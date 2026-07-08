@@ -229,6 +229,47 @@ int main_utf8(int argc, char** argv)
             });
         }
 
+        {
+            auto verb = app.add_subcommand("setgd3")
+                           ->description("Set GD3 tag fields on a VGM file");
+            std::string filename;
+            verb->add_option("filename", filename)
+                ->description("The file to modify")
+                ->required()
+                ->check(CLI::ExistingFile);
+
+            std::string titleEn, titleJp, gameEn, gameJp, systemEn, systemJp, authorEn, authorJp, releaseDate, creator, notes;
+
+            auto *optTitleEn = verb->add_option("--title-en", titleEn)->description("Title (EN)");
+            auto *optTitleJp = verb->add_option("--title-jp", titleJp)->description("Title (JP)");
+            auto *optGameEn = verb->add_option("--game-en", gameEn)->description("Game (EN)");
+            auto *optGameJp = verb->add_option("--game-jp", gameJp)->description("Game (JP)");
+            auto *optSystemEn = verb->add_option("--system-en", systemEn)->description("System (EN)");
+            auto *optSystemJp = verb->add_option("--system-jp", systemJp)->description("System (JP)");
+            auto *optAuthorEn = verb->add_option("--author-en", authorEn)->description("Author (EN)");
+            auto *optAuthorJp = verb->add_option("--author-jp", authorJp)->description("Author (JP)");
+            auto *optReleaseDate = verb->add_option("--release-date", releaseDate)->description("Release date");
+            auto *optCreator = verb->add_option("--creator", creator)->description("Creator");
+            auto *optNotes = verb->add_option("--notes", notes)->description("Notes");
+
+            verb->callback([&]
+            {
+                VgmFile f(filename);
+                if (optTitleEn->count()) f.gd3().set_text(Gd3Tag::Key::TitleEn, u8widen(titleEn));
+                if (optTitleJp->count()) f.gd3().set_text(Gd3Tag::Key::TitleJp, u8widen(titleJp));
+                if (optGameEn->count()) f.gd3().set_text(Gd3Tag::Key::GameEn, u8widen(gameEn));
+                if (optGameJp->count()) f.gd3().set_text(Gd3Tag::Key::GameJp, u8widen(gameJp));
+                if (optSystemEn->count()) f.gd3().set_text(Gd3Tag::Key::SystemEn, u8widen(systemEn));
+                if (optSystemJp->count()) f.gd3().set_text(Gd3Tag::Key::SystemJp, u8widen(systemJp));
+                if (optAuthorEn->count()) f.gd3().set_text(Gd3Tag::Key::AuthorEn, u8widen(authorEn));
+                if (optAuthorJp->count()) f.gd3().set_text(Gd3Tag::Key::AuthorJp, u8widen(authorJp));
+                if (optReleaseDate->count()) f.gd3().set_text(Gd3Tag::Key::ReleaseDate, u8widen(releaseDate));
+                if (optCreator->count()) f.gd3().set_text(Gd3Tag::Key::Creator, u8widen(creator));
+                if (optNotes->count()) f.gd3().set_text(Gd3Tag::Key::Notes, u8widen(notes));
+                f.save_file(filename);
+            });
+        }
+
         try
         {
             app.parse(argc, argv);
