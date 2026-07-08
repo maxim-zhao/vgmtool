@@ -234,7 +234,7 @@ int main_utf8(int argc, char** argv)
                            ->description("Set GD3 tag fields on a VGM file");
             std::string filename;
             verb->add_option("filename", filename)
-                ->description("The file to modify")
+                ->description("The file to modify (in place)")
                 ->required()
                 ->check(CLI::ExistingFile);
 

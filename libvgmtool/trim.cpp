@@ -14,22 +14,22 @@
 // Creates a log of the trim for future reference
 // in a file called "editpoints.txt" in the VGM's directory
 //----------------------------------------------------------------------------------------------
-void log_trim(const std::string& VGMFile, int start, int loop, int end, const IVGMToolCallback& callback)
+void log_trim(const std::string& filename, const int start, const int loop, const int end, const IVGMToolCallback& callback)
 {
-    const auto slashPos = VGMFile.find_last_of("\\/");
+    const auto slashPos = filename.find_last_of("\\/");
     if (slashPos == std::string::npos)
     {
         return;
     }
 
     // make filename to log to
-    auto fn = VGMFile.substr(0, slashPos + 1) + "editpoints.txt";
+    const auto logFilename = filename.substr(0, slashPos + 1) + "editpoints.txt";
 
-    FILE* f = fopen(fn.c_str(), "a"); // open file for append
+    FILE* f = fopen(logFilename.c_str(), "a"); // open file for append
 
     if (f == nullptr)
     {
-        callback.show_error("Error opening editpoints.txt");
+        callback.show_error("Error opening " + logFilename);
     }
     else
     {
@@ -37,7 +37,7 @@ void log_trim(const std::string& VGMFile, int start, int loop, int end, const IV
             "Start:    %d\n"
             "Loop:     %d\n"
             "End:      %d\n\n",
-            VGMFile.substr(slashPos + 1).c_str(),
+            filename.substr(slashPos + 1).c_str(),
             start,
             loop,
             end);
@@ -480,7 +480,7 @@ const int YM2413RegWriteFlags[YM2413NumRegs] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
 
-void WriteVGMInfo(gzFile out, long* pauselength, TPSGState* PSGState, unsigned char YM2413Regs[YM2413NumRegs])
+void WriteVGMInfo(const gzFile out, long* pauselength, TPSGState* PSGState, unsigned char YM2413Regs[YM2413NumRegs])
 {
     int i;
     if (!*pauselength)
@@ -622,7 +622,7 @@ void WriteVGMInfo(gzFile out, long* pauselength, TPSGState* PSGState, unsigned c
     LastWrittenPSGState = *PSGState;
 }
 
-void WritePSGState(gzFile out, TPSGState PSGState)
+void WritePSGState(const gzFile out, const TPSGState PSGState)
 {
     int i;
     // GG stereo
@@ -661,7 +661,7 @@ void WritePSGState(gzFile out, TPSGState PSGState)
     LastWrittenPSGState = PSGState;
 }
 
-void WriteYM2413State(gzFile out, unsigned char YM2413Regs[YM2413NumRegs], int IsStart)
+void WriteYM2413State(const gzFile out, unsigned char YM2413Regs[YM2413NumRegs], const int IsStart)
 {
     for (int i = 0; i < YM2413NumRegs; ++i)
     {

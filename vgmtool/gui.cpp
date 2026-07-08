@@ -276,14 +276,34 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 }
                 break;
             case btnTrim:
-                trim(
-                    _currentFilename,
-                    get_int(_trimWnd, edtTrimStart),
-                    get_bool(_trimWnd, cbLoop) ? get_int(_trimWnd, edtTrimLoop) : -1,
-                    get_int(_trimWnd, edtTrimEnd),
-                    false,
-                    get_bool(_trimWnd, cbLogTrims),
-                    *this, "");
+                {
+                    // Generate suggested filename
+                    std::string suggestedFilename;
+                    if (auto dotPosition = _currentFilename.find_last_of(".\\/");
+                        dotPosition == std::string::npos || _currentFilename[dotPosition] != '.')
+                    {
+                        // No dot, just append
+                        suggestedFilename = _currentFilename + " (trimmed).vgm";
+                    }
+                    else
+                    {
+                        suggestedFilename = _currentFilename.substr(0, dotPosition) + " (trimmed).vgm";
+                    }
+
+                    // Show file picker dialog
+                    const auto outputFilename = show_save_file_dialog(suggestedFilename);
+                    if (!outputFilename.empty())
+                    {
+                        trim(
+                            _currentFilename,
+                            get_int(_trimWnd, edtTrimStart),
+                            get_bool(_trimWnd, cbLoop) ? get_int(_trimWnd, edtTrimLoop) : -1,
+                            get_int(_trimWnd, edtTrimEnd),
+                            false,
+                            get_bool(_trimWnd, cbLogTrims),
+                            *this, outputFilename);
+                    }
+                }
                 break;
             case btnWriteToText:
                 {
@@ -1615,3 +1635,42 @@ void Gui::update_write_count(const std::vector<int>& ids, const std::vector<int>
         }
     }
 }
+
+std::string Gui::show_save_file_dialog(const std::string& suggestedFilename) const
+{
+    // Convert suggested filename to wide string
+    const int sizeNeeded = MultiByteToWideChar(CP_UTF8, 0, suggestedFilename.c_str(),
+        static_cast<int>(suggestedFilename.size()), nullptr, 0);
+    std::wstring suggestedFilenamew(sizeNeeded, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, suggestedFilename.c_str(),
+        static_cast<int>(suggestedFilename.size()), suggestedFilenamew.data(), sizeNeeded);
+
+    // Make a buffer for the filename (256 chars should be plenty)
+    wchar_t filename[MAX_PATH]{};
+    wcscpy_s(filename, suggestedFilenamew.c_str());
+
+    // Set up the structure
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = _hWndMain;
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrFilter = L"VGM files (*.vgm)\0*.vgm\0All files (*.*)\0*.*\0";
+    ofn.nFilterIndex = 1;
+    ofn.lpstrDefExt = L"vgm";
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
+
+    // Show the Save File dialog
+    if (GetSaveFileNameW(&ofn))
+    {
+        // Convert back to UTF-8
+        const int sizeNeededUtf8 = WideCharToMultiByte(CP_UTF8, 0, filename, -1, nullptr, 0, nullptr, nullptr);
+        std::string resultUtf8(sizeNeededUtf8 - 1, '\0');
+        WideCharToMultiByte(CP_UTF8, 0, filename, -1, resultUtf8.data(), sizeNeededUtf8, nullptr, nullptr);
+        return resultUtf8;
+    }
+
+    // User cancelled
+    return "";
+}
+

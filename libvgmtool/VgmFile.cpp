@@ -85,7 +85,7 @@ void VgmFile::save_file(const std::string& filename)
     _header.to_binary(data);
 
     // Finally, save to disk. We don't do compression here.
-    data.save(filename + ".foo.vgm");
+    data.save(filename);
 }
 
 void VgmFile::check_header(bool fix)
