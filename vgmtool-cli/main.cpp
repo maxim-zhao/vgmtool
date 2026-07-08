@@ -103,7 +103,7 @@ int main_utf8(int argc, char** argv)
 
         {
             auto* toTextVerb = app.add_subcommand("totext")
-                              ->description("Emits a text file conversion of the VGM file");
+                                  ->description("Emits a text file conversion of the VGM file");
             std::string outputFilename;
             toTextVerb->add_option("--output", outputFilename)
                       ->description("Filename to output to. If not specified, output to stdout.");
@@ -141,28 +141,29 @@ int main_utf8(int argc, char** argv)
             bool logTrim;
             trimVerb->add_flag("--log", logTrim)
                     ->description("Log trim points to editpoints.txt");
-            std::string outFilename;
-            trimVerb->add_option("--output", outFilename)
+            std::string outputFilename;
+            trimVerb->add_option("--output", outputFilename)
+                    ->required()
                     ->description("Filename to output to. If not specified, a filename is picked automatically.");
             trimVerb->callback([&]
             {
                 for (const auto& filename : filenames)
                 {
-                    trim(filename, start, loop, end, false, logTrim, callback, outFilename);
+                    trim(filename, start, loop, end, false, logTrim, callback, outputFilename);
                 }
             });
         }
 
         {
             app.add_subcommand("check")
-              ->description("Check the VGM file(s) for errors")
-              ->callback([&]
-              {
-                  for (const auto& filename : filenames)
-                  {
-                      check_lengths(filename, true, callback);
-                  }
-              });
+               ->description("Check the VGM file(s) for errors")
+               ->callback([&]
+               {
+                   for (const auto& filename : filenames)
+                   {
+                       check_lengths(filename, true, callback);
+                   }
+               });
         }
 
         {
@@ -182,26 +183,26 @@ int main_utf8(int argc, char** argv)
 
         {
             app.add_subcommand("decompress")
-              ->description("Decompress VGM file(s)")
-              ->callback([&]
-              {
-                  for (const auto& filename : filenames)
-                  {
-                      Utils::decompress(filename);
-                  }
-              });
+               ->description("Decompress VGM file(s)")
+               ->callback([&]
+               {
+                   for (const auto& filename : filenames)
+                   {
+                       Utils::decompress(filename);
+                   }
+               });
         }
 
         {
             app.add_subcommand("convert")
-              ->description("Convert GYM, CYM, SSL files to VGM")
-              ->callback([&]
-              {
-                  for (const auto& filename : filenames)
-                  {
-                      Convert::to_vgm(filename, callback);
-                  }
-              });
+               ->description("Convert GYM, CYM, SSL files to VGM")
+               ->callback([&]
+               {
+                   for (const auto& filename : filenames)
+                   {
+                       Convert::to_vgm(filename, callback);
+                   }
+               });
         }
 
         try
