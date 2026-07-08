@@ -49,6 +49,7 @@ private:
     void check_write_counts(const std::string& filename);
     void update_write_count(const std::vector<int>& ids, const std::vector<int>& counts) const;
     [[nodiscard]] std::string show_save_file_dialog(const std::string& suggestedFilename) const;
+    [[nodiscard]] std::string show_open_file_dialog() const;
 
     // Pure GUI stuff
     [[nodiscard]] static int get_int(HWND hDlg, int item);

@@ -254,6 +254,12 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
         case WM_COMMAND:
             switch (LOWORD(wParam))
             {
+            case btnOpenFile:
+                if (const auto filename = show_open_file_dialog(); !filename.empty())
+                {
+                    load_file(filename);
+                }
+                break;
             case btnUpdateHeader:
                 update_header();
                 Utils::compress(_currentFilename, *this);
@@ -1596,6 +1602,36 @@ std::string Gui::show_save_file_dialog(const std::string& suggestedFilename) con
     if (GetSaveFileNameW(&ofn))
     {
         // Convert back to UTF-8
+        const int sizeNeededUtf8 = WideCharToMultiByte(CP_UTF8, 0, filename, -1, nullptr, 0, nullptr, nullptr);
+        std::string resultUtf8(sizeNeededUtf8 - 1, '\0');
+        WideCharToMultiByte(CP_UTF8, 0, filename, -1, resultUtf8.data(), sizeNeededUtf8, nullptr, nullptr);
+        return resultUtf8;
+    }
+
+    // User cancelled
+    return "";
+}
+
+std::string Gui::show_open_file_dialog() const
+{
+    // Make a buffer for the filename (256 chars should be plenty)
+    wchar_t filename[MAX_PATH]{};
+
+    // Set up the structure
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = _hWndMain;
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrFilter = L"VGM files (*.vgm;*.vgz)\0*.vgm;*.vgz\0VGM files (*.vgm)\0*.vgm\0VGZ files (*.vgz)\0*.vgz\0All files (*.*)\0*.*\0";
+    ofn.nFilterIndex = 1;
+    ofn.lpstrDefExt = L"vgm";
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+    // Show the Open File dialog
+    if (GetOpenFileNameW(&ofn))
+    {
+        // Convert to UTF-8
         const int sizeNeededUtf8 = WideCharToMultiByte(CP_UTF8, 0, filename, -1, nullptr, 0, nullptr, nullptr);
         std::string resultUtf8(sizeNeededUtf8 - 1, '\0');
         WideCharToMultiByte(CP_UTF8, 0, filename, -1, resultUtf8.data(), sizeNeededUtf8, nullptr, nullptr);

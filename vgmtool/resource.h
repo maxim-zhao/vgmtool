@@ -108,6 +108,7 @@
 #define IDC_COMBO2                      1121
 #define btnStrip                        1234
 #define btnGetCounts                    1235
+#define btnOpenFile                     1236
 
 // Next default values for new objects
 // 
