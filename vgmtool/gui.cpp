@@ -456,60 +456,9 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 optimise_vgm_pauses(_currentFilename, *this);
                 load_file(_currentFilename);
                 break;
-            case btnTrimOnly:
-                {
-                    int Loop = -1;
-                    BOOL b1, b2, b3 = TRUE;
-                    int Start = GetDlgItemInt(_trimWnd, edtTrimStart, &b1, FALSE);
-                    int End = GetDlgItemInt(_trimWnd, edtTrimEnd, &b2, FALSE);
-                    if (IsDlgButtonChecked(_trimWnd, cbLoop))
-                    {
-                        // want looping
-                        Loop = GetDlgItemInt(_trimWnd, edtTrimLoop, &b3, FALSE);
-                    }
-
-                    if (!b1 || !b2 || !b3)
-                    {
-                        // failed to get values
-                        show_error("Invalid edit points!");
-                        break;
-                    }
-
-                    if (IsDlgButtonChecked(_trimWnd, cbLogTrims) != 0u)
-                    {
-                        log_trim(_currentFilename, Start, Loop, End, *this);
-                    }
-
-                    new_trim(_currentFilename, Start, Loop, End, *this);
-                }
-                break;
             case btnCompress:
                 Utils::compress(_currentFilename, *this);
                 load_file(_currentFilename);
-                break;
-            case btnNewTrim:
-                {
-                    int Loop = -1;
-                    BOOL b1, b2, b3 = TRUE;
-                    int Start = GetDlgItemInt(_trimWnd, edtTrimStart, &b1, FALSE);
-                    int End = GetDlgItemInt(_trimWnd, edtTrimEnd, &b2, FALSE);
-                    if (IsDlgButtonChecked(_trimWnd, cbLoop))
-                    {
-                        // want looping
-                        Loop = GetDlgItemInt(_trimWnd, edtTrimLoop, &b3, FALSE);
-                    }
-
-                    if (!b1 || !b2 || !b3)
-                    {
-                        // failed to get values
-                        show_error("Invalid edit points!");
-                        break;
-                    }
-                    new_trim(_currentFilename, Start, Loop, End, *this);
-                    remove_offset(_currentFilename, *this);
-                    //        OptimiseVGMData(_current_filename);
-                    optimise_vgm_pauses(_currentFilename, *this);
-                }
                 break;
             case btnGetCounts:
                 check_write_counts(_currentFilename);
