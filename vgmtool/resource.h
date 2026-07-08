@@ -54,11 +54,11 @@
 #define edtGD3AuthorEn                  1034
 #define edtGD3GameEn                    1035
 #define edtGD3SystemEn                  1036
-#define edtGD3TitleJp                   1037
-#define edtGD3AuthorJp                  1038
+#define edtGD3TitleJa                   1037
+#define edtGD3AuthorJa                  1038
 #define edtGD3Date                      1039
-#define edtGD3GameJp                    1040
-#define edtGD3SystemJp                  1041
+#define edtGD3GameJa                    1040
+#define edtGD3SystemJa                  1041
 #define edtGD3Creator                   1042
 #define edtGD3Notes                     1043
 #define btnUpdateGD3                    1044

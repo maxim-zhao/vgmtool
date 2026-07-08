@@ -18,13 +18,13 @@ struct TGD3Header
 enum Gd3Indices
 {
     TitleEn,
-    TitleJp,
+    TitleJa,
     GameEn,
-    GameJp,
+    GameJa,
     SystemEn,
-    SystemJp,
+    SystemJa,
     AuthorEn,
-    AuthorJp,
+    AuthorJa,
     ReleaseDate,
     Creator,
     Notes,

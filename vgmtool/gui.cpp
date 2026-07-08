@@ -121,8 +121,8 @@ Gui::Gui(HINSTANCE hInstance, LPSTR lpCmdLine, int nShowCmd):
     _ym2151CheckBoxes{cbYM2151},
     _reservedCheckboxes{cbReserved},
     _gd3EditControls{
-        edtGD3TitleEn, edtGD3TitleJp, edtGD3GameEn, edtGD3GameJp, cbGD3SystemEn, edtGD3SystemJp, edtGD3AuthorEn,
-        edtGD3AuthorJp,edtGD3Date, edtGD3Creator, edtGD3Notes
+        edtGD3TitleEn, edtGD3TitleJa, edtGD3GameEn, edtGD3GameJa, cbGD3SystemEn, edtGD3SystemJa, edtGD3AuthorEn,
+        edtGD3AuthorJa,edtGD3Date, edtGD3Creator, edtGD3Notes
     }
 {
     _pThis = this;
@@ -412,7 +412,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                     // Find in our list
                     if (index >= 0 && index < static_cast<int>(SYSTEM_NAMES.size()))
                     {
-                        SetDlgItemTextW(_gd3Wnd, edtGD3SystemJp, SYSTEM_NAMES[index].second.c_str());
+                        SetDlgItemTextW(_gd3Wnd, edtGD3SystemJa, SYSTEM_NAMES[index].second.c_str());
                     }
                 }
                 break;

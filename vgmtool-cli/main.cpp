@@ -238,16 +238,16 @@ int main_utf8(int argc, char** argv)
                 ->required()
                 ->check(CLI::ExistingFile);
 
-            std::string titleEn, titleJp, gameEn, gameJp, systemEn, systemJp, authorEn, authorJp, releaseDate, creator, notes;
+            std::string titleEn, titleJa, gameEn, gameJa, systemEn, systemJa, authorEn, authorJa, releaseDate, creator, notes;
 
             auto *optTitleEn = verb->add_option("--title-en", titleEn)->description("Title (EN)");
-            auto *optTitleJp = verb->add_option("--title-jp", titleJp)->description("Title (JP)");
+            auto *optTitleJa = verb->add_option("--title-ja", titleJa)->description("Title (JA)");
             auto *optGameEn = verb->add_option("--game-en", gameEn)->description("Game (EN)");
-            auto *optGameJp = verb->add_option("--game-jp", gameJp)->description("Game (JP)");
+            auto *optGameJa = verb->add_option("--game-ja", gameJa)->description("Game (JA)");
             auto *optSystemEn = verb->add_option("--system-en", systemEn)->description("System (EN)");
-            auto *optSystemJp = verb->add_option("--system-jp", systemJp)->description("System (JP)");
+            auto *optSystemJa = verb->add_option("--system-ja", systemJa)->description("System (JA)");
             auto *optAuthorEn = verb->add_option("--author-en", authorEn)->description("Author (EN)");
-            auto *optAuthorJp = verb->add_option("--author-jp", authorJp)->description("Author (JP)");
+            auto *optAuthorJa = verb->add_option("--author-ja", authorJa)->description("Author (JA)");
             auto *optReleaseDate = verb->add_option("--release-date", releaseDate)->description("Release date");
             auto *optCreator = verb->add_option("--creator", creator)->description("Creator");
             auto *optNotes = verb->add_option("--notes", notes)->description("Notes");
@@ -256,13 +256,13 @@ int main_utf8(int argc, char** argv)
             {
                 VgmFile f(filename);
                 if (optTitleEn->count()) f.gd3().set_text(Gd3Tag::Key::TitleEn, u8widen(titleEn));
-                if (optTitleJp->count()) f.gd3().set_text(Gd3Tag::Key::TitleJp, u8widen(titleJp));
+                if (optTitleJa->count()) f.gd3().set_text(Gd3Tag::Key::TitleJa, u8widen(titleJa));
                 if (optGameEn->count()) f.gd3().set_text(Gd3Tag::Key::GameEn, u8widen(gameEn));
-                if (optGameJp->count()) f.gd3().set_text(Gd3Tag::Key::GameJp, u8widen(gameJp));
+                if (optGameJa->count()) f.gd3().set_text(Gd3Tag::Key::GameJa, u8widen(gameJa));
                 if (optSystemEn->count()) f.gd3().set_text(Gd3Tag::Key::SystemEn, u8widen(systemEn));
-                if (optSystemJp->count()) f.gd3().set_text(Gd3Tag::Key::SystemJp, u8widen(systemJp));
+                if (optSystemJa->count()) f.gd3().set_text(Gd3Tag::Key::SystemJa, u8widen(systemJa));
                 if (optAuthorEn->count()) f.gd3().set_text(Gd3Tag::Key::AuthorEn, u8widen(authorEn));
-                if (optAuthorJp->count()) f.gd3().set_text(Gd3Tag::Key::AuthorJp, u8widen(authorJp));
+                if (optAuthorJa->count()) f.gd3().set_text(Gd3Tag::Key::AuthorJa, u8widen(authorJa));
                 if (optReleaseDate->count()) f.gd3().set_text(Gd3Tag::Key::ReleaseDate, u8widen(releaseDate));
                 if (optCreator->count()) f.gd3().set_text(Gd3Tag::Key::Creator, u8widen(creator));
                 if (optNotes->count()) f.gd3().set_text(Gd3Tag::Key::Notes, u8widen(notes));

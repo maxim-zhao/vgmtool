@@ -33,13 +33,13 @@ void Gd3Tag::from_binary(BinaryData& data)
     const auto textLengthBytes = data.read_uint32();
     _text.clear();
     _text[Key::TitleEn] = data.read_null_terminated_utf16_string();
-    _text[Key::TitleJp] = data.read_null_terminated_utf16_string();
+    _text[Key::TitleJa] = data.read_null_terminated_utf16_string();
     _text[Key::GameEn] = data.read_null_terminated_utf16_string();
-    _text[Key::GameJp] = data.read_null_terminated_utf16_string();
+    _text[Key::GameJa] = data.read_null_terminated_utf16_string();
     _text[Key::SystemEn] = data.read_null_terminated_utf16_string();
-    _text[Key::SystemJp] = data.read_null_terminated_utf16_string();
+    _text[Key::SystemJa] = data.read_null_terminated_utf16_string();
     _text[Key::AuthorEn] = data.read_null_terminated_utf16_string();
-    _text[Key::AuthorJp] = data.read_null_terminated_utf16_string();
+    _text[Key::AuthorJa] = data.read_null_terminated_utf16_string();
     _text[Key::ReleaseDate] = data.read_null_terminated_utf16_string();
     _text[Key::Creator] = data.read_null_terminated_utf16_string();
     _text[Key::Notes] = data.read_null_terminated_utf16_string();
@@ -68,13 +68,13 @@ void Gd3Tag::to_binary(BinaryData& data) const
     }
     data.write_uint32(textLength);
     data.write_terminated_utf16_string(get_text(Key::TitleEn));
-    data.write_terminated_utf16_string(get_text(Key::TitleJp));
+    data.write_terminated_utf16_string(get_text(Key::TitleJa));
     data.write_terminated_utf16_string(get_text(Key::GameEn));
-    data.write_terminated_utf16_string(get_text(Key::GameJp));
+    data.write_terminated_utf16_string(get_text(Key::GameJa));
     data.write_terminated_utf16_string(get_text(Key::SystemEn));
-    data.write_terminated_utf16_string(get_text(Key::SystemJp));
+    data.write_terminated_utf16_string(get_text(Key::SystemJa));
     data.write_terminated_utf16_string(get_text(Key::AuthorEn));
-    data.write_terminated_utf16_string(get_text(Key::AuthorJp));
+    data.write_terminated_utf16_string(get_text(Key::AuthorJa));
     data.write_terminated_utf16_string(get_text(Key::ReleaseDate));
     data.write_terminated_utf16_string(get_text(Key::Creator));
     data.write_terminated_utf16_string(get_text(Key::Notes));
@@ -104,13 +104,13 @@ std::string Gd3Tag::write_to_text() const
 {
     KeyValuePrinter printer;
     printer.add("Title (EN)", u8narrow(get_text(Key::TitleEn)));
-    printer.add("Title (JP)", u8narrow(get_text(Key::TitleJp)));
+    printer.add("Title (JA)", u8narrow(get_text(Key::TitleJa)));
     printer.add("Author (EN)", u8narrow(get_text(Key::AuthorEn)));
-    printer.add("Author (JP)", u8narrow(get_text(Key::AuthorJp)));
+    printer.add("Author (JA)", u8narrow(get_text(Key::AuthorJa)));
     printer.add("Game (EN)", u8narrow(get_text(Key::GameEn)));
-    printer.add("Game (JP)", u8narrow(get_text(Key::GameJp)));
+    printer.add("Game (JA)", u8narrow(get_text(Key::GameJa)));
     printer.add("System (EN)", u8narrow(get_text(Key::SystemEn)));
-    printer.add("System (JP)", u8narrow(get_text(Key::SystemJp)));
+    printer.add("System (JA)", u8narrow(get_text(Key::SystemJa)));
     printer.add("Release date", u8narrow(get_text(Key::ReleaseDate)));
     printer.add("Creator", u8narrow(get_text(Key::Creator)));;
     const auto notes = u8narrow(get_text(Key::Notes));

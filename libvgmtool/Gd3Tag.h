@@ -19,13 +19,13 @@ public:
     enum class Key
     {
         TitleEn,
-        TitleJp,
+        TitleJa,
         GameEn,
-        GameJp,
+        GameJa,
         SystemEn,
-        SystemJp,
+        SystemJa,
         AuthorEn,
-        AuthorJp,
+        AuthorJa,
         ReleaseDate,
         Creator,
         Notes
