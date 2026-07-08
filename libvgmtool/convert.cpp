@@ -28,7 +28,7 @@ void spread_dac(gzFile in, gzFile out)
     // the first 0x2a DAC data address byte.
 
     int numDacValues = 1;
-    const int inFileDataStart = gztell(in);
+    const auto inFileDataStart = gztell(in);
 
     // 1. Count how many DAC values there are
     do
@@ -154,7 +154,7 @@ void Convert::gymToVgm(const std::string& filename, gzFile in, gzFile out, OldVG
     {
         if (header.looped && (vgmHeader.TotalLength == vgmHeader.LoopLength))
         {
-            vgmHeader.LoopOffset = gztell(out) - LOOPDELTA;
+            vgmHeader.LoopOffset = static_cast<uint32_t>(gztell(out) - LOOPDELTA);
         }
         switch (gzgetc(in))
         {
@@ -332,7 +332,7 @@ bool Convert::to_vgm(const std::string& filename, const IVGMToolCallback& callba
         gzputc(out, VGM_END);
 
         // Fill in more of the VGM header
-        vgmHeader.EoFOffset = gztell(out) - EOFDELTA;
+        vgmHeader.EoFOffset = static_cast<uint32_t>(gztell(out) - EOFDELTA);
 
         // Close files
         gzclose(out);

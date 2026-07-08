@@ -1009,7 +1009,7 @@ void Gui::update_gd3() const
         gzputc(out, gzgetc(in));
     }
 
-    VGMHeader.GD3Offset = gztell(out) - GD3DELTA; // record GD3 position
+    VGMHeader.GD3Offset = static_cast<uint32_t>(gztell(out) - GD3DELTA); // record GD3 position
 
     std::wostringstream allGd3Strings;
 
@@ -1039,7 +1039,7 @@ void Gui::update_gd3() const
     gzwrite(out, &GD3Header, sizeof(GD3Header)); // write GD3 header
     gzwrite(out, data.data(), GD3Header.length); // write GD3 strings
 
-    VGMHeader.EoFOffset = gztell(out) - EOFDELTA; // Update EoF offset in header
+    VGMHeader.EoFOffset = static_cast<uint32_t>(gztell(out) - EOFDELTA); // Update EoF offset in header
 
     gzclose(in);
     gzclose(out);
@@ -1164,7 +1164,7 @@ void Gui::strip(const std::string& filename, const std::string& outfilename) con
     OldVGMHeader VGMHeader;
     signed int b0, b1, b2;
     char LatchedChannel = 0;
-    long int NewLoopOffset = 0;
+    uint32_t NewLoopOffset = 0;
 
     // Set up masks
     unsigned char PSGMask = (1 << NumPSGTypes) - 1;
@@ -1223,10 +1223,9 @@ void Gui::strip(const std::string& filename, const std::string& outfilename) con
     // process file
     do
     {
-        if ((VGMHeader.LoopOffset) && (gztell(in) == static_cast<long>(VGMHeader.LoopOffset) + LOOPDELTA))
+        if ((VGMHeader.LoopOffset) && (gztell(in) == VGMHeader.LoopOffset) + LOOPDELTA)
         {
-            NewLoopOffset = gztell(out) -
-                LOOPDELTA;
+            NewLoopOffset = static_cast<uint32_t>(gztell(out) - LOOPDELTA);
         }
         b0 = gzgetc(in);
         switch (b0)
@@ -1469,7 +1468,7 @@ void Gui::strip(const std::string& filename, const std::string& outfilename) con
     if (VGMHeader.GD3Offset)
     {
         TGD3Header GD3Header;
-        int NewGD3Offset = gztell(out) - GD3DELTA;
+        const auto NewGD3Offset = gztell(out) - GD3DELTA;
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
@@ -1478,10 +1477,10 @@ void Gui::strip(const std::string& filename, const std::string& outfilename) con
             // Copy strings
             gzputc(out, gzgetc(in));
         }
-        VGMHeader.GD3Offset = NewGD3Offset;
+        VGMHeader.GD3Offset = static_cast<uint32_t>(NewGD3Offset);
     }
-    VGMHeader.LoopOffset = NewLoopOffset;
-    VGMHeader.EoFOffset = gztell(out) - EOFDELTA;
+    VGMHeader.LoopOffset = static_cast<uint32_t>(NewLoopOffset);
+    VGMHeader.EoFOffset = static_cast<uint32_t>(gztell(out) - EOFDELTA);
 
     gzclose(in);
     gzclose(out);

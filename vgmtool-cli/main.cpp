@@ -158,7 +158,7 @@ int main_utf8(int argc, char** argv)
 
         {
             const auto verb = app.add_subcommand("check")
-                           ->description("Check the VGM file(s) for errors");
+                                 ->description("Check the VGM file(s) for errors");
             std::vector<std::string> filenames;
             verb->add_option("filename", filenames)
                 ->description("The file(s) to process")
@@ -176,6 +176,11 @@ int main_utf8(int argc, char** argv)
 
         {
             auto* compressVerb = app.add_subcommand("compress", "Compress VGM file(s)");
+            std::vector<std::string> filenames;
+            compressVerb->add_option("filename", filenames)
+                        ->description("The file(s) to process")
+                        ->required()
+                        ->check(CLI::ExistingFile);
             int iterations;
             compressVerb->add_option("--iterations", iterations)
                         ->description("Zopfli compression iterations")
@@ -190,27 +195,38 @@ int main_utf8(int argc, char** argv)
         }
 
         {
-            app.add_subcommand("decompress")
-               ->description("Decompress VGM file(s)")
-               ->callback([&]
-               {
-                   for (const auto& filename : filenames)
-                   {
-                       Utils::decompress(filename);
-                   }
-               });
+            const auto verb = app.add_subcommand("decompress")
+                                 ->description("Decompress VGM file(s)");
+            std::vector<std::string> filenames;
+            verb->add_option("filename", filenames)
+                ->description("The file(s) to process")
+                ->required()
+                ->check(CLI::ExistingFile);
+
+            verb->callback([&]
+            {
+                for (const auto& filename : filenames)
+                {
+                    Utils::decompress(filename);
+                }
+            });
         }
 
         {
-            app.add_subcommand("convert")
-               ->description("Convert GYM, CYM, SSL files to VGM")
-               ->callback([&]
-               {
-                   for (const auto& filename : filenames)
-                   {
-                       Convert::to_vgm(filename, callback);
-                   }
-               });
+            auto verb = app.add_subcommand("convert")
+                           ->description("Convert GYM, CYM, SSL files to VGM");
+            std::vector<std::string> filenames;
+            verb->add_option("filename", filenames)
+                ->description("The file(s) to process")
+                ->required()
+                ->check(CLI::ExistingFile);
+            verb->callback([&]
+            {
+                for (const auto& filename : filenames)
+                {
+                    Convert::to_vgm(filename, callback);
+                }
+            });
         }
 
         try

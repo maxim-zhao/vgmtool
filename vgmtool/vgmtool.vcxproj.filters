@@ -39,9 +39,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="Imagelist.bmp">
       <Filter>Resource Files</Filter>
     </Image>
@@ -53,5 +50,8 @@
     <Manifest Include="manifest.manifest">
       <Filter>Resource Files</Filter>
     </Manifest>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

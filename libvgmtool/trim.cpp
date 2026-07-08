@@ -318,7 +318,7 @@ bool new_trim(const std::string& filename, const int start, const int loop, cons
 
             write_pause(out, LastPauseLength - (CurrentState.samplecount - loop));
             // 3. Record loop offset
-            VGMHeader.LoopOffset = gztell(out) - LOOPDELTA;
+            VGMHeader.LoopOffset = static_cast<uint32_t>(gztell(out) - LOOPDELTA);
             // 4. Write any remaining pause left
             write_pause(out, CurrentState.samplecount - loop);
             // 5. Record that I've done it
@@ -383,7 +383,7 @@ bool new_trim(const std::string& filename, const int start, const int loop, cons
     if (VGMHeader.GD3Offset)
     {
         TGD3Header GD3Header;
-        int NewGD3Offset = gztell(out) - GD3DELTA;
+        const auto NewGD3Offset = gztell(out) - GD3DELTA;
         callback.show_status("Copying GD3 tag...");
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
@@ -392,11 +392,11 @@ bool new_trim(const std::string& filename, const int start, const int loop, cons
         {
             gzputc(out, gzgetc(in));
         }
-        VGMHeader.GD3Offset = NewGD3Offset;
+        VGMHeader.GD3Offset = static_cast<uint32_t>(NewGD3Offset);
     }
     gzclose(in);
     // 4. Fill in VGM header
-    VGMHeader.EoFOffset = gztell(out) - EOFDELTA;
+    VGMHeader.EoFOffset = static_cast<uint32_t>(gztell(out) - EOFDELTA);
     VGMHeader.TotalLength = end - start;
     if (loop > -1)
     {
@@ -1083,7 +1083,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
             }
             pauseLength = sampleCount - loop; // and remember any left over
             // Remember offset
-            vgmHeader.LoopOffset = gztell(out) - LOOPDELTA;
+            vgmHeader.LoopOffset = static_cast<uint32_t>(gztell(out) - LOOPDELTA);
             // Write loop point initialisation... unless start = loop
             // because then the start initialisation will work
             if (loop != start)
@@ -1134,7 +1134,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
     if (vgmHeader.GD3Offset)
     {
         TGD3Header GD3Header;
-        int NewGD3Offset = gztell(out) - GD3DELTA;
+        const auto NewGD3Offset = gztell(out) - GD3DELTA;
         callback.show_status("Copying GD3 tag...");
         gzseek(in, vgmHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
@@ -1144,9 +1144,9 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
             // Copy strings
             gzputc(out, gzgetc(in));
         }
-        vgmHeader.GD3Offset = NewGD3Offset;
+        vgmHeader.GD3Offset = static_cast<uint32_t>(NewGD3Offset);
     }
-    vgmHeader.EoFOffset = gztell(out) - EOFDELTA;
+    vgmHeader.EoFOffset = static_cast<uint32_t>(gztell(out) - EOFDELTA);
     gzclose(in);
     gzclose(out);
 

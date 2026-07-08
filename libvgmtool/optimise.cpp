@@ -53,7 +53,7 @@ bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& ca
         {
             write_pause(out, pauseLength);
             pauseLength = 0;
-            VGMHeader.LoopOffset = gztell(out) - LOOPDELTA;
+            VGMHeader.LoopOffset = static_cast<uint32_t>(gztell(out) - LOOPDELTA);
         }
 
         const auto b0 = gzgetc(in);
@@ -143,7 +143,7 @@ bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& ca
     if (VGMHeader.GD3Offset)
     {
         TGD3Header GD3Header{};
-        const int newGd3Offset = gztell(out) - GD3DELTA;
+        const auto newGd3Offset = static_cast<uint32_t>(gztell(out) - GD3DELTA);
         gzseek(in, static_cast<long>(VGMHeader.GD3Offset) + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
@@ -154,7 +154,7 @@ bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& ca
         VGMHeader.GD3Offset = newGd3Offset;
     }
     // 3. Fill in VGM header
-    VGMHeader.EoFOffset = gztell(out) - EOFDELTA;
+    VGMHeader.EoFOffset = static_cast<uint32_t>(gztell(out) - EOFDELTA);
     // LoopOffset updated while optimising
 
     gzclose(out);
@@ -213,9 +213,9 @@ int remove_offset(const std::string& filename, const IVGMToolCallback& callback)
     // Process file
     do
     {
-        if ((VGMHeader.LoopOffset) && (gztell(in) == static_cast<long>(VGMHeader.LoopOffset) + LOOPDELTA))
+        if ((VGMHeader.LoopOffset) && (gztell(in) == VGMHeader.LoopOffset) + LOOPDELTA)
         {
-            NewLoopOffset = gztell(out) - LOOPDELTA;
+            NewLoopOffset = static_cast<uint32_t>(gztell(out) - LOOPDELTA);
         }
         b0 = gzgetc(in);
         switch (b0)
@@ -393,7 +393,7 @@ int remove_offset(const std::string& filename, const IVGMToolCallback& callback)
     if (VGMHeader.GD3Offset)
     {
         TGD3Header GD3Header;
-        int NewGD3Offset = gztell(out) - GD3DELTA;
+        const auto NewGD3Offset = gztell(out) - GD3DELTA;
         gzseek(in, VGMHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
@@ -402,10 +402,10 @@ int remove_offset(const std::string& filename, const IVGMToolCallback& callback)
             // Copy strings
             gzputc(out, gzgetc(in));
         }
-        VGMHeader.GD3Offset = NewGD3Offset;
+        VGMHeader.GD3Offset = static_cast<uint32_t>(NewGD3Offset);
     }
-    VGMHeader.LoopOffset = NewLoopOffset;
-    VGMHeader.EoFOffset = gztell(out) - EOFDELTA;
+    VGMHeader.LoopOffset = static_cast<uint32_t>(NewLoopOffset);
+    VGMHeader.EoFOffset = static_cast<uint32_t>(gztell(out) - EOFDELTA);
 
     gzclose(in);
     gzclose(out);
