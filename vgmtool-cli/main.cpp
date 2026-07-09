@@ -1,4 +1,3 @@
-#include "CLI11.hpp"
 #include "libvgmtool/IVGMToolCallback.h"
 #include <libvgmtool/trim.h>
 
@@ -8,6 +7,7 @@
 #include "libvgmtool/VgmFile.h"
 
 #include <libpu8/libpu8/libpu8.h>
+#include "CLI11.hpp"
 
 namespace
 {
@@ -238,34 +238,34 @@ int main_utf8(int argc, char** argv)
                 ->required()
                 ->check(CLI::ExistingFile);
 
-            std::string titleEn, titleJa, gameEn, gameJa, systemEn, systemJa, authorEn, authorJa, releaseDate, creator, notes;
+            std::wstring titleEn, titleJa, gameEn, gameJa, systemEn, systemJa, authorEn, authorJa, releaseDate, creator, notes;
 
-            auto *optTitleEn = verb->add_option("--title-en", titleEn)->description("Title (EN)");
-            auto *optTitleJa = verb->add_option("--title-ja", titleJa)->description("Title (JA)");
-            auto *optGameEn = verb->add_option("--game-en", gameEn)->description("Game (EN)");
-            auto *optGameJa = verb->add_option("--game-ja", gameJa)->description("Game (JA)");
-            auto *optSystemEn = verb->add_option("--system-en", systemEn)->description("System (EN)");
-            auto *optSystemJa = verb->add_option("--system-ja", systemJa)->description("System (JA)");
-            auto *optAuthorEn = verb->add_option("--author-en", authorEn)->description("Author (EN)");
-            auto *optAuthorJa = verb->add_option("--author-ja", authorJa)->description("Author (JA)");
-            auto *optReleaseDate = verb->add_option("--release-date", releaseDate)->description("Release date");
-            auto *optCreator = verb->add_option("--creator", creator)->description("Creator");
-            auto *optNotes = verb->add_option("--notes", notes)->description("Notes");
+            verb->add_option("--title-en", titleEn)->description("Title (EN)");
+            verb->add_option("--title-ja", titleJa)->description("Title (JA)");
+            verb->add_option("--game-en", gameEn)->description("Game (EN)");
+            verb->add_option("--game-ja", gameJa)->description("Game (JA)");
+            verb->add_option("--system-en", systemEn)->description("System (EN)");
+            verb->add_option("--system-ja", systemJa)->description("System (JA)");
+            verb->add_option("--author-en", authorEn)->description("Author (EN)");
+            verb->add_option("--author-ja", authorJa)->description("Author (JA)");
+            verb->add_option("--release-date", releaseDate)->description("Release date");
+            verb->add_option("--creator", creator)->description("Creator");
+            verb->add_option("--notes", notes)->description("Notes");
 
             verb->callback([&]
             {
                 VgmFile f(filename);
-                if (optTitleEn->count()) f.gd3().set_text(Gd3Tag::Key::TitleEn, u8widen(titleEn));
-                if (optTitleJa->count()) f.gd3().set_text(Gd3Tag::Key::TitleJa, u8widen(titleJa));
-                if (optGameEn->count()) f.gd3().set_text(Gd3Tag::Key::GameEn, u8widen(gameEn));
-                if (optGameJa->count()) f.gd3().set_text(Gd3Tag::Key::GameJa, u8widen(gameJa));
-                if (optSystemEn->count()) f.gd3().set_text(Gd3Tag::Key::SystemEn, u8widen(systemEn));
-                if (optSystemJa->count()) f.gd3().set_text(Gd3Tag::Key::SystemJa, u8widen(systemJa));
-                if (optAuthorEn->count()) f.gd3().set_text(Gd3Tag::Key::AuthorEn, u8widen(authorEn));
-                if (optAuthorJa->count()) f.gd3().set_text(Gd3Tag::Key::AuthorJa, u8widen(authorJa));
-                if (optReleaseDate->count()) f.gd3().set_text(Gd3Tag::Key::ReleaseDate, u8widen(releaseDate));
-                if (optCreator->count()) f.gd3().set_text(Gd3Tag::Key::Creator, u8widen(creator));
-                if (optNotes->count()) f.gd3().set_text(Gd3Tag::Key::Notes, u8widen(notes));
+                f.gd3().set_text(Gd3Tag::Key::TitleEn, titleEn);
+                f.gd3().set_text(Gd3Tag::Key::TitleJa, titleJa);
+                f.gd3().set_text(Gd3Tag::Key::GameEn, gameEn);
+                f.gd3().set_text(Gd3Tag::Key::GameJa, gameJa);
+                f.gd3().set_text(Gd3Tag::Key::SystemEn, systemEn);
+                f.gd3().set_text(Gd3Tag::Key::SystemJa, systemJa);
+                f.gd3().set_text(Gd3Tag::Key::AuthorEn, authorEn);
+                f.gd3().set_text(Gd3Tag::Key::AuthorJa, authorJa);
+                f.gd3().set_text(Gd3Tag::Key::ReleaseDate, releaseDate);
+                f.gd3().set_text(Gd3Tag::Key::Creator, creator);
+                f.gd3().set_text(Gd3Tag::Key::Notes, notes);
                 f.save_file(filename);
             });
         }

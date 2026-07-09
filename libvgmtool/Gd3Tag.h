@@ -16,7 +16,7 @@ public:
     void to_binary(BinaryData& data) const;
     [[nodiscard]] bool empty() const;
 
-    enum class Key
+    enum class Key: uint8_t
     {
         TitleEn,
         TitleJa,
