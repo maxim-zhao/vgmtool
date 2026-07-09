@@ -10,7 +10,7 @@ void BcdVersion::from_binary(BinaryData& data)
     const auto i = data.read_uint32();
     if ((i & 0xffff0000u) != 0)
     {
-        throw std::runtime_error(std::format("Invalid version: non-zero padding: \"{:04x}\"", i));
+        throw std::runtime_error(std::format("Invalid version: non-zero padding: \"{:08x}\"", i));
     }
     // We parse the version as two BCD bytes.
     _major = from_bcd((i >> 8u) & 0xffu);

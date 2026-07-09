@@ -124,20 +124,21 @@ int main_utf8(int argc, char** argv)
 
         {
             auto* trimVerb = app.add_subcommand("trim", "Trim the file");
-            int start;
             std::string filename;
             trimVerb->add_option("filename", filename)
                     ->description("The file to process")
                     ->required()
                     ->check(CLI::ExistingFile);
+            int start = 0;
             trimVerb->add_option("--start", start)
                     ->description("Trim start point in samples")
-                    ->required()
+                    ->default_val(0)
                     ->check(CLI::NonNegativeNumber);
-            int loop;
+            int loop = -1;
             trimVerb->add_option("--loop", loop)
-                    ->description("Trim loop point in samples")
-                    ->check(CLI::NonNegativeNumber);
+                    ->description("Trim loop point in samples. Omit or set to negative value to disable.")
+                    ->default_val(-1)
+                    ->check(CLI::Number);
             int end;
             trimVerb->add_option("--end", end)
                     ->description("Trim end point in samples")
@@ -238,7 +239,8 @@ int main_utf8(int argc, char** argv)
                 ->required()
                 ->check(CLI::ExistingFile);
 
-            std::wstring titleEn, titleJa, gameEn, gameJa, systemEn, systemJa, authorEn, authorJa, releaseDate, creator, notes;
+            std::wstring titleEn, titleJa, gameEn, gameJa, systemEn, systemJa, authorEn, authorJa, releaseDate, creator,
+                         notes;
 
             verb->add_option("--title-en", titleEn)->description("Title (EN)");
             verb->add_option("--title-ja", titleJa)->description("Title (JA)");

@@ -328,6 +328,8 @@ void WriteYM2413State(const gzFile out, unsigned char YM2413Regs[YM2413NumRegs],
 void trim(const std::string& filename, int start, int loop, int end, bool overWrite, bool logTrims,
           const IVGMToolCallback& callback, std::string outFilename)
 {
+    callback.show_conversion_progress(std::format("Trimming {}: start {}, loop {}, end {}", filename, start, loop, end));
+
     if (!Utils::file_exists(filename))
     {
         return;
@@ -342,7 +344,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
 
     if ((start > end) || (loop > end) || ((loop > -1) && (loop < start)))
     {
-        callback.show_error("Impossible edit points!");
+        callback.show_error(std::format("Impossible edit points: start={}, loop={}, end={}", start, loop, end));
         return;
     }
 
