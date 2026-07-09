@@ -104,7 +104,7 @@ void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t e
         // We inject a "loop point" virtual command here.
         if (data.offset() == loop_offset)
         {
-            _data.push_back(new VgmCommands::LoopPoint());
+            _commands.push_back(new VgmCommands::LoopPoint());
         }
 
         const auto marker = data.peek();
@@ -114,7 +114,7 @@ void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t e
             throw std::runtime_error(std::format("No generator for marker {:x}", marker));
         }
         auto pCommand = it->second(data);
-        _data.push_back(pCommand);
+        _commands.push_back(pCommand);
 
         if (dynamic_cast<VgmCommands::End*>(pCommand) != nullptr)
         {
@@ -131,6 +131,14 @@ void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t e
     }
     // If we get there then we ran out of data before we saw EOF
     throw std::runtime_error("No EOF marker found in VGM data");
+}
+
+void CommandStream::to_binary(BinaryData& data) const
+{
+    for (const auto* pData : _commands)
+    {
+        pData->to_data(data);
+    }
 }
 
 template <typename T>

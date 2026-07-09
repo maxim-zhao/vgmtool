@@ -40,9 +40,9 @@ void BcdVersion::to_binary(BinaryData& data) const
     // We convert the version to BCD
     const uint32_t bcd =
         ((_minor % 10) << 0) |
-        ((_minor / 10) << 8) |
-        ((_major % 10) << 16) |
-        ((_major / 10) << 24);
+        ((_minor / 10) << 4) |
+        ((_major % 10) << 8) |
+        ((_major / 10) << 12);
     data.write_uint32(bcd);
 }
 

@@ -15,13 +15,15 @@ public:
 
     std::vector<VgmCommands::ICommand*>& commands()
     {
-        return _data;
+        return _commands;
     }
 
-    const std::vector<VgmCommands::ICommand*>& commands() const
+    [[nodiscard]] const std::vector<VgmCommands::ICommand*>& commands() const
     {
-        return _data;
+        return _commands;
     }
+
+    void to_binary(BinaryData& data) const;
 
 private:
     template <typename T>
@@ -29,6 +31,6 @@ private:
     template <typename T>
     void register_command(uint8_t min, uint8_t max);
 
-    std::vector<VgmCommands::ICommand*> _data;
+    std::vector<VgmCommands::ICommand*> _commands;
     std::unordered_map<uint8_t, std::function<VgmCommands::ICommand*(BinaryData& data)>> _commandGenerators;
 };

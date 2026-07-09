@@ -43,7 +43,6 @@ void VgmFile::load_file(const std::string& filename)
     {
         throw std::runtime_error("Invalid data offsets imply no data");
     }
-    //const auto byteCount = endOffset - dataOffset;
 
     data.seek(dataOffset);
 
@@ -65,7 +64,7 @@ void VgmFile::save_file(const std::string& filename)
 
     // Then the data
     // TODO if the header size changes then the pointers need to be rewritten
-    // TODO data.write_range(_data);
+    _data.to_binary(data);
 
     // Then the GD3 tag. We can move this before the data now...
     if (!_gd3Tag.empty())
