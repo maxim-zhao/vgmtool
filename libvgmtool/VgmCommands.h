@@ -599,7 +599,7 @@ namespace VgmCommands
             return VgmHeader::Chip::Nothing;
         }
     };
-
+/*
     class LoopPoint : public ICommand
     {
     public:
@@ -611,4 +611,5 @@ namespace VgmCommands
             return VgmHeader::Chip::Nothing;
         }
     };
+    */
 };

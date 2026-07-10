@@ -96,17 +96,10 @@ CommandStream::CommandStream()
     */
 }
 
-void CommandStream::from_data(BinaryData& data, uint32_t loop_offset, uint32_t end_offset)
+void CommandStream::from_data(BinaryData& data, uint32_t end_offset)
 {
-    // TODO check for end of data?
-    while (data.offset() < end_offset)
+    while (data.offset() < end_offset && data.offset() < data.size())
     {
-        // We inject a "loop point" virtual command here.
-        if (data.offset() == loop_offset)
-        {
-            _commands.push_back(new VgmCommands::LoopPoint());
-        }
-
         const auto marker = data.peek();
         auto it = _commandGenerators.find(marker);
         if (it == _commandGenerators.end())

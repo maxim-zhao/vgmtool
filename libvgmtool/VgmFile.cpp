@@ -1,7 +1,9 @@
 #include "VgmFile.h"
 
 #include <format>
+#include <numeric>
 #include <stdexcept>
+#include <ranges>
 
 #include "BinaryData.h"
 #include "IVGMToolCallback.h"
@@ -46,7 +48,17 @@ void VgmFile::load_file(const std::string& filename)
 
     data.seek(dataOffset);
 
-    _data.from_data(data, _header.loop_offset(), endOffset);
+    // If we have a loop offset then load in two parts.
+    // If not, leave the "loop" empty.
+    if (_header.loop_offset() != 0)
+    {
+        _dataBeforeLoop.from_data(data, _header.loop_offset());
+        _dataWithLoop.from_data(data, endOffset);
+    }
+    else
+    {
+        _dataBeforeLoop.from_data(data, endOffset);
+    }
 
     // Check for orphaned data
     if (data.offset() < endOffset)
@@ -64,9 +76,21 @@ void VgmFile::save_file(const std::string& filename)
 
     // Then the data
     // TODO if the header size changes then the pointers need to be rewritten
-    _data.to_binary(data);
+    _header.set_data_offset(data.size());
+    _dataBeforeLoop.to_binary(data);
+    if (_dataWithLoop.commands().empty())
+    {
+        // No loop
+        _header.set_loop_offset(0);
+    }
+    else
+    {
+        // We have a loop
+        _header.set_loop_offset(data.size());
+        _dataWithLoop.to_binary(data);
+    }
 
-    // Then the GD3 tag. We can move this before the data now...
+    // Then the GD3 tag. We could move this before the data now...
     if (!_gd3Tag.empty())
     {
         _header.set_gd3_offset(data.offset());
@@ -87,25 +111,32 @@ void VgmFile::save_file(const std::string& filename)
     data.save(filename);
 }
 
-void VgmFile::check_header(bool fix)
+void VgmFile::check_header(const bool fix)
 {
     // Check lengths
-    auto totalSampleCount = 0u;
-    auto loopStartSampleCount = 0u;
+    auto waitsBeforeLoop = _dataBeforeLoop.commands() 
+        | std::ranges::views::transform([](auto x) { return dynamic_cast<const VgmCommands::Wait*>(x); })
+        | std::ranges::views::filter([](auto x) { return x != nullptr; });
+    auto totalSampleCount = std::accumulate(
+        waitsBeforeLoop.begin(), 
+        waitsBeforeLoop.end(), 
+        0u, 
+        [](auto acc, auto pWait) { return acc + pWait->duration(); });
 
-    for (const auto* pCommand : _data.commands())
+    auto loopSampleCount = 0u;
+
+    if (!_dataWithLoop.commands().empty())
     {
-        if (auto* pWait = dynamic_cast<const VgmCommands::Wait*>(pCommand); pWait != nullptr)
-        {
-            totalSampleCount += pWait->duration();
-        }
-        else if (auto* pLoop = dynamic_cast<const VgmCommands::LoopPoint*>(pCommand); pLoop != nullptr)
-        {
-            loopStartSampleCount = totalSampleCount;
-        }
+        auto waitsInLoop = _dataBeforeLoop.commands() 
+            | std::ranges::views::transform([](auto x) { return dynamic_cast<const VgmCommands::Wait*>(x); })
+            | std::ranges::views::filter([](auto x) { return x != nullptr; });
+        loopSampleCount = std::accumulate(
+            waitsInLoop.begin(), 
+            waitsInLoop.end(), 
+            0u, 
+            [](auto acc, auto pWait) { return acc + pWait->duration(); });
+        totalSampleCount += loopSampleCount;
     }
-
-    const auto loopSampleCount = totalSampleCount - loopStartSampleCount;
 
     if (_header.loop_sample_count() != loopSampleCount || _header.sample_count() != totalSampleCount)
     {
@@ -132,8 +163,101 @@ void VgmFile::check_header(bool fix)
     }
 }
 
+void VgmFile::write_command(std::ostream& s, size_t& offset, int& time, SN76489State& psgState, YM2413State& ym2413State, const VgmCommands::ICommand* pCommand)
+{
+    // File offset
+    s << std::format("{:#010x} ", offset);
+    // Get data so we can print it raw
+    BinaryData scratch;
+    pCommand->to_data(scratch);
+    // We only print the first 5 bytes...
+    for (auto i = 0u; i < 5; ++i)
+    {
+        if (i >= scratch.buffer().size())
+        {
+            s << "   ";
+        }
+        else
+        {
+            s << std::format("{:02x} ", scratch.buffer()[i]);
+        }
+    }
+
+    // Increment the offset accordingly
+    offset += scratch.buffer().size();
+
+    switch (pCommand->chip())
+    {
+    case VgmHeader::Chip::Nothing:
+        if (auto* pWait = dynamic_cast<const VgmCommands::Wait*>(pCommand); pWait != nullptr)
+        {
+            const auto duration = pWait->duration();
+            // It's a wait
+            time += duration;
+            s << std::format(
+                "Wait:   {:5} samples ({:7.2f} ms) (total {:8} samples ({}))",
+                duration,
+                duration / 44.1,
+                time,
+                Utils::samples_to_display_text(time, true));
+            if (auto* pSample = dynamic_cast<const VgmCommands::YM2612Sample*>(pCommand); pSample != nullptr)
+            {
+                s << "; emit sample";
+            }
+        }
+        else if (auto* pEndMarker = dynamic_cast<const VgmCommands::End*>(pCommand); pEndMarker != nullptr)
+        {
+            s << "End of music data";
+        }
+        else if (auto* pDataBlock = dynamic_cast<const VgmCommands::DataBlock*>(pCommand); pDataBlock != nullptr)
+        {
+            s << std::format(
+                "Data block: type {:02x} length {}",
+                pDataBlock->type(),
+                pDataBlock->length());
+        }
+        else
+        {
+            s << "Unknown command";
+        }
+        break;
+    case VgmHeader::Chip::SN76489:
+        s << "SN76489: ";
+        psgState.add_with_text(pCommand, s);
+        break;
+    case VgmHeader::Chip::YM2413:
+        s << "YM2413: ";
+        ym2413State.add_with_text(pCommand, s);
+        break;
+    case VgmHeader::Chip::YM2612:
+        s << "YM2612";
+        break;
+    case VgmHeader::Chip::YM2151: break;
+    case VgmHeader::Chip::SegaPCM: break;
+    case VgmHeader::Chip::RF5C68: break;
+    case VgmHeader::Chip::YM2203: break;
+    case VgmHeader::Chip::YM2608: break;
+    case VgmHeader::Chip::YM2610: break;
+    case VgmHeader::Chip::YM3812: break;
+    case VgmHeader::Chip::YM3526: break;
+    case VgmHeader::Chip::Y8950: break;
+    case VgmHeader::Chip::YMF262: break;
+    case VgmHeader::Chip::YMF278B: break;
+    case VgmHeader::Chip::YMF271: break;
+    case VgmHeader::Chip::YMZ280B: break;
+    case VgmHeader::Chip::RF5C164: break;
+    case VgmHeader::Chip::PWM: break;
+    case VgmHeader::Chip::AY8910: break;
+    case VgmHeader::Chip::GenericDAC: break;
+    default:
+        break;
+    }
+    s << "\n";
+}
+
 void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) const
 {
+    callback.show_status("Converting to text...");
     // In order to write to text we need to do multiple things:
     // 1. Print the header
     // 2. Print the VGM commands themselves
@@ -149,102 +273,19 @@ void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) c
     int time = 0;
     SN76489State psgState(_header);
     YM2413State ym2413State(_header);
-    BinaryData scratch;
 
-    for (const auto* pCommand : _data.commands())
+    for (const auto* pCommand : _dataBeforeLoop.commands())
     {
-        // File offset
-        s << std::format("{:#010x} ", offset);
-        // Get data so we can print it raw
-        scratch.reset();
-        pCommand->to_data(scratch);
-        // We only print the first 5 bytes...
-        for (auto i = 0u; i < 5; ++i)
-        {
-            if (i >= scratch.buffer().size())
-            {
-                s << "   ";
-            }
-            else
-            {
-                s << std::format("{:02x} ", scratch.buffer()[i]);
-            }
-        }
+        write_command(s, offset, time, psgState, ym2413State, pCommand);
+    }
 
-        // Increment the offset accordingly
-        offset += scratch.buffer().size();
-
-        switch (pCommand->chip())
+    if (!_dataWithLoop.commands().empty())
+    {
+        s << "=============== LOOP POINT ===============";
+        for (const auto* pCommand : _dataWithLoop.commands())
         {
-        case VgmHeader::Chip::Nothing:
-            if (auto* pWait = dynamic_cast<const VgmCommands::Wait*>(pCommand); pWait != nullptr)
-            {
-                const auto duration = pWait->duration();
-                // It's a wait
-                time += duration;
-                s << std::format(
-                    "Wait:   {:5} samples ({:7.2f} ms) (total {:8} samples ({}))",
-                    duration,
-                    duration / 44.1,
-                    time,
-                    Utils::samples_to_display_text(time, true));
-                if (auto* pSample = dynamic_cast<const VgmCommands::YM2612Sample*>(pCommand); pSample != nullptr)
-                {
-                    s << "; emit sample";
-                }
-            }
-            else if (auto* pLoopPoint = dynamic_cast<const VgmCommands::LoopPoint*>(pCommand); pLoopPoint != nullptr)
-            {
-                s << "=============== LOOP POINT ===============";
-            }
-            else if (auto* pEndMarker = dynamic_cast<const VgmCommands::End*>(pCommand); pEndMarker != nullptr)
-            {
-                s << "End of music data";
-            }
-            else if (auto* pDataBlock = dynamic_cast<const VgmCommands::DataBlock*>(pCommand); pDataBlock != nullptr)
-            {
-                s << std::format(
-                    "Data block: type {:02x} length {}",
-                    pDataBlock->type(),
-                    pDataBlock->length());
-            }
-            else
-            {
-                s << "Unknown command";
-            }
-            break;
-        case VgmHeader::Chip::SN76489:
-            s << "SN76489: ";
-            psgState.add_with_text(pCommand, s);
-            break;
-        case VgmHeader::Chip::YM2413:
-            s << "YM2413: ";
-            ym2413State.add_with_text(pCommand, s);
-            break;
-        case VgmHeader::Chip::YM2612:
-            s << "YM2612";
-            break;
-        case VgmHeader::Chip::YM2151: break;
-        case VgmHeader::Chip::SegaPCM: break;
-        case VgmHeader::Chip::RF5C68: break;
-        case VgmHeader::Chip::YM2203: break;
-        case VgmHeader::Chip::YM2608: break;
-        case VgmHeader::Chip::YM2610: break;
-        case VgmHeader::Chip::YM3812: break;
-        case VgmHeader::Chip::YM3526: break;
-        case VgmHeader::Chip::Y8950: break;
-        case VgmHeader::Chip::YMF262: break;
-        case VgmHeader::Chip::YMF278B: break;
-        case VgmHeader::Chip::YMF271: break;
-        case VgmHeader::Chip::YMZ280B: break;
-        case VgmHeader::Chip::RF5C164: break;
-        case VgmHeader::Chip::PWM: break;
-        case VgmHeader::Chip::AY8910: break;
-        case VgmHeader::Chip::GenericDAC: break;
-        default:
-            break;
+            write_command(s, offset, time, psgState, ym2413State, pCommand);
         }
-        s << "\n";
     }
 
     if (!_gd3Tag.empty())
