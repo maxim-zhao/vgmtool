@@ -9,6 +9,8 @@
 #include "IVGMToolCallback.h"
 #include "optimise.h"
 #include "utils.h"
+#include "VgmFile.h"
+#include "VgmCommands.h"
 
 //----------------------------------------------------------------------------------------------
 // Creates a log of the trim for future reference
@@ -62,24 +64,25 @@ struct TPSGState
     bool NoiseUpdated;
 };
 
-TPSGState LastWrittenPSGState = {
-    0xff, // GG stereo - all on
-    {0, 0, 0}, // Tone channels - off
-    0xe5, // Noise byte - white, medium
-    {15, 15, 15, 15}, // Volumes - all off
-    0, 4 // PSG low bits, channel - 4 so no values needed
+static TPSGState LastWrittenPSGState = {
+    .GGStereo = 0xff, // GG stereo - all on
+    .ToneFreqs = {0, 0, 0}, // Tone channels - off
+    .NoiseByte = 0xe5, // Noise byte - white, medium
+    .Volumes = {15, 15, 15, 15}, // Volumes - all off
+    .PSGFrequencyLowBits = 0, 
+    .Channel = 4, // PSG low bits, channel - 4 so no values needed
+    .NoiseUpdated = false
 };
 
-unsigned char LastWrittenYM2413Regs[YM2413NumRegs] = ""; // zeroes it
+uint8_t LastWrittenYM2413Regs[YM2413NumRegs] = ""; // zeroes it
 
 // The game could have moved a key from on to off to on within 1
 // frame/pause... so I need to keep a check on that >:(
 // Bits
 // 0-4 = percussion bits
 // 5-13 = tone channels
-int KeysLifted = 0,
-    KeysPressed = 0;
-int NoiseChanged = 0;
+static int KeysLifted = 0;
+static int KeysPressed = 0;
 
 const int YM2413StateRegWriteFlags[YM2413NumRegs] = {
     //  Chooses bits when writing states (start/loop)
@@ -117,7 +120,7 @@ const int YM2413RegWriteFlags[YM2413NumRegs] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
 
-void WriteVGMInfo(const gzFile out, long* pauselength, TPSGState* PSGState, unsigned char YM2413Regs[YM2413NumRegs])
+void WriteVGMInfo(const gzFile out, long* pauselength, TPSGState* PSGState, uint8_t YM2413Regs[YM2413NumRegs])
 {
     int i;
     if (!*pauselength)
@@ -150,12 +153,12 @@ void WriteVGMInfo(const gzFile out, long* pauselength, TPSGState* PSGState, unsi
             );
         }
     }
-    if (NoiseChanged)
+    if (PSGState->NoiseUpdated)
     {
         // Writing to the noise register resets the LFSR so I have to always repeat writes
         gzputc(out, VGM_PSG); // 1-stage write
         gzputc(out, PSGState->NoiseByte);
-        NoiseChanged = 0;
+        PSGState->NoiseUpdated = 0;
     }
     for (i = 0; i < 4; ++i)
     {
@@ -204,7 +207,7 @@ void WriteVGMInfo(const gzFile out, long* pauselength, TPSGState* PSGState, unsi
     {
         // At least one key was lifted and pressed
         // First the percussion - find which keys have done DUD
-        char PercussionKeysDUD = LastWrittenYM2413Regs[0x0e] & 0x1f // 1 for each inst currently set to on
+        uint8_t PercussionKeysDUD = LastWrittenYM2413Regs[0x0e] & 0x1f // 1 for each inst currently set to on
             & KeysLifted & KeysPressed; // 1 for each inst on-off-on
         int ToneKeysUD = KeysLifted & KeysPressed & 0x1fe0;
         if (ToneKeysUD)
@@ -259,7 +262,7 @@ void WriteVGMInfo(const gzFile out, long* pauselength, TPSGState* PSGState, unsi
     LastWrittenPSGState = *PSGState;
 }
 
-void WritePSGState(const gzFile out, const TPSGState PSGState)
+void WritePSGState(const gzFile out, TPSGState& PSGState)
 {
     int i;
     // GG stereo
@@ -283,7 +286,7 @@ void WritePSGState(const gzFile out, const TPSGState PSGState)
     // Noise
     gzputc(out, VGM_PSG); // 1-stage write
     gzputc(out, PSGState.NoiseByte);
-    NoiseChanged = 0;
+    PSGState.NoiseUpdated = false;
 
     // All 4 channels volumes
     for (i = 0; i < 4; ++i)
@@ -298,7 +301,7 @@ void WritePSGState(const gzFile out, const TPSGState PSGState)
     LastWrittenPSGState = PSGState;
 }
 
-void WriteYM2413State(const gzFile out, unsigned char YM2413Regs[YM2413NumRegs], const int IsStart)
+void WriteYM2413State(const gzFile out, uint8_t YM2413Regs[YM2413NumRegs], const int IsStart)
 {
     for (int i = 0; i < YM2413NumRegs; ++i)
     {
@@ -494,7 +497,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
                     {
                         // 2nd noise byte (Micro Machines title screen)
                         // Always write
-                        NoiseChanged = 1;
+                        currentPsgState.NoiseUpdated = true;
                         currentPsgState.NoiseByte = (b1 & 0xf) | 0xe0;
                         if ((writtenStart) && (vgmHeader.PSGClock))
                         {
@@ -511,7 +514,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
                         if (currentPsgState.ToneFreqs[currentPsgState.Channel] != freq)
                         {
                             // Changes the freq
-                            char firstByte = 0x80 | (currentPsgState.Channel << 5) | currentPsgState.
+                            uint8_t firstByte = 0x80 | (currentPsgState.Channel << 5) | currentPsgState.
                                 PSGFrequencyLowBits;
                             // 1st byte needed for this freq
                             if (firstByte != lastFirstByteWritten)
@@ -539,7 +542,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
                     {
                         // noise
                         // No "does it change" because writing resets the LFSR (ie. has an effect)
-                        NoiseChanged = 1;
+                        currentPsgState.NoiseUpdated = true;
                         currentPsgState.NoiseByte = static_cast<uint8_t>(b1);
                         currentPsgState.Channel = 3;
                         if ((writtenStart) && (vgmHeader.PSGClock))
@@ -556,9 +559,9 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
                     break;
                 case 0x90: // set volume
                     {
-                        char chan = (b1 & 0x60) >> 5;
-                        char vol = b1 & 0xF;
-                        if (currentPsgState.Volumes[chan] != vol)
+                        auto chan = (b1 & 0x60) >> 5;
+                        if (uint8_t vol = b1 & 0xF; 
+                            currentPsgState.Volumes[chan] != vol)
                         {
                             currentPsgState.Volumes[chan] = vol;
                             currentPsgState.Channel = 4;
@@ -833,3 +836,509 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
         fileSizeAfter,
         (static_cast<double>(fileSizeAfter) - fileSizeBefore) * 100 / fileSizeBefore));
 }
+
+//----------------------------------------------------------------------------------------------
+// Re-implemented trim that works on VgmFile in-memory instead of streaming file data
+//----------------------------------------------------------------------------------------------
+
+// Helper function: Convert a pause length into appropriate wait commands
+static void add_pause_commands(
+    std::vector<VgmCommands::ICommand*>& commands,
+    long pauseLength)
+{
+    if (pauseLength == 0)
+    {
+        return;
+    }
+
+    while (pauseLength > 0xffff)
+    {
+        auto wait = new VgmCommands::Wait16bit();
+        wait->set_duration(0xffff);
+        commands.push_back(wait);
+        pauseLength -= 0xffff;
+    }
+
+    if (pauseLength == LEN60TH)
+    {
+        commands.push_back(new VgmCommands::Wait60th());
+    }
+    else if (pauseLength == LEN50TH)
+    {
+        commands.push_back(new VgmCommands::Wait50th());
+    }
+    else if (pauseLength <= 16)
+    {
+        auto wait = new VgmCommands::Wait4bit();
+        wait->set_duration(static_cast<int>(pauseLength));
+        commands.push_back(wait);
+    }
+    else
+    {
+        auto wait = new VgmCommands::Wait16bit();
+        wait->set_duration(static_cast<uint16_t>(pauseLength));
+        commands.push_back(wait);
+    }
+}
+
+// Helper function: Write PSG state initialization commands
+static void write_psg_state_commands(
+    std::vector<VgmCommands::ICommand*>& commands,
+    const TPSGState& psgState)
+{
+    // GG stereo
+    auto stereo = new VgmCommands::GGStereo();
+    stereo->set_value(psgState.GGStereo);
+    commands.push_back(stereo);
+
+    // Tone channel frequencies
+    for (int i = 0; i < 3; ++i)
+    {
+        auto psg1 = new VgmCommands::SN76489();
+        psg1->set_value(static_cast<uint8_t>(
+            0x80 | // bit 7 = 1, 4 = 0 -> PSG tone byte 1
+            (i << 5) | // bits 5 and 6 -> select channel
+            (psgState.ToneFreqs[i] & 0xf) // bits 0 to 3 -> low 4 bits of freq
+        ));
+        commands.push_back(psg1);
+
+        auto psg2 = new VgmCommands::SN76489();
+        psg2->set_value(static_cast<uint8_t>(
+            // bits 6 and 7 = 0 -> PSG tone byte 2
+            (psgState.ToneFreqs[i] >> 4) // bits 0 to 5 -> high 6 bits of freq
+        ));
+        commands.push_back(psg2);
+    }
+
+    // Noise
+    auto noise = new VgmCommands::SN76489();
+    noise->set_value(psgState.NoiseByte);
+    commands.push_back(noise);
+
+    // All 4 channels volumes
+    for (int i = 0; i < 4; ++i)
+    {
+        auto vol = new VgmCommands::SN76489();
+        vol->set_value(static_cast<uint8_t>(
+            0x90 | // bits 4 and 7 = 1 -> volume
+            (i << 5) | // bits 5 and 6 -> select channel
+            psgState.Volumes[i] // bits 0 to 4 -> volume
+        ));
+        commands.push_back(vol);
+    }
+}
+
+// Helper function: Write YM2413 state initialization commands
+static void write_ym2413_state_commands(
+    std::vector<VgmCommands::ICommand*>& commands,
+    const uint8_t ym2413Regs[YM2413NumRegs],
+    const int* regWriteFlags)
+{
+    for (int i = 0; i < YM2413NumRegs; ++i)
+    {
+        if (regWriteFlags[i] != 0 && i != 0x0e) // skip percussion for now
+        {
+            auto cmd = new VgmCommands::YM2413();
+            cmd->set_register(static_cast<uint8_t>(i));
+            cmd->set_value(static_cast<uint8_t>(ym2413Regs[i] & regWriteFlags[i]));
+            commands.push_back(cmd);
+        }
+    }
+
+    // Write percussion after tone
+    if (regWriteFlags[0x0e] != 0)
+    {
+        auto cmd = new VgmCommands::YM2413();
+        cmd->set_register(0x0e);
+        cmd->set_value(static_cast<uint8_t>(ym2413Regs[0x0e] & regWriteFlags[0x0e]));
+        commands.push_back(cmd);
+    }
+}
+
+void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToolCallback& callback)
+{
+    callback.show_conversion_progress(std::format("Trimming VGM file: start {}, loop {}, end {}", start, loop, end));
+
+    auto& header = vgmFile.header();
+
+    // Validate edit points
+    if ((start > end) || (loop > end) || ((loop > -1) && (loop < start)))
+    {
+        callback.show_error(std::format("Impossible edit points: start={}, loop={}, end={}", start, loop, end));
+        return;
+    }
+
+    if (end > static_cast<int>(header.sample_count()))
+    {
+        callback.show_message(std::format(
+            "End point ({} samples) beyond end of file!\nUsing maximum value of {} samples instead",
+            end,
+            header.sample_count()));
+        end = static_cast<int>(header.sample_count());
+    }
+
+    callback.show_status("Trimming VGM data...");
+
+    // Get reference to command streams
+    auto& dataBeforeLoop = vgmFile.data_before_loop();
+    auto& dataWithLoop = vgmFile.data_with_loop();
+    auto& allCommands = dataBeforeLoop.commands();
+
+    // Initialize tracking state
+    uint8_t ym2413Regs[YM2413NumRegs]{};
+    TPSGState currentPsgState = {
+        0xff, // GG stereo - all on
+        {0, 0, 0}, // Tone channels - off
+        0xe5, // Noise byte - white, medium
+        {15, 15, 15, 15}, // Volumes - all off
+        0, 4, // PSG low bits, channel
+        false
+    };
+
+    TPSGState lastWrittenPsgState = currentPsgState;
+    uint8_t lastWrittenYM2413Regs[YM2413NumRegs]{};
+
+    // Detect chip usage
+    bool havePSG = false, haveYM2413 = false;
+    for (auto cmd : allCommands)
+    {
+        if (dynamic_cast<VgmCommands::GGStereo*>(cmd) || dynamic_cast<VgmCommands::SN76489*>(cmd))
+        {
+            havePSG = true;
+        }
+        if (dynamic_cast<VgmCommands::YM2413*>(cmd))
+        {
+            haveYM2413 = true;
+        }
+    }
+
+    // FIRST PASS: Calculate sample positions and find trim points
+    long sampleCount = 0;
+    std::vector<std::pair<size_t, long>> commandSamplePositions; // (command index, sample count at this point)
+
+    for (size_t cmdIdx = 0; cmdIdx < allCommands.size(); ++cmdIdx)
+    {
+        commandSamplePositions.push_back({cmdIdx, sampleCount});
+
+        auto cmd = allCommands[cmdIdx];
+        if (auto wait16 = dynamic_cast<VgmCommands::Wait16bit*>(cmd))
+        {
+            sampleCount += wait16->duration();
+        }
+        else if (auto wait60 = dynamic_cast<VgmCommands::Wait60th*>(cmd))
+        {
+            sampleCount += wait60->duration();
+        }
+        else if (auto wait50 = dynamic_cast<VgmCommands::Wait50th*>(cmd))
+        {
+            sampleCount += wait50->duration();
+        }
+        else if (auto wait4 = dynamic_cast<VgmCommands::Wait4bit*>(cmd))
+        {
+            sampleCount += wait4->duration();
+        }
+    }
+
+    // Find trim point command indices
+    int startIdx = -1, loopIdx = -1, endIdx = -1;
+    for (size_t i = 0; i < commandSamplePositions.size(); ++i)
+    {
+        long cmdSampleCount = commandSamplePositions[i].second;
+        if (startIdx == -1 && cmdSampleCount >= start)
+        {
+            startIdx = static_cast<int>(i);
+        }
+        if (loopIdx == -1 && loop != -1 && cmdSampleCount >= loop)
+        {
+            loopIdx = static_cast<int>(i);
+        }
+        if (cmdSampleCount >= end)
+        {
+            endIdx = static_cast<int>(i);
+            break;
+        }
+    }
+
+    if (endIdx == -1)
+    {
+        endIdx = static_cast<int>(allCommands.size()) - 1;
+    }
+
+    // SECOND PASS: Build trimmed command streams
+    std::vector<VgmCommands::ICommand*> newDataBeforeLoop;
+    std::vector<VgmCommands::ICommand*> newDataWithLoop;
+    std::vector<VgmCommands::ICommand*>* currentStream = &newDataBeforeLoop;
+
+    long residualSamples = 0;
+    bool wroteStart = false;
+
+    for (int cmdIdx = 0; cmdIdx <= endIdx && cmdIdx < static_cast<int>(allCommands.size()); ++cmdIdx)
+    {
+        auto cmd = allCommands[cmdIdx];
+        long cmdSamplePos = commandSamplePositions[cmdIdx].second;
+
+        // Handle loop point
+        if (loopIdx != -1 && cmdIdx == loopIdx && !wroteStart)
+        {
+            // Haven't reached start yet but reached loop - just track it
+            residualSamples = sampleCount - loop;
+        }
+        else if (loopIdx != -1 && cmdIdx == loopIdx && wroteStart)
+        {
+            // Write residual pause before loop marker
+            if (residualSamples > 0)
+            {
+                add_pause_commands(*currentStream, residualSamples);
+                residualSamples = 0;
+            }
+
+            // Switch to loop stream
+            currentStream = &newDataWithLoop;
+
+            // Re-init state at loop point unless loop == start
+            if (loop != start && havePSG)
+            {
+                currentPsgState.NoiseByte &= 0xf7;
+                write_psg_state_commands(*currentStream, currentPsgState);
+            }
+            if (loop != start && haveYM2413)
+            {
+                write_ym2413_state_commands(*currentStream, ym2413Regs, YM2413StateRegWriteFlags);
+            }
+        }
+
+        // Handle start point
+        if (startIdx != -1 && cmdIdx == startIdx && !wroteStart)
+        {
+            // Write state initialization
+            if (havePSG)
+            {
+                currentPsgState.NoiseByte &= 0xf7;
+                write_psg_state_commands(*currentStream, currentPsgState);
+            }
+            if (haveYM2413)
+            {
+                write_ym2413_state_commands(*currentStream, ym2413Regs, YM2413StateRegWriteFlags);
+            }
+
+            residualSamples = cmdSamplePos + (sampleCount - cmdSamplePos) - start;
+            wroteStart = true;
+
+            // Skip to next command to avoid re-processing the start command
+            if (dynamic_cast<VgmCommands::Wait*>(cmd))
+            {
+                if (auto wait16 = dynamic_cast<VgmCommands::Wait16bit*>(cmd))
+                {
+                    residualSamples = wait16->duration();
+                }
+                // Skip this wait command as we'll add it as residual
+                continue;
+            }
+        }
+
+        // Skip commands before start
+        if (!wroteStart)
+        {
+            // Track state even before start
+            if (auto ggStereo = dynamic_cast<VgmCommands::GGStereo*>(cmd))
+            {
+                currentPsgState.GGStereo = ggStereo->value();
+            }
+            else if (auto sn76489 = dynamic_cast<VgmCommands::SN76489*>(cmd))
+            {
+                // Parse PSG command
+                uint8_t val = sn76489->value();
+                if ((val & 0x80) == 0x80)
+                {
+                    // Latch command - frequency first byte
+                    int channel = (val >> 5) & 0x3;
+                    if (channel < 3)
+                    {
+                        currentPsgState.PSGFrequencyLowBits = static_cast<uint8_t>(val & 0xf);
+                        currentPsgState.Channel = static_cast<uint8_t>(channel);
+                    }
+                    else if (channel == 3)
+                    {
+                        currentPsgState.NoiseByte = static_cast<uint8_t>(val & 0xf);
+                        currentPsgState.Channel = 3;
+                    }
+                }
+                else if ((val & 0xf0) == 0x00 || (val & 0xf0) == 0x10)
+                {
+                    // Frequency second byte
+                    if (currentPsgState.Channel < 3)
+                    {
+                        int freq = (val & 0x3f) << 4 | currentPsgState.PSGFrequencyLowBits;
+                        if (freq < PSGCutoff)
+                        {
+                            freq = 0;
+                        }
+                        currentPsgState.ToneFreqs[currentPsgState.Channel] = static_cast<uint16_t>(freq);
+                    }
+                    else if (currentPsgState.Channel == 3)
+                    {
+                        currentPsgState.NoiseByte = static_cast<uint8_t>((val & 0xf) | 0xe0);
+                    }
+                }
+                else if ((val & 0xf0) == 0x90)
+                {
+                    // Volume
+                    int channel = (val >> 5) & 0x3;
+                    currentPsgState.Volumes[channel] = static_cast<uint8_t>(val & 0xf);
+                }
+            }
+            else if (auto ym2413 = dynamic_cast<VgmCommands::YM2413*>(cmd))
+            {
+                ym2413Regs[ym2413->registerIndex()] = ym2413->value();
+            }
+            // Skip to next iteration
+            continue;
+        }
+
+        // Skip commands after end
+        if (cmdIdx > endIdx)
+        {
+            break;
+        }
+
+        // Add residual pause before writing subsequent commands
+        if (residualSamples > 0 && !dynamic_cast<VgmCommands::Wait*>(cmd))
+        {
+            add_pause_commands(*currentStream, residualSamples);
+            residualSamples = 0;
+        }
+
+        // Copy or track state
+        if (auto ggStereo = dynamic_cast<VgmCommands::GGStereo*>(cmd))
+        {
+            if (ggStereo->value() != lastWrittenPsgState.GGStereo)
+            {
+                auto newCmd = new VgmCommands::GGStereo();
+                newCmd->set_value(ggStereo->value());
+                currentStream->push_back(newCmd);
+                lastWrittenPsgState.GGStereo = ggStereo->value();
+                currentPsgState.GGStereo = ggStereo->value();
+            }
+        }
+        else if (auto sn76489 = dynamic_cast<VgmCommands::SN76489*>(cmd))
+        {
+            uint8_t val = sn76489->value();
+            // For PSG, we need to track state and only write if changed
+            // This is complex, so for now just copy all PSG commands
+            auto newCmd = new VgmCommands::SN76489();
+            newCmd->set_value(val);
+            currentStream->push_back(newCmd);
+
+            // Update state tracking
+            if ((val & 0x80) == 0x80)
+            {
+                int channel = (val >> 5) & 0x3;
+                if (channel < 3)
+                {
+                    currentPsgState.PSGFrequencyLowBits = static_cast<uint8_t>(val & 0xf);
+                    currentPsgState.Channel = static_cast<uint8_t>(channel);
+                }
+                else if (channel == 3)
+                {
+                    currentPsgState.NoiseByte = static_cast<uint8_t>(val & 0xf);
+                    currentPsgState.Channel = 3;
+                }
+            }
+            else if ((val & 0xf0) == 0x00 || (val & 0xf0) == 0x10)
+            {
+                if (currentPsgState.Channel < 3)
+                {
+                    int freq = (val & 0x3f) << 4 | currentPsgState.PSGFrequencyLowBits;
+                    if (freq < PSGCutoff)
+                    {
+                        freq = 0;
+                    }
+                    currentPsgState.ToneFreqs[currentPsgState.Channel] = static_cast<uint16_t>(freq);
+                }
+                else if (currentPsgState.Channel == 3)
+                {
+                    currentPsgState.NoiseByte = static_cast<uint8_t>((val & 0xf) | 0xe0);
+                }
+            }
+            else if ((val & 0xf0) == 0x90)
+            {
+                int channel = (val >> 5) & 0x3;
+                currentPsgState.Volumes[channel] = static_cast<uint8_t>(val & 0xf);
+            }
+        }
+        else if (auto ym2413 = dynamic_cast<VgmCommands::YM2413*>(cmd))
+        {
+            uint8_t reg = ym2413->registerIndex();
+            uint8_t val = ym2413->value();
+            ym2413Regs[reg] = val;
+
+            // Only write if changed
+            if ((val & YM2413RegWriteFlags[reg]) != lastWrittenYM2413Regs[reg])
+            {
+                auto newCmd = new VgmCommands::YM2413();
+                newCmd->set_register(reg);
+                newCmd->set_value(val & YM2413RegWriteFlags[reg]);
+                currentStream->push_back(newCmd);
+                lastWrittenYM2413Regs[reg] = val & YM2413RegWriteFlags[reg];
+            }
+        }
+        else if (dynamic_cast<VgmCommands::Wait*>(cmd))
+        {
+            // Handle wait commands - add the remaining pause if needed
+            if (auto wait16 = dynamic_cast<VgmCommands::Wait16bit*>(cmd))
+            {
+                long waitDuration = wait16->duration();
+                long nextSamplePos = cmdSamplePos + waitDuration;
+
+                if (nextSamplePos > end)
+                {
+                    // Trim this wait
+                    long trimmedWait = end - cmdSamplePos;
+                    if (trimmedWait > 0)
+                    {
+                        add_pause_commands(*currentStream, trimmedWait);
+                    }
+                }
+                else
+                {
+                    // Keep the full wait
+                    auto newCmd = new VgmCommands::Wait16bit();
+                    newCmd->set_duration(static_cast<uint16_t>(waitDuration));
+                    currentStream->push_back(newCmd);
+                }
+            }
+            else
+            {
+                // Copy other wait types as-is
+                currentStream->push_back(cmd);
+            }
+            residualSamples = 0;
+        }
+        else
+        {
+            // Copy other commands
+            currentStream->push_back(cmd);
+        }
+    }
+
+    // Add final End command
+    currentStream->push_back(new VgmCommands::End());
+
+    // Replace the command streams in the file
+    dataBeforeLoop.commands() = newDataBeforeLoop;
+    dataWithLoop.commands() = newDataWithLoop;
+
+    // Update header
+    header.set_sample_count(end - start);
+    if (loop != -1)
+    {
+        header.set_loop_sample_count(end - loop);
+    }
+    else
+    {
+        header.set_loop_sample_count(0);
+    }
+
+    callback.show_status("Trimming complete");
+}
+

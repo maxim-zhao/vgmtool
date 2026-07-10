@@ -153,7 +153,10 @@ int main_utf8(int argc, char** argv)
                     ->description("Filename to output to");
             trimVerb->callback([&]
             {
-                trim(filename, start, loop, end, false, logTrim, callback, outputFilename);
+                VgmFile f(filename);
+                trim_vgm_file(f, start, loop, end, callback);
+                f.save_file(outputFilename);
+                //trim(filename, start, loop, end, false, logTrim, callback, outputFilename);
             });
         }
 
@@ -170,7 +173,15 @@ int main_utf8(int argc, char** argv)
             {
                 for (const auto& filename : filenames)
                 {
-                    check_lengths(filename, true, callback);
+                    try
+                    {
+                        VgmFile f(filename);
+                        f.check_header(false);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        callback.show_error(e.what());
+                    }
                 }
             });
         }

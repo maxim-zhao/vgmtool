@@ -34,6 +34,16 @@ public:
         return _gd3Tag;
     }
 
+    CommandStream& data_before_loop()
+    {
+        return _dataBeforeLoop;
+    }
+
+    CommandStream& data_with_loop()
+    {
+        return _dataWithLoop;
+    }
+
     // Checks the header. Throws on any errors found if fix=false, else tries to fix them.
     void check_header(bool fix);
 
