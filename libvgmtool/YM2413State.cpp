@@ -131,7 +131,7 @@ double YM2413State::frequency(const int channel) const
     return static_cast<double>(f_number(channel)) * _clockRate / 72 / (1 << (19 - block(channel)));
 }
 
-void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s)
+void YM2413State::to_text(const VgmCommands::ICommand* pCommand, std::ostream& s)
 {
     const auto* p = dynamic_cast<const VgmCommands::YM2413*>(pCommand);
     if (p == nullptr)

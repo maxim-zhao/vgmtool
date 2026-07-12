@@ -16,7 +16,7 @@ class YM2413State
 public:
     explicit YM2413State(const VgmHeader& header);
 
-    void add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s);
+    void to_text(const VgmCommands::ICommand* pCommand, std::ostream& s);
 
     void add(const VgmCommands::YM2413* pCommand);
 

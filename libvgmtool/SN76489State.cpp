@@ -24,7 +24,7 @@ SN76489State::SN76489State(const VgmHeader& header)
     _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
 }
 
-void SN76489State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s)
+void SN76489State::to_text(std::ostream& s, const VgmCommands::ICommand* pCommand)
 {
     if (const auto* pStereo = dynamic_cast<const VgmCommands::GGStereo*>(pCommand); pStereo != nullptr)
     {
@@ -50,7 +50,7 @@ void SN76489State::add_with_text(const VgmCommands::ICommand* pCommand, std::ost
         case 2:
         case 4: // Tone registers
             {
-                const int channel = _latchedRegisterIndex / 2;
+                const auto channel = _latchedRegisterIndex / 2;
                 double frequencyHz = tone_length_to_hz(registerValue);
                 s << "Tone ch " << channel
                     << std::format(" -> {:#05x}", registerValue)
@@ -69,7 +69,7 @@ void SN76489State::add_with_text(const VgmCommands::ICommand* pCommand, std::ost
             }
         default: // Volume
             {
-                const int channel = _latchedRegisterIndex / 2;
+                const auto channel = _latchedRegisterIndex / 2;
                 s << "Attenuation ch " << channel << " -> " << _volumeDescriptions[registerValue];
                 return;
             }

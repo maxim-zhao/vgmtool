@@ -19,7 +19,7 @@ public:
 
     void add(const VgmCommands::GGStereo* pStereo);
     void add(const VgmCommands::SN76489* pCommand);
-    void add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s);
+    void to_text(std::ostream& s, const VgmCommands::ICommand* pCommand);
 
 private:
     static std::string print_stereo_mask(uint8_t mask);
@@ -28,10 +28,9 @@ private:
 
     // Registers are four tone, volume pairs
     std::vector<int> _registers{0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
-    uint8_t _stereoMask = 0xff;
-    int _latchedRegisterIndex = 0;
-
-    uint32_t _clockRate;
     std::vector<std::string> _noiseSpeedDescriptions;
     std::vector<std::string> _volumeDescriptions;
+    std::size_t _latchedRegisterIndex = 0;
+    uint32_t _clockRate;
+    uint8_t _stereoMask = 0xff;
 };

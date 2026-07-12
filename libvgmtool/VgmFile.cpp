@@ -119,29 +119,20 @@ void VgmFile::save_file(const std::string& filename, const IVGMToolCallback& cal
 void VgmFile::check_header(const bool fix)
 {
     // Check lengths
-    auto waitsBeforeLoop = _dataBeforeLoop.commands() 
-        | std::ranges::views::transform([](auto x) { return dynamic_cast<const VgmCommands::Wait*>(x); })
+    auto countWaits = [](const CommandStream& stream)
+    {
+        auto waits = stream.commands() 
+        | std::ranges::views::transform([](auto x) { return dynamic_cast<const VgmCommands::Wait*>(x.get()); })
         | std::ranges::views::filter([](auto x) { return x != nullptr; });
-    auto totalSampleCount = std::accumulate(
-        waitsBeforeLoop.begin(), 
-        waitsBeforeLoop.end(), 
+        return std::accumulate(
+        waits.begin(), 
+        waits.end(), 
         0u, 
         [](auto acc, auto pWait) { return acc + pWait->duration(); });
+    };
 
-    auto loopSampleCount = 0u;
-
-    if (!_dataWithLoop.commands().empty())
-    {
-        auto waitsInLoop = _dataBeforeLoop.commands() 
-            | std::ranges::views::transform([](auto x) { return dynamic_cast<const VgmCommands::Wait*>(x); })
-            | std::ranges::views::filter([](auto x) { return x != nullptr; });
-        loopSampleCount = std::accumulate(
-            waitsInLoop.begin(), 
-            waitsInLoop.end(), 
-            0u, 
-            [](auto acc, auto pWait) { return acc + pWait->duration(); });
-        totalSampleCount += loopSampleCount;
-    }
+    auto loopSampleCount = countWaits(_dataWithLoop);
+    auto totalSampleCount = countWaits(_dataBeforeLoop) + loopSampleCount;
 
     if (_header.loop_sample_count() != loopSampleCount || _header.sample_count() != totalSampleCount)
     {
@@ -168,7 +159,7 @@ void VgmFile::check_header(const bool fix)
     }
 }
 
-void VgmFile::write_command(std::ostream& s, size_t& offset, int& time, SN76489State& psgState, YM2413State& ym2413State, const VgmCommands::ICommand* pCommand)
+void VgmFile::write_command_as_text(std::ostream& s, size_t& offset, int& time, SN76489State& psgState, YM2413State& ym2413State, const std::shared_ptr<VgmCommands::ICommand>& pCommand)
 {
     // File offset
     s << std::format("{:#010x} ", offset);
@@ -194,7 +185,7 @@ void VgmFile::write_command(std::ostream& s, size_t& offset, int& time, SN76489S
     switch (pCommand->chip())
     {
     case VgmHeader::Chip::Nothing:
-        if (auto* pWait = dynamic_cast<const VgmCommands::Wait*>(pCommand); pWait != nullptr)
+        if (auto* pWait = dynamic_cast<const VgmCommands::Wait*>(pCommand.get()); pWait != nullptr)
         {
             const auto duration = pWait->duration();
             // It's a wait
@@ -205,16 +196,16 @@ void VgmFile::write_command(std::ostream& s, size_t& offset, int& time, SN76489S
                 duration / 44.1,
                 time,
                 Utils::samples_to_display_text(time, true));
-            if (auto* pSample = dynamic_cast<const VgmCommands::YM2612Sample*>(pCommand); pSample != nullptr)
+            if (auto* pSample = dynamic_cast<const VgmCommands::YM2612Sample*>(pCommand.get()); pSample != nullptr)
             {
                 s << "; emit sample";
             }
         }
-        else if (auto* pEndMarker = dynamic_cast<const VgmCommands::End*>(pCommand); pEndMarker != nullptr)
+        else if (auto* pEndMarker = dynamic_cast<const VgmCommands::End*>(pCommand.get()); pEndMarker != nullptr)
         {
             s << "End of music data";
         }
-        else if (auto* pDataBlock = dynamic_cast<const VgmCommands::DataBlock*>(pCommand); pDataBlock != nullptr)
+        else if (auto* pDataBlock = dynamic_cast<const VgmCommands::DataBlock*>(pCommand.get()); pDataBlock != nullptr)
         {
             s << std::format(
                 "Data block: type {:02x} length {}",
@@ -228,11 +219,11 @@ void VgmFile::write_command(std::ostream& s, size_t& offset, int& time, SN76489S
         break;
     case VgmHeader::Chip::SN76489:
         s << "SN76489: ";
-        psgState.add_with_text(pCommand, s);
+        psgState.to_text(s, pCommand.get());
         break;
     case VgmHeader::Chip::YM2413:
         s << "YM2413: ";
-        ym2413State.add_with_text(pCommand, s);
+        ym2413State.to_text(pCommand.get(), s);
         break;
     case VgmHeader::Chip::YM2612:
         s << "YM2612";
@@ -279,17 +270,17 @@ void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) c
     SN76489State psgState(_header);
     YM2413State ym2413State(_header);
 
-    for (const auto* pCommand : _dataBeforeLoop.commands())
+    for (const auto& pCommand : _dataBeforeLoop.commands())
     {
-        write_command(s, offset, time, psgState, ym2413State, pCommand);
+        write_command_as_text(s, offset, time, psgState, ym2413State, pCommand);
     }
 
     if (!_dataWithLoop.commands().empty())
     {
         s << "=============== LOOP POINT ===============";
-        for (const auto* pCommand : _dataWithLoop.commands())
+        for (const auto& pCommand : _dataWithLoop.commands())
         {
-            write_command(s, offset, time, psgState, ym2413State, pCommand);
+            write_command_as_text(s, offset, time, psgState, ym2413State, pCommand);
         }
     }
 

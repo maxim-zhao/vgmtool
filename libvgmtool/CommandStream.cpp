@@ -1,7 +1,6 @@
 #include "CommandStream.h"
 
 #include <format>
-#include <ranges>
 #include <stdexcept>
 
 CommandStream::CommandStream()
@@ -109,7 +108,7 @@ void CommandStream::from_data(BinaryData& data, uint32_t end_offset)
         auto pCommand = it->second(data);
         _commands.push_back(pCommand);
 
-        if (dynamic_cast<VgmCommands::End*>(pCommand) != nullptr)
+        if (dynamic_cast<VgmCommands::End*>(pCommand.get()) != nullptr)
         {
             if (data.offset() != end_offset)
             {
@@ -128,7 +127,7 @@ void CommandStream::from_data(BinaryData& data, uint32_t end_offset)
 
 void CommandStream::to_binary(BinaryData& data) const
 {
-    for (const auto* pData : _commands)
+    for (const auto& pData : _commands)
     {
         pData->to_data(data);
     }
@@ -146,14 +145,14 @@ void CommandStream::register_command()
     }
     _commandGenerators.insert(std::make_pair(marker, [&](BinaryData& data)
     {
-        T* t = new T();
+        auto t = std::make_shared<T>();
         t->from_data(data);
-        return t;
+        return std::move(t);
     }));
 }
 
 template <typename T>
-void CommandStream::register_command(uint8_t min, uint8_t max)
+void CommandStream::register_command(const uint8_t min, const uint8_t max)
 {
     for (auto marker = min; marker <= max; ++marker)
     {
@@ -163,9 +162,9 @@ void CommandStream::register_command(uint8_t min, uint8_t max)
         }
         _commandGenerators.insert(std::make_pair(marker, [&](BinaryData& data)
         {
-            T* t = new T();
+            auto t = std::make_shared<T>();
             t->from_data(data);
-            return t;
+            return std::move(t);
         }));
     }
 }
