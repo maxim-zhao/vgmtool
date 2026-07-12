@@ -1020,22 +1020,10 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToo
     {
         commandSamplePositions.push_back({cmdIdx, sampleCount});
 
-        auto cmd = allCommands[cmdIdx];
-        if (auto wait16 = dynamic_cast<VgmCommands::Wait16bit*>(cmd))
+        auto* cmd = allCommands[cmdIdx];
+        if (auto wait16 = dynamic_cast<VgmCommands::Wait*>(cmd))
         {
             sampleCount += wait16->duration();
-        }
-        else if (auto wait60 = dynamic_cast<VgmCommands::Wait60th*>(cmd))
-        {
-            sampleCount += wait60->duration();
-        }
-        else if (auto wait50 = dynamic_cast<VgmCommands::Wait50th*>(cmd))
-        {
-            sampleCount += wait50->duration();
-        }
-        else if (auto wait4 = dynamic_cast<VgmCommands::Wait4bit*>(cmd))
-        {
-            sampleCount += wait4->duration();
         }
     }
 
@@ -1072,7 +1060,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToo
     long residualSamples = 0;
     bool wroteStart = false;
 
-    for (int cmdIdx = 0; cmdIdx <= endIdx && cmdIdx < static_cast<int>(allCommands.size()); ++cmdIdx)
+    for (int cmdIdx = 0; cmdIdx <= endIdx && std::cmp_less(cmdIdx, allCommands.size()); ++cmdIdx)
     {
         auto cmd = allCommands[cmdIdx];
         long cmdSamplePos = commandSamplePositions[cmdIdx].second;
