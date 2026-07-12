@@ -4,7 +4,9 @@
 #include <stdexcept>
 #include <fstream>
 
+#include "IVGMToolCallback.h"
 #include "utils.h"
+#include "zopfli.h"
 
 BinaryData::BinaryData(const std::string& filename)
 {
@@ -97,6 +99,31 @@ void BinaryData::reset()
 {
     _data.clear();
     _offset = 0;
+}
+
+void BinaryData::compress(const int level, const IVGMToolCallback& callback)
+{
+    auto sizeBefore = _data.size();
+    ZopfliOptions options{};
+    ZopfliInitOptions(&options);
+    if (level > 0)
+    {
+        // We let the library pick the default (15) if not set
+        options.numiterations = level;
+    }
+    unsigned char* out;
+    size_t outSize = 0;
+    callback.show_status("Compressing...");
+    ZopfliCompress(&options, ZOPFLI_FORMAT_GZIP, _data.data(), _data.size(), &out, &outSize);
+    // Then we want to copy that into our buffer
+    _data.clear();
+    _data.reserve(outSize);
+    std::copy_n(out, outSize, std::back_inserter(_data));
+    callback.show_status(std::format(
+        "Compressed from {} -> {} bytes ({:.4}% compression)", 
+        sizeBefore, 
+        outSize, 
+        Utils::percentReduction(sizeBefore, outSize)));
 }
 
 void BinaryData::check_write_space(const size_t size)

@@ -22,24 +22,34 @@ public:
     explicit VgmFile(const std::string& filename);
 
     void load_file(const std::string& filename);
-    void save_file(const std::string& filename);
+    void save_file(const std::string& filename, const IVGMToolCallback& callback, int compression = 0);
 
-    VgmHeader& header()
+    [[nodiscard]] VgmHeader& header()
     {
         return _header;
     }
 
-    Gd3Tag& gd3()
+    [[nodiscard]] const VgmHeader& header() const
+    {
+        return _header;
+    }
+
+    [[nodiscard]] Gd3Tag& gd3()
     {
         return _gd3Tag;
     }
 
-    CommandStream& data_before_loop()
+    [[nodiscard]] const Gd3Tag& gd3() const
+    {
+        return _gd3Tag;
+    }
+
+    [[nodiscard]] CommandStream& data_before_loop()
     {
         return _dataBeforeLoop;
     }
 
-    CommandStream& data_with_loop()
+    [[nodiscard]] CommandStream& data_with_loop()
     {
         return _dataWithLoop;
     }

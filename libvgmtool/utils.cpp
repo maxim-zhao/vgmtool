@@ -233,7 +233,7 @@ double Utils::db_to_percent(const double attenuation)
     return std::pow(10, -0.1 * attenuation) * 100;
 }
 
-double Utils::percentReduction(int before, int after)
+double Utils::percentReduction(const unsigned long long before, const unsigned long long after)
 {
     return static_cast<double>(before - after) / static_cast<double>(before) * 100;
 }

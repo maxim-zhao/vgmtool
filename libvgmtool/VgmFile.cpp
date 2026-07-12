@@ -67,7 +67,7 @@ void VgmFile::load_file(const std::string& filename)
     }
 }
 
-void VgmFile::save_file(const std::string& filename)
+void VgmFile::save_file(const std::string& filename, const IVGMToolCallback& callback, int compression)
 {
     BinaryData data;
 
@@ -107,7 +107,12 @@ void VgmFile::save_file(const std::string& filename)
     // Write the header again
     _header.to_binary(data);
 
-    // Finally, save to disk. We don't do compression here.
+    if (compression > 0)
+    {
+        data.compress(compression, callback);
+    }
+
+    // Finally, save to disk.
     data.save(filename);
 }
 

@@ -854,7 +854,7 @@ void Gui::update_header()
 
     _currentFile.header().set_sn76489_shift_register_width(static_cast<uint8_t>(get_int(_headerWnd, edtPSGSRWidth)));
 
-    _currentFile.save_file(_currentFilename);
+    _currentFile.save_file(_currentFilename, *this);
 }
 
 void Gui::optimize(const std::string& filename) const

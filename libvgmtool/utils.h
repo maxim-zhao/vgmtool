@@ -55,5 +55,5 @@ public:
     static double db_to_percent(double attenuation);
 
     // Given two numbers, express the second as a percentage reduction compared to the first
-    static double percentReduction(int before, int after);
+    static double percentReduction(unsigned long long before, unsigned long long after);
 };
