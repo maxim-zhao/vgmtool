@@ -475,3 +475,8 @@ void VgmCommands::PCMSeek::to_data(BinaryData& data) const
     data.write_uint8(get_marker());
     data.write_uint32(_address);
 }
+
+VgmCommands::Invalid::Invalid()
+{
+    throw std::exception("Invalid command");
+}

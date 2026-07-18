@@ -1,6 +1,8 @@
 #pragma once
 
+#include <memory>
 #include <string>
+#include <vector>
 #include <vector>
 
 namespace VgmCommands
@@ -20,6 +22,7 @@ public:
     void add(const VgmCommands::GGStereo* pStereo);
     void add(const VgmCommands::SN76489* pCommand);
     void to_text(std::ostream& s, const VgmCommands::ICommand* pCommand);
+    void copy_to_command_stream(std::vector<std::shared_ptr<VgmCommands::ICommand>>& stream, SN76489State& last_written_psg_state, bool fullImage) const;
 
 private:
     static std::string print_stereo_mask(uint8_t mask);

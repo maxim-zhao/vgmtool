@@ -67,7 +67,7 @@ void VgmFile::load_file(const std::string& filename)
     }
 }
 
-void VgmFile::save_file(const std::string& filename, const IVGMToolCallback& callback, int compression)
+void VgmFile::save_file(const std::string& filename, const IVGMToolCallback& callback, const bool verbose_zopfli, int compression)
 {
     BinaryData data;
 
@@ -109,7 +109,7 @@ void VgmFile::save_file(const std::string& filename, const IVGMToolCallback& cal
 
     if (compression > 0)
     {
-        data.compress(compression, callback);
+        data.compress(compression, callback, verbose_zopfli);
     }
 
     // Finally, save to disk.

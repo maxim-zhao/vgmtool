@@ -6,8 +6,12 @@
 CommandStream::CommandStream()
 {
     // Register all the commands we have handlers for
-    // 0x30 to 0x4e: reserved
-    register_command<VgmCommands::ReservedCommand<1>>(0x30, 0x4e);
+    // 0x00 to 0x2f: undefined
+    register_command<VgmCommands::Invalid>(0x00, 0x2f);
+    // 0x30 to 0x3f: reserved, one byte
+    register_command<VgmCommands::ReservedCommand<1>>(0x30, 0x3f);
+    // 0x40 to 0x4e: reserved, two bytes
+    register_command<VgmCommands::ReservedCommand<2>>(0x40, 0x4e);
     // 0x4f: GG stereo
     register_command<VgmCommands::GGStereo>();
     // 0x50-0x5f: chip commands

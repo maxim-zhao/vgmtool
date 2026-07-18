@@ -1,5 +1,5 @@
 #pragma once
-#include <xstring>
+#include <string>
 
 class IVGMToolCallback;
 class VgmFile;

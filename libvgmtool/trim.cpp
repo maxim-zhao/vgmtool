@@ -959,6 +959,43 @@ static void write_ym2413_state_commands(
 }
 */
 
+static void add_pause(std::vector<std::shared_ptr<VgmCommands::ICommand>>& stream, int pauseLength)
+{
+    if (pauseLength == 0)
+    {
+        return;
+    }
+
+    while (pauseLength > 0xffff)
+    {
+        const auto wait = std::make_shared<VgmCommands::Wait16bit>();
+        wait->set_duration(0xffff);
+        stream.push_back(wait);
+        pauseLength -= 0xffff;
+    }
+
+    if (pauseLength == LEN60TH)
+    {
+        stream.push_back(std::make_shared<VgmCommands::Wait60th>());
+    }
+    else if (pauseLength == LEN50TH)
+    {
+        stream.push_back(std::make_shared<VgmCommands::Wait50th>());
+    }
+    else if (pauseLength <= 16)
+    {
+        const auto wait = std::make_shared<VgmCommands::Wait4bit>();
+        wait->set_duration(pauseLength);
+        stream.push_back(wait);
+    }
+    else
+    {
+        const auto wait = std::make_shared<VgmCommands::Wait16bit>();
+        wait->set_duration(static_cast<uint16_t>(pauseLength));
+        stream.push_back(wait);
+    }
+}
+
 void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToolCallback& callback)
 {
     callback.show_conversion_progress(std::format("Trimming VGM file: start {}, loop {}, end {}", start, loop, end));
@@ -988,20 +1025,37 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToo
     //auto& dataWithLoop = vgmFile.data_with_loop();
     auto& allCommands = dataBeforeLoop.commands();
 
-    // Initialize tracking state
-    //uint8_t ym2413Regs[YM2413NumRegs]{};
+    // Initialize tracking state(s)
+    // TODO: make this extensible to more chips?
     SN76489State currentPsgState(header);
-    /*= {
-        0xff, // GG stereo - all on
-        {0, 0, 0}, // Tone channels - off
-        0xe5, // Noise byte - white, medium
-        {15, 15, 15, 15}, // Volumes - all off
-        0, 4, // PSG low bits, channel
-        false
-    };*/
-
-    SN76489State lastWrittenPsgState = currentPsgState;
+    //uint8_t ym2413Regs[YM2413NumRegs]{};
     //uint8_t lastWrittenYM2413Regs[YM2413NumRegs]{};
+
+    // We walk through all the data, until time > start...
+    int time = 0;
+    auto it = allCommands.begin();
+    while (time < start && it != allCommands.end())
+    {
+        auto cmd = *it;
+        if (auto pWait = dynamic_cast<VgmCommands::Wait*>(cmd.get()); pWait != nullptr)
+        {
+            time += pWait->duration();
+        }
+        ++it;
+    }
+    // Now we got to the start. Take a copy of the chip states now.
+    std::vector<std::shared_ptr<VgmCommands::ICommand>> beforeLoop;
+    SN76489State lastWrittenPsgState(currentPsgState);
+    currentPsgState.copy_to_command_stream(beforeLoop, lastWrittenPsgState, true);
+
+    // If we got past the start, we want to add a pause.
+    if (time > start)
+    {
+        add_pause(beforeLoop, time - start);
+    }
+
+    // If we have a loop point, we want to capture the data up until then.
+    //if (loop)
 
     // Detect chip usage
     // TODO can we avoid this?
@@ -1387,6 +1441,11 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToo
         header.set_loop_sample_count(0);
     }
 
-    callback.show_status("Trimming complete");
+    // TODO report here on the timings in m:ss.fff
+    callback.show_status(std::format(
+        "Trimming complete: {} commands -> {} + {}", 
+        allCommands.size(), 
+        vgmFile.data_before_loop().commands().size(), 
+        vgmFile.data_with_loop().commands().size()));
 }
 

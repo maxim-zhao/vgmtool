@@ -101,7 +101,7 @@ void BinaryData::reset()
     _offset = 0;
 }
 
-void BinaryData::compress(const int level, const IVGMToolCallback& callback)
+void BinaryData::compress(const int level, const IVGMToolCallback& callback, const bool verbose_zopfli)
 {
     auto sizeBefore = _data.size();
     ZopfliOptions options{};
@@ -111,9 +111,10 @@ void BinaryData::compress(const int level, const IVGMToolCallback& callback)
         // We let the library pick the default (15) if not set
         options.numiterations = level;
     }
+    options.verbose = verbose_zopfli ? 1 : 0;
     unsigned char* out;
     size_t outSize = 0;
-    callback.show_status("Compressing...");
+    callback.show_status(std::format("Compressing... level {}", level));
     ZopfliCompress(&options, ZOPFLI_FORMAT_GZIP, _data.data(), _data.size(), &out, &outSize);
     // Then we want to copy that into our buffer
     _data.clear();

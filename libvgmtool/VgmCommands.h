@@ -24,8 +24,8 @@ namespace VgmCommands
     // A command that has a static "marker" byte
     class MarkedCommand : public ICommand
     {
-        uint8_t _marker = 0;
         VgmHeader::Chip _chip;
+        uint8_t _marker = 0;
 
     public:
         MarkedCommand(uint8_t marker, VgmHeader::Chip chip) : _marker(marker), _chip(chip) {}
@@ -593,6 +593,20 @@ namespace VgmCommands
                 data.write_uint8(b);
             }
         }
+
+        [[nodiscard]] VgmHeader::Chip chip() const override
+        {
+            return VgmHeader::Chip::Nothing;
+        }
+    };
+
+    class Invalid: public ICommand
+    {
+    public:
+        Invalid();
+
+        void from_data(BinaryData&) override {}
+        void to_data(BinaryData&) const override {}
 
         [[nodiscard]] VgmHeader::Chip chip() const override
         {

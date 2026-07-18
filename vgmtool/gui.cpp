@@ -10,7 +10,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <Windows.h>
+#include <commdlg.h>
 #include <Uxtheme.h>
 #include <zlib.h>
 

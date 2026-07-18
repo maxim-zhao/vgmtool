@@ -22,7 +22,7 @@ public:
     explicit VgmFile(const std::string& filename);
 
     void load_file(const std::string& filename);
-    void save_file(const std::string& filename, const IVGMToolCallback& callback, int compression = 0);
+    void save_file(const std::string& filename, const IVGMToolCallback& callback, bool verbose_zopfli = false, int compression = 0);
 
     [[nodiscard]] VgmHeader& header()
     {
