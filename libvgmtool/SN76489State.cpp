@@ -3,6 +3,7 @@
 #include <format>
 #include <iostream>
 
+#include "CommandStream.h"
 #include "utils.h"
 #include "VgmCommands.h"
 
@@ -24,18 +25,18 @@ SN76489State::SN76489State(const VgmHeader& header)
     _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
 }
 
-void SN76489State::to_text(std::ostream& s, const VgmCommands::ICommand* pCommand)
+void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmCommands::ICommand>& pCommand)
 {
-    if (const auto* pStereo = dynamic_cast<const VgmCommands::GGStereo*>(pCommand); pStereo != nullptr)
+    if (const auto ggStereo = std::dynamic_pointer_cast<const VgmCommands::GGStereo>(pCommand))
     {
-        add(pStereo);
+        add(ggStereo);
         s << "Stereo: " << print_stereo_mask(_stereoMask);
         return;
     }
-    if (const auto* p = dynamic_cast<const VgmCommands::SN76489*>(pCommand); p != nullptr)
+    if (const auto sn76489 = std::dynamic_pointer_cast<const VgmCommands::SN76489>(pCommand))
     {
-        add(p);
-        if ((p->value() & 0b10000000) == 0)
+        add(sn76489);
+        if ((sn76489->value() & 0b10000000) == 0)
         {
             s << "Data:       ";
         }
@@ -79,52 +80,52 @@ void SN76489State::to_text(std::ostream& s, const VgmCommands::ICommand* pComman
 }
 
 void SN76489State::copy_to_command_stream(
-    std::vector<std::shared_ptr<VgmCommands::ICommand>>& stream,
-    SN76489State& last_written_psg_state,
+    CommandStream& stream,
+    SN76489State& lastWrittenPsgState,
     const bool fullImage) const
 {
-    if (fullImage || _stereoMask != last_written_psg_state._stereoMask)
+    if (fullImage || _stereoMask != lastWrittenPsgState._stereoMask)
     {
         auto ggStereo = std::make_shared<VgmCommands::GGStereo>();
         ggStereo->set_value(_stereoMask);
-        stream.emplace_back(ggStereo);
-        last_written_psg_state._stereoMask = _stereoMask;
+        stream.commands().emplace_back(ggStereo);
+        lastWrittenPsgState._stereoMask = _stereoMask;
     }
 
     for (std::size_t i = 0; i < _registers.size(); ++i)
     {
-        if (_registers[i] != last_written_psg_state._registers[i])
+        if (fullImage || _registers[i] != lastWrittenPsgState._registers[i])
         {
-            auto channel = i / 2;
-            auto isTone = ((i % 2) == 0) && (i != 6); // Channels 0, 2, 4 are tone channels
-            auto isVolume = (i % 2) == 1; // Channels 1, 3, 5, 7 are volume channels
-            auto mask = (channel << 5) | (isVolume
-                ? 0b1000
+            const auto channel = i / 2;
+            const auto isTone = ((i % 2) == 0) && (i != 6); // Channels 0, 2, 4 are tone channels
+            const auto isVolume = (i % 2) == 1; // Channels 1, 3, 5, 7 are volume channels
+            const auto mask = (channel << 5) | (isVolume
+                ? 0b10000
                 : 0);
 
             // All registers have a first byte, whether they're tone, noise or volume
             auto command1 = std::make_shared<VgmCommands::SN76489>();
             command1->set_value(static_cast<uint8_t>(0b10000000 | mask | (_registers[i] & 0b1111)));
-            stream.push_back(command1);
+            stream.commands().push_back(command1);
             if (isTone)
             {
                 // Then there's a second data byte
                 auto command2 = std::make_shared<VgmCommands::SN76489>();
                 // Data byte %0ddddddd
                 command2->set_value(static_cast<uint8_t>(_registers[i] >> 4));
-                stream.push_back(command2);
+                stream.commands().push_back(command2);
             }
-            last_written_psg_state._registers[i] = _registers[i];
+            lastWrittenPsgState._registers[i] = _registers[i];
         }
     }
 }
 
-void SN76489State::add(const VgmCommands::GGStereo* pStereo)
+void SN76489State::add(const std::shared_ptr<const VgmCommands::GGStereo>& pStereo)
 {
     _stereoMask = pStereo->value();
 }
 
-void SN76489State::add(const VgmCommands::SN76489* pCommand)
+void SN76489State::add(const std::shared_ptr<const VgmCommands::SN76489>& pCommand)
 {
     if (const auto value = pCommand->value();
         (value & 0b10000000) != 0)
@@ -179,7 +180,7 @@ double SN76489State::tone_length_to_hz(const int length) const
     return static_cast<double>(_clockRate) / 32.0 / length;
 }
 
-std::string SN76489State::make_noise_description(const char* prefix, int shift) const
+std::string SN76489State::make_noise_description(const char* prefix, const int shift) const
 {
     return std::format(
         "{} ({}Hz)",

@@ -3,6 +3,9 @@
 #include "trim.h"
 
 #include <filesystem>
+// Out third-party zlib includes windows.h :(
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <zlib.h>
 #include "vgm.h"
 #include "gd3.h"
@@ -70,7 +73,7 @@ static TPSGState LastWrittenPSGState = {
     .ToneFreqs = {0, 0, 0}, // Tone channels - off
     .NoiseByte = 0xe5, // Noise byte - white, medium
     .Volumes = {15, 15, 15, 15}, // Volumes - all off
-    .PSGFrequencyLowBits = 0, 
+    .PSGFrequencyLowBits = 0,
     .Channel = 4, // PSG low bits, channel - 4 so no values needed
     .NoiseUpdated = false
 };
@@ -329,8 +332,14 @@ void WriteYM2413State(const gzFile out, uint8_t YM2413Regs[YM2413NumRegs], const
 // When it gets to a pause, it writes every value that has changed since
 // the last write (at the last pause, or state write), and stores the
 // current state for comparison next time.
-void trim(const std::string& filename, int start, int loop, int end, bool overWrite, bool logTrims,
-          const IVGMToolCallback& callback, std::string outFilename)
+void trim(const std::string& filename,
+          int start,
+          int loop,
+          int end,
+          bool overWrite,
+          bool logTrims,
+          const IVGMToolCallback& callback,
+          std::string outFilename)
 {
     callback.show_conversion_progress(std::format("Trimming {}: start {}, loop {}, end {}", filename, start, loop, end));
 
@@ -370,7 +379,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
 
     if (outFilename.empty())
     {
-        if (auto dotPosition = filename.find_last_of(".\\/"); 
+        if (auto dotPosition = filename.find_last_of(".\\/");
             dotPosition == std::string::npos || filename[dotPosition] != '.')
         {
             // No dot, just append
@@ -561,7 +570,7 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
                 case 0x90: // set volume
                     {
                         auto chan = (b1 & 0x60) >> 5;
-                        if (uint8_t vol = b1 & 0xF; 
+                        if (uint8_t vol = b1 & 0xF;
                             currentPsgState.Volumes[chan] != vol)
                         {
                             currentPsgState.Volumes[chan] = vol;
@@ -831,133 +840,14 @@ void trim(const std::string& filename, int start, int loop, int end, bool overWr
 
     callback.show_status(std::format(
         "File {} to {} Uncompressed file size {} -> {} bytes ({:+.2f}%)",
-        (overWrite ? "optimised" : "trimmed"),
+        (overWrite
+            ? "optimised"
+            : "trimmed"),
         outFilename,
         fileSizeBefore,
         fileSizeAfter,
         (static_cast<double>(fileSizeAfter) - fileSizeBefore) * 100 / fileSizeBefore));
 }
-
-//----------------------------------------------------------------------------------------------
-// Re-implemented trim that works on VgmFile in-memory instead of streaming file data
-//----------------------------------------------------------------------------------------------
-/*
-// Helper function: Convert a pause length into appropriate wait commands
-static void add_pause_commands(
-    std::vector<VgmCommands::ICommand*>& commands,
-    long pauseLength)
-{
-    if (pauseLength == 0)
-    {
-        return;
-    }
-
-    while (pauseLength > 0xffff)
-    {
-        auto wait = new VgmCommands::Wait16bit();
-        wait->set_duration(0xffff);
-        commands.push_back(wait);
-        pauseLength -= 0xffff;
-    }
-
-    if (pauseLength == LEN60TH)
-    {
-        commands.push_back(new VgmCommands::Wait60th());
-    }
-    else if (pauseLength == LEN50TH)
-    {
-        commands.push_back(new VgmCommands::Wait50th());
-    }
-    else if (pauseLength <= 16)
-    {
-        auto wait = new VgmCommands::Wait4bit();
-        wait->set_duration(static_cast<int>(pauseLength));
-        commands.push_back(wait);
-    }
-    else
-    {
-        auto wait = new VgmCommands::Wait16bit();
-        wait->set_duration(static_cast<uint16_t>(pauseLength));
-        commands.push_back(wait);
-    }
-}
-*/
-// Helper function: Write PSG state initialization commands
-/*
-static void write_psg_state_commands(
-    std::vector<VgmCommands::ICommand*>& commands,
-    const TPSGState& psgState)
-{
-    // GG stereo
-    auto stereo = new VgmCommands::GGStereo();
-    stereo->set_value(psgState.GGStereo);
-    commands.push_back(stereo);
-
-    // Tone channel frequencies
-    for (int i = 0; i < 3; ++i)
-    {
-        auto psg1 = new VgmCommands::SN76489();
-        psg1->set_value(static_cast<uint8_t>(
-            0x80 | // bit 7 = 1, 4 = 0 -> PSG tone byte 1
-            (i << 5) | // bits 5 and 6 -> select channel
-            (psgState.ToneFreqs[i] & 0xf) // bits 0 to 3 -> low 4 bits of freq
-        ));
-        commands.push_back(psg1);
-
-        auto psg2 = new VgmCommands::SN76489();
-        psg2->set_value(static_cast<uint8_t>(
-            // bits 6 and 7 = 0 -> PSG tone byte 2
-            (psgState.ToneFreqs[i] >> 4) // bits 0 to 5 -> high 6 bits of freq
-        ));
-        commands.push_back(psg2);
-    }
-
-    // Noise
-    auto noise = new VgmCommands::SN76489();
-    noise->set_value(psgState.NoiseByte);
-    commands.push_back(noise);
-
-    // All 4 channels volumes
-    for (int i = 0; i < 4; ++i)
-    {
-        auto vol = new VgmCommands::SN76489();
-        vol->set_value(static_cast<uint8_t>(
-            0x90 | // bits 4 and 7 = 1 -> volume
-            (i << 5) | // bits 5 and 6 -> select channel
-            psgState.Volumes[i] // bits 0 to 4 -> volume
-        ));
-        commands.push_back(vol);
-    }
-}
-*/
-/*
-// Helper function: Write YM2413 state initialization commands
-static void write_ym2413_state_commands(
-    std::vector<VgmCommands::ICommand*>& commands,
-    const uint8_t ym2413Regs[YM2413NumRegs],
-    const int* regWriteFlags)
-{
-    for (int i = 0; i < YM2413NumRegs; ++i)
-    {
-        if (regWriteFlags[i] != 0 && i != 0x0e) // skip percussion for now
-        {
-            auto cmd = new VgmCommands::YM2413();
-            cmd->set_register(static_cast<uint8_t>(i));
-            cmd->set_value(static_cast<uint8_t>(ym2413Regs[i] & regWriteFlags[i]));
-            commands.push_back(cmd);
-        }
-    }
-
-    // Write percussion after tone
-    if (regWriteFlags[0x0e] != 0)
-    {
-        auto cmd = new VgmCommands::YM2413();
-        cmd->set_register(0x0e);
-        cmd->set_value(static_cast<uint8_t>(ym2413Regs[0x0e] & regWriteFlags[0x0e]));
-        commands.push_back(cmd);
-    }
-}
-*/
 
 static void add_pause(std::vector<std::shared_ptr<VgmCommands::ICommand>>& stream, int pauseLength)
 {
@@ -965,6 +855,11 @@ static void add_pause(std::vector<std::shared_ptr<VgmCommands::ICommand>>& strea
     {
         return;
     }
+
+    // This is not quite optimal - it depends upon what the length modulo 0xffff is.
+    // If it is not any of the <3 byte options, we would be better off emitting a
+    // 16-bit wait that makes it so, if possible. This is unlikely to happen
+    // very often.
 
     while (pauseLength > 0xffff)
     {
@@ -974,9 +869,20 @@ static void add_pause(std::vector<std::shared_ptr<VgmCommands::ICommand>>& strea
         pauseLength -= 0xffff;
     }
 
-    if (pauseLength == LEN60TH)
+    // Two one-byte commands are more efficient than a three-byte wait
+    if (pauseLength == LEN60TH * 2)
     {
         stream.push_back(std::make_shared<VgmCommands::Wait60th>());
+        stream.push_back(std::make_shared<VgmCommands::Wait60th>());
+    }
+    else if (pauseLength == LEN60TH)
+    {
+        stream.push_back(std::make_shared<VgmCommands::Wait60th>());
+    }
+    else if (pauseLength == LEN50TH * 2)
+    {
+        stream.push_back(std::make_shared<VgmCommands::Wait50th>());
+        stream.push_back(std::make_shared<VgmCommands::Wait50th>());
     }
     else if (pauseLength == LEN50TH)
     {
@@ -1020,419 +926,154 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToo
 
     callback.show_status("Trimming VGM data...");
 
-    // Get reference to command streams
-    auto& dataBeforeLoop = vgmFile.data_before_loop();
-    //auto& dataWithLoop = vgmFile.data_with_loop();
-    auto& allCommands = dataBeforeLoop.commands();
+    // Copy all the commands from the VGM file into one big stream
+    CommandStream allCommands;
+    std::ranges::copy(vgmFile.data_before_loop().commands(), std::back_inserter(allCommands.commands()));
+    std::ranges::copy(vgmFile.data_with_loop().commands(), std::back_inserter(allCommands.commands()));
 
     // Initialize tracking state(s)
-    // TODO: make this extensible to more chips?
+    // TODO: make this extensible to more chips
     SN76489State currentPsgState(header);
+    SN76489State lastWrittenPsgState(header);
+    SN76489State loopPsgState(header);
+    SN76489State startPsgState(header);
     //uint8_t ym2413Regs[YM2413NumRegs]{};
     //uint8_t lastWrittenYM2413Regs[YM2413NumRegs]{};
 
-    // We walk through all the data, until time > start...
-    int time = 0;
-    auto it = allCommands.begin();
-    while (time < start && it != allCommands.end())
+    CommandStream* currentStream = nullptr;
+    vgmFile.data_before_loop().commands().clear();
+    vgmFile.data_with_loop().commands().clear();
+
+    // I want to walk through all the data...
+    // While time < start, we just track chip state.
+    // When time passes start, we emit a full image and any remaining wait until either loop or end.
+    // While time < end, we track chip state and emit waits and deltas.
+    // When time passes loop, we capture the chip state for later.
+    // When time passes end, we emit the delta to get back to the loop state.
+    int time = 0; // TODO extend times to 64 bit? 2^32 samples is 2^32 / 44100 = 27 hours, so probably not needed for now
+    for (const auto& command : allCommands.commands())
     {
-        auto cmd = *it;
-        if (auto pWait = dynamic_cast<VgmCommands::Wait*>(cmd.get()); pWait != nullptr)
+        // Every command maybe has some time, and maybe changes the chip state(s).
+        auto pendingTime = 0;
+        if (const auto wait = std::dynamic_pointer_cast<VgmCommands::Wait>(command))
         {
-            time += pWait->duration();
+            pendingTime += wait->duration();
         }
-        ++it;
-    }
-    // Now we got to the start. Take a copy of the chip states now.
-    std::vector<std::shared_ptr<VgmCommands::ICommand>> beforeLoop;
-    SN76489State lastWrittenPsgState(currentPsgState);
-    currentPsgState.copy_to_command_stream(beforeLoop, lastWrittenPsgState, true);
-
-    // If we got past the start, we want to add a pause.
-    if (time > start)
-    {
-        add_pause(beforeLoop, time - start);
-    }
-
-    // If we have a loop point, we want to capture the data up until then.
-    //if (loop)
-
-    // Detect chip usage
-    // TODO can we avoid this?
-    bool havePSG = false, haveYM2413 = false;
-    for (const auto& cmd : allCommands)
-    {
-        switch (cmd->chip())  // NOLINT(clang-diagnostic-switch-enum)
+        switch (command->chip())  // NOLINT(clang-diagnostic-switch-enum)
         {
+        case VgmHeader::Chip::Nothing:
+            break;
         case VgmHeader::Chip::SN76489:
-            // TODO this triggers for the "second" one too
-            havePSG = true;
-            break;
-        case VgmHeader::Chip::YM2413:
-            haveYM2413 = true;
-            break;
-        default: 
-            break;
-        }
-        
-    }
-
-    // Steps:
-    // - While sampleCount < start:
-    //   - Accumulate state into currentPsgState
-    //   - Accumulate pauses into sampleCount
-    // - Then we are at the start:
-    //   - Emit the full state
-    //   - Emit (sampleCount - start) wait (if >0)
-    // - Then while sampleCount < loop (which may be impossible if there's no loop):
-    //   - Accumulate state into currentPsgState
-    //   - When we see a pause, emit the state delta and accumulate it into sampleCount
-    // - Then we are at the loop point:
-    //   - Emit the full state
-    //   - Emit (sampleCount - loop) wait (if >0)
-    // - Then while sampleCount < end:
-    //   - Accumulate state into currentPsgState
-    //   - When we see a pause, emit the state delta and accumulate it into sampleCount
-
-    /*
-    bool writtenStart = false;
-    bool writtenLoop = false;
-    long int pauseLength = 0;
-    int lastFirstByteWritten = -1;
-    long sampleCount = 0;
-    for (const auto* pCommand : allCommands)
-    {
-        if (const auto* pGGStereo = dynamic_cast<const VgmCommands::GGStereo*>(pCommand); pGGStereo != nullptr)
-        {
-            currentPsgState.add(pGGStereo);
-            if (writtenStart)
-        }
-        else if (const auto* pSN76489 = dynamic_cast<const VgmCommands::SN76489*>(pCommand); pSN76489 != nullptr)
-        {
-            currentPsgState.add(pSN76489);
-        }
-        // YM2413 skipped
-
-    }
-
-    
-    for (auto atEnd = false; !atEnd;)
-    {
-        switch (const auto b0 = gzgetc(in))
-        {
+            if (const auto ggStereo = std::dynamic_pointer_cast<VgmCommands::GGStereo>(command))
             {
-                auto b1 = gzgetc(in);
-                if (b1 != currentPsgState.GGStereo)
-                {
-                    currentPsgState.GGStereo = static_cast<uint8_t>(b1);
-                    if ((writtenStart) && (vgmHeader.PSGClock))
-                    {
-                        WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-                    }
-                }
-                break;
+                currentPsgState.add(ggStereo);
             }
-        case VGM_PSG: // PSG write (1 byte data)
+            else if (const auto sn76489 = std::dynamic_pointer_cast<VgmCommands::SN76489>(command))
             {
-                const auto b1 = gzgetc(in);
-                switch (b1 & 0x90)
-                {
-                case 0x00: // fall through
-                case 0x10: // second frequency byte
-                    if (currentPsgState.Channel > 3)
-                    {
-                        break;
-                    }
-                    if (currentPsgState.Channel == 3)
-                    {
-                        // 2nd noise byte (Micro Machines title screen)
-                        // Always write
-                        currentPsgState.NoiseUpdated = true;
-                        currentPsgState.NoiseByte = (b1 & 0xf) | 0xe0;
-                        if ((writtenStart) && (vgmHeader.PSGClock))
-                        {
-                            WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-                        }
-                    }
-                    else
-                    {
-                        int freq = (b1 & 0x3F) << 4 | currentPsgState.PSGFrequencyLowBits;
-                        if (freq < PSGCutoff)
-                        {
-                            freq = 0;
-                        }
-                        if (currentPsgState.ToneFreqs[currentPsgState.Channel] != freq)
-                        {
-                            // Changes the freq
-                            uint8_t firstByte = 0x80 | (currentPsgState.Channel << 5) | currentPsgState.
-                                PSGFrequencyLowBits;
-                            // 1st byte needed for this freq
-                            if (firstByte != lastFirstByteWritten)
-                            {
-                                // If necessary, write 1st byte
-                                if ((writtenStart) && (vgmHeader.PSGClock))
-                                {
-                                    WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-                                }
-                                lastFirstByteWritten = firstByte;
-                            }
-                            // Don't write if volume is off
-                            if ((writtenStart) && (vgmHeader.PSGClock)
-                                /*&& (CurrentPSGState.Volumes[CurrentPSGState.Channel])* /)
-                            {
-                                WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-                            }
-                            currentPsgState.ToneFreqs[currentPsgState.Channel] = static_cast<uint16_t>(freq);
-                            // Write 2nd byte
-                        }
-                        break;
-                    }
-                case 0x80:
-                    if ((b1 & 0x60) == 0x60)
-                    {
-                        // noise
-                        // No "does it change" because writing resets the LFSR (ie. has an effect)
-                        currentPsgState.NoiseUpdated = true;
-                        currentPsgState.NoiseByte = static_cast<uint8_t>(b1);
-                        currentPsgState.Channel = 3;
-                        if ((writtenStart) && (vgmHeader.PSGClock))
-                        {
-                            WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-                        }
-                    }
-                    else
-                    {
-                        // First frequency byte
-                        currentPsgState.Channel = (b1 & 0x60) >> 5;
-                        currentPsgState.PSGFrequencyLowBits = b1 & 0xF;
-                    }
-                    break;
-                case 0x90: // set volume
-                    {
-                        auto chan = (b1 & 0x60) >> 5;
-                        if (uint8_t vol = b1 & 0xF; 
-                            currentPsgState.Volumes[chan] != vol)
-                        {
-                            currentPsgState.Volumes[chan] = vol;
-                            currentPsgState.Channel = 4;
-                            // Only write volume change if we've got to the start and PSG is turned on
-                            if ((writtenStart) && (vgmHeader.PSGClock))
-                            {
-                                WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-                            }
-                        }
-                    }
-                    break;
-                } // end case
-                break;
-            }
-        case VGM_YM2413: // YM2413
-            {
-                const auto b1 = gzgetc(in);
-                const auto b2 = gzgetc(in);
-                if ((b1 >= YM2413NumRegs) || !(YM2413RegWriteFlags[b1]))
-                {
-                    break; // Discard invalid register numbers
-                }
-                YM2413Regs[b1] = static_cast<uint8_t>(b2);
-
-                // Check for percussion keys lifted or pressed
-                if (b1 == 0x0e)
-                {
-                    KeysLifted |= (b2 ^ 0x1f) & 0x1f;
-                    // OR the percussion keys with the inverse of the perc.
-                    // keys to get a 1 stored there if the key has been lifted
-                    KeysPressed |= (b2 & 0x1f);
-                    // Do similar with the non-inverse to get the keys pressed
-                }
-                // Check for tone keys lifted or pressed
-                if ((b1 >= 0x20) && (b1 <= 0x28))
-                {
-                    if (b2 & 0x10)
-                    {
-                        // Key was pressed
-                        KeysPressed |= 1 << (b1 - 0x20 + 5);
-                    }
-                    else
-                    {
-                        KeysLifted |= 1 << (b1 - 0x20 + 5);
-                    }
-                    if (
-                        (KeysLifted & KeysPressed & (1 << (b1 - 0x20 + 5))) // the key has gone UD
-                        &&
-                        (LastWrittenYM2413Regs[b1] & 0x10) // 0x10 == 00010000 == YM2413 tone key bit
-                        // ie. the key was D before UD
-                    )
-                    {
-                        KeysLifted = KeysLifted;
-                    }
-                }
-
-                if ((writtenStart) && (vgmHeader.YM2413Clock))
-                {
-                    WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-                }
-                break;
-            }
-        case VGM_YM2612_0: // YM2612 port 0
-        case VGM_YM2612_1: // YM2612 port 1
-        case VGM_YM2151: // YM2151
-            {
-                const auto b1 = gzgetc(in);
-                const auto b2 = gzgetc(in);
-                gzputc(out, b0);
-                gzputc(out, b1);
-                gzputc(out, b2);
-                break;
-            }
-        case 0x55: // Reserved up to 0x5f
-        case 0x56: // All have 2 bytes of data
-        case 0x57: // which I discard :)
-        case 0x58:
-        case 0x59:
-        case 0x5a:
-        case 0x5b:
-        case 0x5c:
-        case 0x5d:
-        case 0x5e:
-        case 0x5f:
-            gzgetc(in);
-            gzgetc(in);
-            break;
-        case VGM_PAUSE_WORD: // Wait n samples
-            {
-                auto b1 = gzgetc(in);
-                auto b2 = gzgetc(in);
-                sampleCount += b1 | (b2 << 8);
-                pauseLength += b1 | (b2 << 8);
-                if ((writtenStart) && ((sampleCount <= loop) || (loop == -1) || (writtenLoop)) && (sampleCount <=
-                    end))
-                {
-                    WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-                }
-                break;
-            }
-        case VGM_PAUSE_60TH: // Wait 1/60 s
-            sampleCount += LEN60TH;
-            pauseLength += LEN60TH;
-            if ((writtenStart) && ((sampleCount <= loop) || (loop == -1) || (writtenLoop)) && (sampleCount <= end))
-            {
-                WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
+                currentPsgState.add(sn76489);
             }
             break;
-        case VGM_PAUSE_50TH: // Wait 1/50 s
-            sampleCount += LEN50TH;
-            pauseLength += LEN50TH;
-            if ((writtenStart) && ((sampleCount <= loop) || (loop == -1) || (writtenLoop)) && (sampleCount <= end))
-            {
-                WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-            }
-            break;
-        case 0x70:
-        case 0x71:
-        case 0x72:
-        case 0x73:
-        case 0x74:
-        case 0x75:
-        case 0x76:
-        case 0x77:
-        case 0x78:
-        case 0x79:
-        case 0x7a:
-        case 0x7b:
-        case 0x7c:
-        case 0x7d:
-        case 0x7e:
-        case 0x7f: // Wait 1-16 samples
-            {
-                auto waitLength = (b0 & 0xf) + 1;
-                sampleCount += waitLength;
-                pauseLength += waitLength;
-                if ((writtenStart) && ((sampleCount <= loop) || (loop == -1) || (writtenLoop)) && (sampleCount <=
-                    end))
-                {
-                    WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
-                }
-            }
-            break;
-        case VGM_END: // End of sound data
-            gzclose(in);
-            gzclose(out);
-            callback.show_error(
-                "Reached end of VGM data! There must be something wrong - try fixing the lengths for this file");
-            return;
+            // TODO lots more chips to handle
         default:
+            // Pass through commands for other chips, if we are past the start.
+            if (time > start)
+            {
+                currentStream->commands().push_back(command);
+            }
             break;
         }
 
-        // Loop point
-        if ((!writtenLoop) && (loop != -1) && (sampleCount >= loop))
+        if (pendingTime > 0)
         {
-            if (writtenStart)
+            if (currentStream != nullptr)
             {
-                pauseLength = loop - (sampleCount - pauseLength); // Write any remaining pause up to the edit point
-                WriteVGMInfo(out, &pauseLength, &currentPsgState, YM2413Regs);
+                // Emit the delta...
+                currentPsgState.copy_to_command_stream(*currentStream, lastWrittenPsgState, false);
             }
-            pauseLength = sampleCount - loop; // and remember any left over
-            // Remember offset
-            vgmHeader.LoopOffset = static_cast<uint32_t>(gztell(out) - LOOPDELTA);
-            // Write loop point initialisation... unless start = loop
-            // because then the start initialisation will work
-            if (loop != start)
+            // Add it on... but maybe not all of it.
+            const auto timeBefore = time;
+            const auto timeAfter = time + pendingTime;
+            // ---|-------|-----|----
+            //    start   loop  end
+            // Start and loop can be the same.
+            // We might have moved past one or more of these, and we want to take action on each.
+            // Note that we want to trigger the start and loop when we have pending time
+            // moving us *after* the point in question, so that we capture the state
+            // just before the time is added.
+            if (timeBefore <= start && timeAfter > start)
             {
-                if (havePSG)
+                // We are passing the start point
+                currentStream = &vgmFile.data_before_loop();
+                // Remember the state
+                startPsgState = currentPsgState;
+                lastWrittenPsgState = currentPsgState;
+                // Subtract any time before the start point from the pending time
+                pendingTime -= (start - timeBefore);
+                // Emit as much time as we need to get to the loop point, or end, or just all the pending time
+                auto timeToEmit = pendingTime;
+                if (loop > -1 && timeAfter >= loop)
                 {
-                    currentPsgState.NoiseByte &= 0xf7;
-                    WritePSGState(out, currentPsgState);
+                    // We are also passing the loop point. Only emit time up to there (might be 0).
+                    timeToEmit = loop - start;
                 }
-                if (haveYM2413)
+                else if (timeAfter >= end)
                 {
-                    WriteYM2413State(out, YM2413Regs, true);
+                    // We are also passing the end point. Only emit time up to there.
+                    timeToEmit = end - start;
                 }
+                add_pause(currentStream->commands(), timeToEmit);
+                pendingTime -= timeToEmit;
+                time += timeToEmit;
             }
-            writtenLoop = 1;
-        }
-        // Start point
-        if ((!writtenStart) && (sampleCount > start))
-        {
-            if (havePSG)
+            if (timeBefore <= loop && timeAfter > loop)
             {
-                currentPsgState.NoiseByte &= 0xf7;
-                WritePSGState(out, currentPsgState);
+                // We are passing the loop point
+                // Capture the current state for later
+                loopPsgState = currentPsgState;
+                // Switch to the second stream
+                currentStream = &vgmFile.data_with_loop();
+                // And as much time as we need to get to the end point, or just all the pending time
+                const auto timeToEmit = std::min(pendingTime, end - loop);
+                add_pause(currentStream->commands(), timeToEmit);
+                pendingTime -= timeToEmit;
+                time += timeToEmit;
             }
-            if (haveYM2413)
+            if (timeBefore < end && timeAfter >= end)
             {
-                WriteYM2413State(out, YM2413Regs, true);
+                // We are reaching or passing the end point
+                // Emit as much time as we need to get to the end point, or just all the pending time
+                const auto timeToEmit = std::min(pendingTime, end - time);
+                add_pause(currentStream->commands(), timeToEmit);
+                // Emit a delta to get back to the loop state
+                loopPsgState.copy_to_command_stream(*currentStream, currentPsgState, false);
+                // Add an end marker
+                currentStream->commands().push_back(std::make_shared<VgmCommands::End>());
+                // And then we are done. Break the outer loop.
+                break;
             }
-            // Remember any needed delay
-            pauseLength = sampleCount - start;
-            writtenStart = 1;
-        }
-
-        // End point
-        if (sampleCount >= end)
-        {
-            // Write remaining delay
-            pauseLength -= sampleCount - end;
-            write_pause(out, pauseLength);
-            pauseLength = 0; // maybe not needed
-            // End of VGM data
-            gzputc(out, VGM_END);
-            break;
+            if (pendingTime > 0 && currentStream != nullptr)
+            {
+                // We are not passing any edit points, so just emit all the pending time
+                add_pause(currentStream->commands(), pendingTime);
+            }
+            // Finally, remember the new time
+            time = timeAfter;
         }
     }
 
-    // Add final End command
-    currentStream->push_back(new VgmCommands::End());
+    // Inject the start state at the beginning
+    // TODO make this conditional on it being needed for each chip
+    CommandStream startState;
+    currentPsgState.copy_to_command_stream(startState, startPsgState, true);
+    vgmFile.data_before_loop().commands().insert(
+        vgmFile.data_before_loop().commands().begin(),
+        std::make_move_iterator(startState.commands().begin()),
+        std::make_move_iterator(startState.commands().end())
+    );
 
-    // Replace the command streams in the file
-    // TODO memory leak here!
-    dataBeforeLoop.commands() = newDataBeforeLoop;
-    dataWithLoop.commands() = newDataWithLoop;
-*/
     // Update header
     header.set_sample_count(end - start);
-    if (loop != -1)
+    if (loop > -1)
     {
         header.set_loop_sample_count(end - loop);
     }
@@ -1443,9 +1084,8 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToo
 
     // TODO report here on the timings in m:ss.fff
     callback.show_status(std::format(
-        "Trimming complete: {} commands -> {} + {}", 
-        allCommands.size(), 
-        vgmFile.data_before_loop().commands().size(), 
+        "Trimming complete: {} commands -> {} + {}",
+        allCommands.commands().size(),
+        vgmFile.data_before_loop().commands().size(),
         vgmFile.data_with_loop().commands().size()));
 }
-

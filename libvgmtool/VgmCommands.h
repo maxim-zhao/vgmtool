@@ -324,7 +324,7 @@ namespace VgmCommands
 
         [[nodiscard]] VgmHeader::Chip chip() const override
         {
-            return VgmHeader::Chip::Nothing;
+            return VgmHeader::Chip::YM2612;
         }
     };
 

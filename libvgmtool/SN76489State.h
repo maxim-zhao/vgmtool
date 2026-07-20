@@ -3,7 +3,8 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <vector>
+
+class CommandStream;
 
 namespace VgmCommands
 {
@@ -19,10 +20,10 @@ class SN76489State
 public:
     explicit SN76489State(const VgmHeader& header);
 
-    void add(const VgmCommands::GGStereo* pStereo);
-    void add(const VgmCommands::SN76489* pCommand);
-    void to_text(std::ostream& s, const VgmCommands::ICommand* pCommand);
-    void copy_to_command_stream(std::vector<std::shared_ptr<VgmCommands::ICommand>>& stream, SN76489State& last_written_psg_state, bool fullImage) const;
+    void add(const std::shared_ptr<const VgmCommands::GGStereo>& pStereo);
+    void add(const std::shared_ptr<const VgmCommands::SN76489>& pCommand);
+    void to_text(std::ostream& s, const std::shared_ptr<const VgmCommands::ICommand>& pCommand);
+    void copy_to_command_stream(CommandStream& stream, SN76489State& lastWrittenPsgState, bool fullImage) const;
 
 private:
     static std::string print_stereo_mask(uint8_t mask);

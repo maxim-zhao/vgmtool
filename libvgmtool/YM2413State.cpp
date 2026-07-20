@@ -46,7 +46,7 @@ YM2413State::YM2413State(const VgmHeader& header)
     : _clockRate(header.clock(VgmHeader::Chip::YM2413)),
       _registers(0x39) { }
 
-void YM2413State::add(const VgmCommands::YM2413* pCommand)
+void YM2413State::add(const std::shared_ptr<const VgmCommands::YM2413>& pCommand)
 {
     // We just stuff it in the registers (for now)
     if (validRegisters.contains(pCommand->registerIndex()))
@@ -77,7 +77,7 @@ std::string YM2413State::percussion_instruments(const uint8_t value)
     return ss.str();
 }
 
-std::string YM2413State::percussion_volumes(const VgmCommands::YM2413* pCommand)
+std::string YM2413State::percussion_volumes(const std::shared_ptr<const VgmCommands::YM2413>& pCommand)
 {
     const auto volume1 = pCommand->value() >> 4;
     const auto volume2 = pCommand->value() & 0b1111;
@@ -131,9 +131,9 @@ double YM2413State::frequency(const int channel) const
     return static_cast<double>(f_number(channel)) * _clockRate / 72 / (1 << (19 - block(channel)));
 }
 
-void YM2413State::to_text(const VgmCommands::ICommand* pCommand, std::ostream& s)
+void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pCommand, std::ostream& s)
 {
-    const auto* p = dynamic_cast<const VgmCommands::YM2413*>(pCommand);
+    const auto& p = std::dynamic_pointer_cast<const VgmCommands::YM2413>(pCommand);
     if (p == nullptr)
     {
         throw std::runtime_error("Unexpected command type");

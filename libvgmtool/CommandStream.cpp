@@ -112,7 +112,7 @@ void CommandStream::from_data(BinaryData& data, uint32_t end_offset)
         auto pCommand = it->second(data);
         _commands.push_back(pCommand);
 
-        if (dynamic_cast<VgmCommands::End*>(pCommand.get()) != nullptr)
+        if (std::dynamic_pointer_cast<VgmCommands::End>(pCommand))
         {
             if (data.offset() != end_offset)
             {
