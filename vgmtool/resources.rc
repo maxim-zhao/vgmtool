@@ -66,14 +66,6 @@ BEGIN
         BOTTOMMARGIN, 131
     END
 
-    DlgConvert, DIALOG
-    BEGIN
-        LEFTMARGIN, 4
-        RIGHTMARGIN, 359
-        TOPMARGIN, 4
-        BOTTOMMARGIN, 131
-    END
-
     DlgMisc, DIALOG
     BEGIN
         LEFTMARGIN, 4
@@ -245,15 +237,6 @@ BEGIN
     PUSHBUTTON      "&Guess (badly)",btnSelectGuess,201,100,62,12
     PUSHBUTTON      "Strip chec&ked",btnStrip,296,119,62,12
     PUSHBUTTON      "&Count",btnGetCounts,296,103,62,12
-END
-
-DlgConvert DIALOGEX 0, 0, 363, 135
-STYLE DS_SETFONT | DS_CONTROL | WS_CHILD | WS_VISIBLE
-EXSTYLE WS_EX_ACCEPTFILES | WS_EX_TRANSPARENT
-FONT 9, "Segoe UI", 400, 0, 0x0
-BEGIN
-    LTEXT           "Drop multiple GYM, CYM and SSL files onto the box below to convert them to VGM.\nNote that converted files are often NOT as good quality as rips originally made in VGM format!\nResults:",IDC_STATIC,4,4,355,26
-    EDITTEXT        edtConvertResults,4,31,355,100,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
 END
 
 DlgMisc DIALOGEX 0, 0, 362, 135

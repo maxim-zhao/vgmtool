@@ -9,7 +9,6 @@
 #define DlgTrimming                     109
 #define DlgGD3                          110
 #define DlgStripping                    111
-#define DlgConvert                      112
 #define DlgMisc                         113
 #define tabimages                       117
 #define cbYM2413HiHat                   310
@@ -102,7 +101,6 @@
 #define cbGD3SystemEn                   1089
 #define tcMain                          1090
 #define btnCopyLengths                  1101
-#define edtConvertResults               1109
 #define btnCompress                     1118
 #define cbLogTrims                      1119
 #define IDC_COMBO2                      1121

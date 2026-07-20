@@ -15,7 +15,6 @@
     <ClCompile Include="BcdVersion.cpp" />
     <ClCompile Include="BinaryData.cpp" />
     <ClCompile Include="CommandStream.cpp" />
-    <ClCompile Include="convert.cpp" />
     <ClCompile Include="gd3.cpp" />
     <ClCompile Include="Gd3Tag.cpp" />
     <ClCompile Include="KeyValuePrinter.cpp" />
@@ -33,7 +32,6 @@
     <ClInclude Include="BcdVersion.h" />
     <ClInclude Include="BinaryData.h" />
     <ClInclude Include="CommandStream.h" />
-    <ClInclude Include="convert.h" />
     <ClInclude Include="gd3.h" />
     <ClInclude Include="Gd3Tag.h" />
     <ClInclude Include="IStatusCallback.h" />

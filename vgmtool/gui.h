@@ -41,7 +41,6 @@ private:
     void change_check_boxes(const std::vector<int>& ids, const std::vector<int>& counts, ChangeCheckboxesMode mode) const;
 
     void load_file(const std::string& filename);
-    void convert_dropped_files(HDROP hDrop) const;
     void update_header();
     auto optimize(const std::string& filename) const -> void;
     void update_gd3() const;
@@ -78,7 +77,6 @@ private:
     HWND _gd3Wnd{};
     HWND _trimWnd{};
     HWND _stripWnd{};
-    HWND _convertWnd{};
 
     // The current filename
     std::string _currentFilename;

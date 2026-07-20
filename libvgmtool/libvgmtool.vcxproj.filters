@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="convert.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="gd3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -65,9 +62,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="convert.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="gd3.h">
       <Filter>Header Files</Filter>
     </ClInclude>

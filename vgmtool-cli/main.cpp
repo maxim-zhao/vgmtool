@@ -1,7 +1,6 @@
 #include "libvgmtool/IStatusCallback.h"
 #include <libvgmtool/trim.h>
 
-#include "libvgmtool/convert.h"
 #include "libvgmtool/utils.h"
 #include "libvgmtool/vgm.h"
 #include "libvgmtool/VgmFile.h"

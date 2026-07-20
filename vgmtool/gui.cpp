@@ -14,7 +14,6 @@
 #include <Uxtheme.h>
 #include <zlib.h>
 
-#include "libvgmtool/convert.h"
 #include "libvgmtool/gd3.h"
 #include "libvgmtool/Gd3Tag.h"
 #include "libvgmtool/optimise.h"
@@ -219,7 +218,7 @@ bool Gui::get_bool(HWND hDlg, int item)
     return IsDlgButtonChecked(hDlg, item) != 0u;
 }
 
-LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK Gui::dialog_proc([[maybe_unused]] HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     try
     {
@@ -233,22 +232,15 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
         case WM_DROPFILES: // File dropped
             {
                 const auto hDrop = reinterpret_cast<HDROP>(wParam); // NOLINT(performance-no-int-to-ptr)
-                if (hWnd == _convertWnd)
-                {
-                    convert_dropped_files(hDrop);
-                }
-                else
-                {
-                    const int filenameLength = DragQueryFile(hDrop, 0, nullptr, 0);
-                    // The API wants to null-terminate, so we make the string big enough for that...
-                    std::string droppedFilename(filenameLength + 1, '\0');
-                    // Get filename of first file, discard the rest
-                    DragQueryFile(hDrop, 0, droppedFilename.data(), filenameLength + 1);
-                    DragFinish(hDrop); // Tell Windows I've finished
-                    // But now our string has a trailing \0, so we remove that
-                    droppedFilename.erase(filenameLength);
-                    load_file(droppedFilename);
-                }
+                const int filenameLength = DragQueryFile(hDrop, 0, nullptr, 0);
+                // The API wants to null-terminate, so we make the string big enough for that...
+                std::string droppedFilename(filenameLength + 1, '\0');
+                // Get filename of first file, discard the rest
+                DragQueryFile(hDrop, 0, droppedFilename.data(), filenameLength + 1);
+                DragFinish(hDrop); // Tell Windows I've finished
+                // But now our string has a trailing \0, so we remove that
+                droppedFilename.erase(filenameLength);
+                load_file(droppedFilename);
             }
             return TRUE;
         case WM_COMMAND:
@@ -649,7 +641,7 @@ void Gui::make_tabbed_dialog()
     MapWindowPoints(HWND_DESKTOP, _hWndMain, reinterpret_cast<LPPOINT>(&tabDisplayRect), 2);
 
     // Create child windows
-    for (const auto id : {DlgVGMHeader, DlgTrimming, DlgStripping, DlgGD3, DlgConvert, DlgMisc})
+    for (const auto id : {DlgVGMHeader, DlgTrimming, DlgStripping, DlgGD3, DlgMisc})
     {
         _tabChildWindows.push_back(CreateDialog(_hInstance, MAKEINTRESOURCE(id), _hWndMain, static_dialog_proc));
     }
@@ -657,7 +649,6 @@ void Gui::make_tabbed_dialog()
     _trimWnd = _tabChildWindows[1];
     _stripWnd = _tabChildWindows[2];
     _gd3Wnd = _tabChildWindows[3];
-    _convertWnd = _tabChildWindows[4];
 
     // Put them in the right place, and hide them
     for (const auto& tabChildWnd : _tabChildWindows)
@@ -791,35 +782,6 @@ void Gui::fill_combo_box(HWND parent, int id, const std::vector<std::string>& it
     {
         SendDlgItemMessage(parent, id, CB_ADDSTRING, 0, (LPARAM)item.c_str());
     }
-}
-
-void Gui::convert_dropped_files(HDROP hDrop) const
-{
-    int numConverted = 0;
-    const auto startTime = GetTickCount();
-
-    // Get number of files dropped
-    const int numFiles = DragQueryFile(hDrop, 0xFFFFFFFF, nullptr, 0);
-
-    // Go through files
-    for (int i = 0; i < numFiles; ++i)
-    {
-        // Get filename length
-        const int filenameLength = DragQueryFile(hDrop, i, nullptr, 0);
-        // Make a string to hold it
-        std::string droppedFilename(filenameLength, '\0');
-        // Get it into the string
-        DragQueryFile(hDrop, i, droppedFilename.data(), filenameLength);
-        //  Convert it
-        if (Convert::to_vgm(droppedFilename, *this))
-        {
-            ++numConverted;
-        }
-    }
-
-    DragFinish(hDrop);
-
-    verbose_message(std::format("{} of {} file(s) successfully converted in {}ms", numConverted, numFiles, GetTickCount() - startTime));
 }
 
 void Gui::update_header()
