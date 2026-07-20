@@ -83,7 +83,7 @@
     <ClInclude Include="vgm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="IVGMToolCallback.h">
+    <ClInclude Include="IStatusCallback.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Gd3Tag.h">

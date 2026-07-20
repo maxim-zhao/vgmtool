@@ -270,14 +270,14 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 //load_file(_currentFilename);
                 try
                 {
-                    _currentFile.check_header(false);
-                    show_status("Header check OK");
+                    _currentFile.check_header(false, *this);
+                    verbose_message("Header check OK");
                 }
                 catch (const std::exception& ex)
                 {
                     if (show_question_message_box(std::format("Error found:\n{}\nDo you want to fix it?", ex.what())) == IDYES)
                     {
-                        _currentFile.check_header(true);
+                        _currentFile.check_header(true, *this);
                     }
                 }
                 break;
@@ -414,16 +414,16 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 break;
             case btnRateDetect:
                 {
-                    show_status("Detecting VGM recording rate...");
+                    verbose_message("Detecting VGM recording rate...");
                     const int i = detect_rate(_currentFile);
                     if (i != 0)
                     {
                         SetDlgItemInt(_headerWnd, edtPlaybackRate, i, FALSE);
-                        show_status(std::format("VGM rate detected as {}Hz", i));
+                        verbose_message(std::format("VGM rate detected as {}Hz", i));
                     }
                     else
                     {
-                        show_status("VGM rate not detected");
+                        verbose_message("VGM rate not detected");
                     }
                 }
                 break;
@@ -512,7 +512,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
     }
     catch (const std::exception& e)
     {
-        show_error(e.what());
+        error(e.what());
     }
     return FALSE; // return FALSE to signify message not processed
 }
@@ -679,7 +679,7 @@ void Gui::load_file(const std::string& filename)
         return;
     }
 
-    show_status("Loading file...");
+    verbose_message("Loading file...");
 
     try
     {
@@ -687,10 +687,10 @@ void Gui::load_file(const std::string& filename)
     }
     catch (const std::exception& e)
     {
-        show_error(std::format("Failed to load \"{}\":\n{}", filename, e.what()));
+        error(std::format("Failed to load \"{}\":\n{}", filename, e.what()));
         _currentFilename.clear();
         SetDlgItemText(_hWndMain, edtFileName, "Drop a file onto the window to load");
-        show_status("");
+        verbose_message("");
         return;
     }
 
@@ -751,11 +751,11 @@ void Gui::load_file(const std::string& filename)
 
     if (_currentFile.gd3().empty())
     {
-        show_status("File loaded - file has no GD3 tag, previous tag kept");
+        verbose_message("File loaded - file has no GD3 tag, previous tag kept");
     }
     else
     {
-        show_status("File loaded");
+        verbose_message("File loaded");
     }
 }
 
@@ -819,7 +819,7 @@ void Gui::convert_dropped_files(HDROP hDrop) const
 
     DragFinish(hDrop);
 
-    show_conversion_progress(std::format("{} of {} file(s) successfully converted in {}ms", numConverted, numFiles, GetTickCount() - startTime));
+    verbose_message(std::format("{} of {} file(s) successfully converted in {}ms", numConverted, numFiles, GetTickCount() - startTime));
 }
 
 void Gui::update_header()
@@ -909,29 +909,17 @@ void Gui::optimize(const std::string& filename) const
     }
 }
 
-void Gui::show_message(const std::string& message) const
+void Gui::message(const std::string& message) const
 {
     MessageBox(_hWndMain, message.c_str(), _programName.c_str(), 0);
 }
 
-void Gui::show_status(const std::string& message) const
+void Gui::verbose_message(const std::string& message) const
 {
     SetDlgItemText(_hWndMain, txtStatusBar, message.c_str());
 }
 
-void Gui::show_conversion_progress(const std::string& message) const
-{
-    const auto withBreak = message + "\r\n";
-    // Get length
-    const auto length = SendDlgItemMessage(_convertWnd, edtConvertResults, WM_GETTEXTLENGTH, 0, 0);
-    // move caret to end of text
-    SendDlgItemMessage(_convertWnd, edtConvertResults, EM_SETSEL, length, length);
-    // insert text there
-    SendDlgItemMessage(_convertWnd, edtConvertResults, EM_REPLACESEL, FALSE,
-        reinterpret_cast<LPARAM>(withBreak.c_str()));
-}
-
-void Gui::show_error(const std::string& message) const
+void Gui::error(const std::string& message) const
 {
     MessageBox(_hWndMain, message.c_str(), _programName.c_str(), MB_ICONERROR + MB_OK);
 }
@@ -943,7 +931,7 @@ void Gui::update_gd3() const
         return;
     }
 
-    show_status("Updating GD3 tag...");
+    verbose_message("Updating GD3 tag...");
 
     gzFile in = gzopen(_currentFilename.c_str(), "rb");
     OldVGMHeader VGMHeader;
@@ -1006,7 +994,7 @@ void Gui::update_gd3() const
 
     Utils::replace_file(_currentFilename, outFilename);
 
-    show_status("GD3 tag updated");
+    verbose_message("GD3 tag updated");
 }
 
 void Gui::clear_gd3_strings() const
@@ -1079,7 +1067,7 @@ void Gui::strip_checked(const std::string& filename) const
         return;
     }
 
-    show_status("Stripping chip data...");
+    verbose_message("Stripping chip data...");
 
     gzFile in = gzopen(filename.c_str(), "rb");
     if (!ReadVGMHeader(in, &VGMHeader, *this))
@@ -1106,7 +1094,7 @@ void Gui::strip_checked(const std::string& filename) const
       DeleteFile(Tmpfilename);
     */
 
-    show_status("Data stripping complete");
+    verbose_message("Data stripping complete");
 
     if (show_question_message_box(std::format(
         "Stripped VGM data written to\n{}\nDo you want to open it in the associated program?",
@@ -1488,7 +1476,7 @@ void Gui::copy_lengths_to_clipboard() const
     WideCharToMultiByte(CP_ACP, 0, result.data(), static_cast<int>(result.size()), strTo.data(), sizeNeeded, nullptr,
         nullptr);
 
-    show_status(std::format("Copied: \"{}\"", strTo));
+    verbose_message(std::format("Copied: \"{}\"", strTo));
 }
 
 // Check checkboxes and show numbers for how many times each channel/data type is used
@@ -1547,7 +1535,7 @@ void Gui::check_write_counts(const std::string& filename)
     }
     EnableWindow(GetDlgItem(_stripWnd, gbYM2413), (j != 0));
 
-    show_status("Scan for chip data complete");
+    verbose_message("Scan for chip data complete");
 }
 
 void Gui::update_write_count(const std::vector<int>& ids, const std::vector<int>& counts) const

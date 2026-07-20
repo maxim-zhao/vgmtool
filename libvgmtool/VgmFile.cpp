@@ -6,7 +6,7 @@
 #include <ranges>
 
 #include "BinaryData.h"
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 #include "libpu8.h"
 #include "SN76489State.h"
 #include "utils.h"
@@ -67,7 +67,7 @@ void VgmFile::load_file(const std::string& filename)
     }
 }
 
-void VgmFile::save_file(const std::string& filename, const IVGMToolCallback& callback, const bool verbose_zopfli, int compression)
+void VgmFile::save_file(const std::string& filename, const IStatusCallback& callback, const bool verbose_zopfli, int compression)
 {
     BinaryData data;
 
@@ -116,8 +116,9 @@ void VgmFile::save_file(const std::string& filename, const IVGMToolCallback& cal
     data.save(filename);
 }
 
-void VgmFile::check_header(const bool fix)
+void VgmFile::check_header(const bool fix, const IStatusCallback& callback)
 {
+    callback.verbose_message("Checking lengths...");
     // Check lengths
     auto countWaits = [](const CommandStream& stream)
     {
@@ -136,6 +137,20 @@ void VgmFile::check_header(const bool fix)
     auto loopSampleCount = countWaits(_dataWithLoop);
     auto totalSampleCount = countWaits(_dataBeforeLoop) + loopSampleCount;
 
+    auto message = std::format(
+                "Lengths:\n"
+                "In file:\n"
+                "Total: {} samples = {:.3f} seconds\n"
+                "Loop: {} samples = {:.3f} seconds\n"
+                "In header:\n"
+                "Total: {} samples = {:.3f} seconds\n"
+                "Loop: {} samples = {:.3f} seconds",
+                _header.sample_count(), _header.sample_count() / 44100.0,
+                _header.loop_sample_count(), _header.loop_sample_count() / 44100.0,
+                totalSampleCount, totalSampleCount / 44100.0,
+                loopSampleCount, loopSampleCount / 44100.0);
+    callback.verbose_message(message);
+
     if (_header.loop_sample_count() != loopSampleCount || _header.sample_count() != totalSampleCount)
     {
         if (fix)
@@ -145,18 +160,7 @@ void VgmFile::check_header(const bool fix)
         }
         else
         {
-            throw std::runtime_error(std::format(
-                "Lengths:\n"
-                "In file:\n"
-                "Total: {} samples = {:.2} seconds\n"
-                "Loop: {} samples = {:.2} seconds\n"
-                "In header:\n"
-                "Total: {} samples = {:.2} seconds\n"
-                "Loop: {} samples = {:.2} seconds",
-                _header.sample_count(), _header.sample_count() / 44100.0,
-                _header.loop_sample_count(), _header.loop_sample_count() / 44100.0,
-                totalSampleCount, totalSampleCount / 44100.0,
-                loopSampleCount, loopSampleCount / 44100.0));
+            throw std::runtime_error(message);
         }
     }
 }
@@ -253,9 +257,9 @@ void VgmFile::write_command_as_text(std::ostream& s, size_t& offset, int& time, 
     s << "\n";
 }
 
-void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) const
+void VgmFile::write_to_text(std::ostream& s, const IStatusCallback& callback) const
 {
-    callback.show_status("Converting to text...");
+    callback.verbose_message("Converting to text...");
     // In order to write to text we need to do multiple things:
     // 1. Print the header
     // 2. Print the VGM commands themselves
@@ -292,5 +296,5 @@ void VgmFile::write_to_text(std::ostream& s, const IVGMToolCallback& callback) c
             << _gd3Tag.write_to_text();
     }
 
-    callback.show_status("Write to text complete");
+    callback.verbose_message("Write to text complete");
 }

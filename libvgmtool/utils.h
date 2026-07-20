@@ -8,7 +8,7 @@
 
 #include "VgmCommands.h"
 
-class IVGMToolCallback;
+class IStatusCallback;
 
 class Utils
 {
@@ -21,7 +21,7 @@ public:
     // Returns the size of filename in bytes
     static int file_size(const std::string& filename);
     // Compresses filename in place with zopfli
-    static void compress(const std::string& filename, const IVGMToolCallback& callback, int iterations = -1);
+    static void compress(const std::string& filename, const IStatusCallback& callback, int iterations = -1);
     // Decompresses filename in place
     static void decompress(const std::string& filename);
     // Reads a file into RAM, possibly decompressing it at the same time

@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <filesystem>
 
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 #include "vgm.h"
 #include "utils.h"
 
@@ -208,12 +208,12 @@ void Convert::gymToVgm(const std::string& filename, gzFile in, gzFile out, OldVG
     }
 }
 
-bool Convert::to_vgm(const std::string& filename, const IVGMToolCallback& callback)
+bool Convert::to_vgm(const std::string& filename, const IStatusCallback& callback)
 {
     // Make output filename filename.ext.vgm
     const auto outFilename = filename + ".vgm";
 
-    callback.show_status(std::format("Converting \"{}\" to VGM format...", filename));
+    callback.verbose_message(std::format("Converting \"{}\" to VGM format...", filename));
 
     enum class file_type
     {
@@ -348,14 +348,14 @@ bool Convert::to_vgm(const std::string& filename, const IVGMToolCallback& callba
         Utils::compress(outFilename, callback);
 
         // Report
-        callback.show_conversion_progress(std::format(R"(Converted "{}" to "{}")", filename, outFilename));
+        callback.verbose_message(std::format(R"(Converted "{}" to "{}")", filename, outFilename));
     }
     catch (const std::exception& e)
     {
         gzclose(out);
         gzclose(in);
         std::filesystem::remove(outFilename.c_str());
-        callback.show_error(std::format("Error converting \"{}\" to VGM: {}", filename, e.what()));
+        callback.error(std::format("Error converting \"{}\" to VGM: {}", filename, e.what()));
         return false;
     }
 

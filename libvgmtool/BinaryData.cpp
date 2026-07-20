@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <fstream>
 
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 #include "utils.h"
 #include "zopfli.h"
 
@@ -101,7 +101,7 @@ void BinaryData::reset()
     _offset = 0;
 }
 
-void BinaryData::compress(const int level, const IVGMToolCallback& callback, const bool verbose_zopfli)
+void BinaryData::compress(const int level, const IStatusCallback& callback, const bool verbose_zopfli)
 {
     auto sizeBefore = _data.size();
     ZopfliOptions options{};
@@ -114,13 +114,13 @@ void BinaryData::compress(const int level, const IVGMToolCallback& callback, con
     options.verbose = verbose_zopfli ? 1 : 0;
     unsigned char* out;
     size_t outSize = 0;
-    callback.show_status(std::format("Compressing... level {}", level));
+    callback.verbose_message(std::format("Compressing... level {}", level));
     ZopfliCompress(&options, ZOPFLI_FORMAT_GZIP, _data.data(), _data.size(), &out, &outSize);
     // Then we want to copy that into our buffer
     _data.clear();
     _data.reserve(outSize);
     std::copy_n(out, outSize, std::back_inserter(_data));
-    callback.show_status(std::format(
+    callback.verbose_message(std::format(
         "Compressed from {} -> {} bytes ({:.4}% compression)", 
         sizeBefore, 
         outSize, 

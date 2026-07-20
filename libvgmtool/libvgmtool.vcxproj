@@ -36,7 +36,7 @@
     <ClInclude Include="convert.h" />
     <ClInclude Include="gd3.h" />
     <ClInclude Include="Gd3Tag.h" />
-    <ClInclude Include="IVGMToolCallback.h" />
+    <ClInclude Include="IStatusCallback.h" />
     <ClInclude Include="KeyValuePrinter.h" />
     <ClInclude Include="optimise.h" />
     <ClInclude Include="SN76489State.h" />

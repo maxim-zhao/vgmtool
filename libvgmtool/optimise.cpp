@@ -8,13 +8,13 @@
 #include "vgm.h"
 #include "trim.h"
 #include "gd3.h"
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 #include "utils.h"
 
 //----------------------------------------------------------------------------------------------
 // Pause optimiser
 //----------------------------------------------------------------------------------------------
-bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& callback)
+bool optimise_vgm_pauses(const std::string& filename, const IStatusCallback& callback)
 {
     OldVGMHeader VGMHeader;
     int pauseLength = 0;
@@ -177,7 +177,7 @@ bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& ca
 // PSG offset (small freq value, volume on) remover
 // Returns number of offsets removed
 //----------------------------------------------------------------------------------------------
-int remove_offset(const std::string& filename, const IVGMToolCallback& callback)
+int remove_offset(const std::string& filename, const IStatusCallback& callback)
 {
     OldVGMHeader VGMHeader;
     signed int b0, b1, b2;
@@ -669,7 +669,7 @@ BOOL OptimiseVGMData(char *filename) {
 */
 
 
-bool round_to_frame_accurate(const std::string& filename, const IVGMToolCallback& callback)
+bool round_to_frame_accurate(const std::string& filename, const IStatusCallback& callback)
 {
     OldVGMHeader VGMHeader;
     int i, PauseLength = 0;
@@ -699,7 +699,7 @@ bool round_to_frame_accurate(const std::string& filename, const IVGMToolCallback
         framelength = LEN60TH;
         break;
     default:
-        callback.show_error("Can't round this file because it's not defined as 50 or 60Hz.");
+        callback.error("Can't round this file because it's not defined as 50 or 60Hz.");
         gzclose(in);
         return false;
     }
@@ -837,7 +837,7 @@ bool round_to_frame_accurate(const std::string& filename, const IVGMToolCallback
         }
     }
 
-    callback.show_message(s);
+    callback.message(s);
 
     /*
     // At end:

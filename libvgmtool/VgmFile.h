@@ -8,7 +8,7 @@
 
 class YM2413State;
 class SN76489State;
-class IVGMToolCallback;
+class IStatusCallback;
 
 class VgmFile
 {
@@ -22,7 +22,7 @@ public:
     explicit VgmFile(const std::string& filename);
 
     void load_file(const std::string& filename);
-    void save_file(const std::string& filename, const IVGMToolCallback& callback, bool verbose_zopfli = false, int compression = 0);
+    void save_file(const std::string& filename, const IStatusCallback& callback, bool verbose_zopfli = false, int compression = 0);
 
     [[nodiscard]] VgmHeader& header()
     {
@@ -55,10 +55,10 @@ public:
     }
 
     // Checks the header. Throws on any errors found if fix=false, else tries to fix them.
-    void check_header(bool fix);
+    void check_header(bool fix, const IStatusCallback& callback);
 
     // Writes the VGM file as text to the stream
-    void write_to_text(std::ostream& s, const IVGMToolCallback& callback) const;
+    void write_to_text(std::ostream& s, const IStatusCallback& callback) const;
 
 private:
     static void write_command_as_text(

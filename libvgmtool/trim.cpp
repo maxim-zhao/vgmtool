@@ -9,7 +9,7 @@
 #include <zlib.h>
 #include "vgm.h"
 #include "gd3.h"
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 #include "optimise.h"
 #include "SN76489State.h"
 #include "utils.h"
@@ -20,7 +20,7 @@
 // Creates a log of the trim for future reference
 // in a file called "editpoints.txt" in the VGM's directory
 //----------------------------------------------------------------------------------------------
-void log_trim(const std::string& filename, const int start, const int loop, const int end, const IVGMToolCallback& callback)
+void log_trim(const std::string& filename, const int start, const int loop, const int end, const IStatusCallback& callback)
 {
     const auto slashPos = filename.find_last_of("\\/");
     if (slashPos == std::string::npos)
@@ -35,7 +35,7 @@ void log_trim(const std::string& filename, const int start, const int loop, cons
 
     if (f == nullptr)
     {
-        callback.show_error("Error opening " + logFilename);
+        callback.error("Error opening " + logFilename);
     }
     else
     {
@@ -338,10 +338,10 @@ void trim(const std::string& filename,
           int end,
           bool overWrite,
           bool logTrims,
-          const IVGMToolCallback& callback,
+          const IStatusCallback& callback,
           std::string outFilename)
 {
-    callback.show_conversion_progress(std::format("Trimming {}: start {}, loop {}, end {}", filename, start, loop, end));
+    callback.verbose_message(std::format("Trimming {}: start {}, loop {}, end {}", filename, start, loop, end));
 
     if (!Utils::file_exists(filename))
     {
@@ -357,7 +357,7 @@ void trim(const std::string& filename,
 
     if ((start > end) || (loop > end) || ((loop > -1) && (loop < start)))
     {
-        callback.show_error(std::format("Impossible edit points: start={}, loop={}, end={}", start, loop, end));
+        callback.error(std::format("Impossible edit points: start={}, loop={}, end={}", start, loop, end));
         return;
     }
 
@@ -375,7 +375,7 @@ void trim(const std::string& filename,
 
     gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
-    callback.show_status("Trimming VGM data...");
+    callback.verbose_message("Trimming VGM data...");
 
     if (outFilename.empty())
     {
@@ -399,7 +399,7 @@ void trim(const std::string& filename,
 
     if (end > static_cast<int>(vgmHeader.TotalLength))
     {
-        callback.show_message(std::format(
+        callback.message(std::format(
             "End point ({} samples) beyond end of file!\nUsing maximum value of {} samples instead",
             end,
             vgmHeader.TotalLength));
@@ -718,7 +718,7 @@ void trim(const std::string& filename,
         case VGM_END: // End of sound data
             gzclose(in);
             gzclose(out);
-            callback.show_error(
+            callback.error(
                 "Reached end of VGM data! There must be something wrong - try fixing the lengths for this file");
             return;
         default:
@@ -787,7 +787,7 @@ void trim(const std::string& filename,
     {
         TGD3Header GD3Header;
         const auto NewGD3Offset = gztell(out) - GD3DELTA;
-        callback.show_status("Copying GD3 tag...");
+        callback.verbose_message("Copying GD3 tag...");
         gzseek(in, vgmHeader.GD3Offset + GD3DELTA, SEEK_SET);
         gzread(in, &GD3Header, sizeof(GD3Header));
         gzwrite(out, &GD3Header, sizeof(GD3Header));
@@ -836,9 +836,9 @@ void trim(const std::string& filename,
     gzclose(in);
     auto fileSizeAfter = vgmHeader.EoFOffset + EOFDELTA;
 
-    callback.show_status("Trimming complete");
+    callback.verbose_message("Trimming complete");
 
-    callback.show_status(std::format(
+    callback.verbose_message(std::format(
         "File {} to {} Uncompressed file size {} -> {} bytes ({:+.2f}%)",
         (overWrite
             ? "optimised"
@@ -902,29 +902,29 @@ static void add_pause(std::vector<std::shared_ptr<VgmCommands::ICommand>>& strea
     }
 }
 
-void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToolCallback& callback)
+void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatusCallback& callback)
 {
-    callback.show_conversion_progress(std::format("Trimming VGM file: start {}, loop {}, end {}", start, loop, end));
+    callback.verbose_message(std::format("Trimming VGM file: start {}, loop {}, end {}", start, loop, end));
 
     auto& header = vgmFile.header();
 
     // Validate edit points
     if ((start > end) || (loop > end) || ((loop > -1) && (loop < start)))
     {
-        callback.show_error(std::format("Impossible edit points: start={}, loop={}, end={}", start, loop, end));
+        callback.error(std::format("Impossible edit points: start={}, loop={}, end={}", start, loop, end));
         return;
     }
 
     if (std::cmp_greater(end, header.sample_count()))
     {
-        callback.show_message(std::format(
+        callback.message(std::format(
             "End point ({} samples) beyond end of file!\nUsing maximum value of {} samples instead",
             end,
             header.sample_count()));
         end = static_cast<int>(header.sample_count());
     }
 
-    callback.show_status("Trimming VGM data...");
+    callback.verbose_message("Trimming VGM data...");
 
     // Copy all the commands from the VGM file into one big stream
     CommandStream allCommands;
@@ -1083,7 +1083,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IVGMToo
     }
 
     // TODO report here on the timings in m:ss.fff
-    callback.show_status(std::format(
+    callback.verbose_message(std::format(
         "Trimming complete: {} commands -> {} + {}",
         allCommands.commands().size(),
         vgmFile.data_before_loop().commands().size(),

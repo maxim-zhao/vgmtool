@@ -3,10 +3,10 @@
 
 // VGM optimisation
 
-class IVGMToolCallback;
+class IStatusCallback;
 
-bool optimise_vgm_pauses(const std::string& filename, const IVGMToolCallback& callback);
+bool optimise_vgm_pauses(const std::string& filename, const IStatusCallback& callback);
 
-int remove_offset(const std::string& filename, const IVGMToolCallback& callback);
+int remove_offset(const std::string& filename, const IStatusCallback& callback);
 
-bool round_to_frame_accurate(const std::string& filename, const IVGMToolCallback& callback);
+bool round_to_frame_accurate(const std::string& filename, const IStatusCallback& callback);

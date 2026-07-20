@@ -26,7 +26,7 @@
 #define VGMIDENT 0x206d6756 // "Vgm "
 
 class VgmFile;
-class IVGMToolCallback;
+class IStatusCallback;
 
 struct OldVGMHeader
 {
@@ -168,19 +168,19 @@ extern const int YM2612ValidBits[YM2612NumRegs];
 
 void write_pause(gzFile out, long int pauselength);
 
-void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const IVGMToolCallback& callback);
+void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const IStatusCallback& callback);
 
 void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612, bool* UsesYM2151, bool* UsesReserved);
 
-void check_lengths(const std::string& filename, bool showResults, const IVGMToolCallback& callback);
+void check_lengths(const std::string& filename, bool showResults, const IStatusCallback& callback);
 
 int detect_rate(const VgmFile& file);
 
-bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IVGMToolCallback& callback);
+bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IStatusCallback& callback);
 
 void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, std::vector<int>& YM2413writes,
                     std::vector<int>& YM2612writes, std::vector<int>& YM2151writes,
-                    std::vector<int>& reservedwrites, const IVGMToolCallback& callback);
+                    std::vector<int>& reservedwrites, const IStatusCallback& callback);
 
 
 void ResetState(TSystemState* State);

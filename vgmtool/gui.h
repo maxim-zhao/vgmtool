@@ -10,11 +10,11 @@
 #include <Windows.h>
 #include <shellapi.h>
 
-#include "libvgmtool/IVGMToolCallback.h"
+#include "libvgmtool/IStatusCallback.h"
 #include "libvgmtool/VgmFile.h"
 
 
-class Gui : IVGMToolCallback
+class Gui : IStatusCallback
 {
 public:
     Gui(HINSTANCE hInstance, LPSTR lpCmdLine, int nShowCmd);
@@ -62,10 +62,9 @@ private:
     [[nodiscard]] int show_question_message_box(const std::string& s) const;
 
 public:
-    void show_message(const std::string& message) const override;
-    void show_error(const std::string& message) const override;
-    void show_status(const std::string& message) const override;
-    void show_conversion_progress(const std::string& message) const override;
+    void message(const std::string& message) const override;
+    void error(const std::string& message) const override;
+    void verbose_message(const std::string& message) const override;
 
 private:
     HINSTANCE _hInstance;

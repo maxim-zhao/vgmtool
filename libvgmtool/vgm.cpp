@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 #include "utils.h"
 #include "VgmFile.h"
 
@@ -152,7 +152,7 @@ void write_pause(gzFile out, long int pauselength)
 // Assumes you are writing the original header with minor modifications, so it
 // doesn't check anything (like the GD3 offset, EOF offset).
 //----------------------------------------------------------------------------------------------
-void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const IVGMToolCallback& callback)
+void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const IStatusCallback& callback)
 {
     char copybuffer[BUFFER_SIZE];
     int AmtRead;
@@ -162,7 +162,7 @@ void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const
         return;
     }
 
-    callback.show_status("Updating VGM header...");
+    callback.verbose_message("Updating VGM header...");
 
     const auto outfilename = Utils::make_temp_filename(filename);
 
@@ -178,7 +178,7 @@ void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const
         if (gzwrite(out, copybuffer, AmtRead) != AmtRead)
         {
             // Error copying file
-            callback.show_error(std::format("Error copying data to temporary file {}!", outfilename));
+            callback.error(std::format("Error copying data to temporary file {}!", outfilename));
             gzclose(in);
             gzclose(out);
             std::filesystem::remove(outfilename);
@@ -192,7 +192,7 @@ void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const
 
     Utils::replace_file(filename, outfilename);
 
-    callback.show_status("VGM header update complete");
+    callback.verbose_message("VGM header update complete");
 }
 
 //----------------------------------------------------------------------------------------------
@@ -319,14 +319,14 @@ void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612
 // Corrects header if necessary
 // TODO: rewrite as a CheckHeader() function to check everything at once
 //----------------------------------------------------------------------------------------------
-void check_lengths(const std::string& filename, bool showResults, const IVGMToolCallback& callback)
+void check_lengths(const std::string& filename, bool showResults, const IStatusCallback& callback)
 {
     if (!Utils::file_exists(filename))
     {
         return;
     }
 
-    callback.show_status("Counting samples...");
+    callback.verbose_message("Counting samples...");
 
     gzFile in = gzopen(filename.c_str(), "rb");
 
@@ -337,7 +337,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
     if (!vgmHeader.is_valid())
     {
         // no VGM marker
-        callback.show_error("File is not a VGM file! (no \"Vgm \")");
+        callback.error("File is not a VGM file! (no \"Vgm \")");
         gzclose(in);
         return;
     }
@@ -416,7 +416,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
 
             if (showResults)
             {
-                callback.show_message(std::format(
+                callback.message(std::format(
                     "Lengths:\n"
                     "In file:\n"
                     "Total: {} samples = {:.2f} seconds\n"
@@ -441,7 +441,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
             )
             {
                 // Need to repair header
-                callback.show_status("Correcting header...");
+                callback.verbose_message("Correcting header...");
                 vgmHeader.TotalLength = sampleCount;
                 vgmHeader.LoopLength = loopSampleCount;
                 if (loopSampleCount == 0)
@@ -535,13 +535,13 @@ int detect_rate(const VgmFile& /*file*/)
 // Reads in header from file
 // Shows an error if it's not a VGM file
 // returns success/failure
-bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IVGMToolCallback& callback)
+bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IStatusCallback& callback)
 {
     gzread(f, header, sizeof(OldVGMHeader));
     if (!header->is_valid())
     {
         // no VGM marker
-        callback.show_error("File is not a VGM file! (no \"Vgm \")");
+        callback.error("File is not a VGM file! (no \"Vgm \")");
         return false;
     }
     return true;
@@ -552,7 +552,7 @@ bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IVGMToolCallback& callb
 // ought to be equally capable
 void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, std::vector<int>& YM2413writes,
                     std::vector<int>& YM2612writes, std::vector<int>& YM2151writes,
-                    std::vector<int>& reservedwrites, const IVGMToolCallback& callback)
+                    std::vector<int>& reservedwrites, const IStatusCallback& callback)
 {
     int b0, b1, b2;
     int i;
@@ -586,7 +586,7 @@ void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, st
         return;
     }
 
-    callback.show_status("Scanning for chip data...");
+    callback.verbose_message("Scanning for chip data...");
 
     gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
@@ -737,7 +737,7 @@ void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, st
 
     gzclose(in);
 
-    callback.show_status("Scan for chip data complete");
+    callback.verbose_message("Scan for chip data complete");
 }
 
 

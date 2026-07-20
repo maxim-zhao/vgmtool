@@ -1,4 +1,4 @@
-#include "libvgmtool/IVGMToolCallback.h"
+#include "libvgmtool/IStatusCallback.h"
 #include <libvgmtool/trim.h>
 
 #include "libvgmtool/convert.h"
@@ -11,30 +11,22 @@
 
 namespace
 {
-    class Callback final : public IVGMToolCallback
+    class Callback final : public IStatusCallback
     {
     public:
         bool is_verbose = false;
 
-        void show_message(const std::string& message) const override
+        void message(const std::string& message) const override
         {
             printf("%s\n", message.c_str());
         }
 
-        void show_error(const std::string& message) const override
+        void error(const std::string& message) const override
         {
             fprintf(stderr, "%s\n", message.c_str()); // NOLINT(cert-err33-c)
         }
 
-        void show_status(const std::string& message) const override
-        {
-            if (is_verbose)
-            {
-                printf("%s\n", message.c_str());
-            }
-        }
-
-        void show_conversion_progress(const std::string& message) const override
+        void verbose_message(const std::string& message) const override
         {
             if (is_verbose)
             {
@@ -203,7 +195,7 @@ int main_utf8(int argc, char** argv)
             ->description("Check the VGM file for errors")
             ->callback([&]
             {
-                f.check_header(false); // Will throw if it's wrong, and be logged at the end
+                f.check_header(false, callback); // Will throw if it's wrong, and be logged at the end
             });
 
         struct

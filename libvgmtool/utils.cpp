@@ -12,7 +12,7 @@
 #include <vector>
 #include <zopfli.h>
 
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 
 bool Utils::file_exists(const std::string& filename)
 {
@@ -25,7 +25,7 @@ int Utils::file_size(const std::string& filename)
     return static_cast<int>(std::filesystem::file_size(filename));
 }
 
-void Utils::compress(const std::string& filename, const IVGMToolCallback& callback, const int iterations)
+void Utils::compress(const std::string& filename, const IStatusCallback& callback, const int iterations)
 {
     auto sizeBefore = file_size(filename);
 
@@ -33,7 +33,7 @@ void Utils::compress(const std::string& filename, const IVGMToolCallback& callba
     std::vector<uint8_t> data;
     load_file(data, filename);
 
-    callback.show_status(std::format(
+    callback.verbose_message(std::format(
         "{} before: {} bytes ({} bytes uncompressed, {:.4}% compression)", 
         filename, 
         sizeBefore, 
@@ -55,7 +55,7 @@ void Utils::compress(const std::string& filename, const IVGMToolCallback& callba
     // If it is not smaller, do not save
     if (std::cmp_greater_equal(outSize, sizeBefore))
     {
-        callback.show_status(std::format(
+        callback.verbose_message(std::format(
             "Compressed to {} bytes, not overwriting...",
             outSize));
         return;
@@ -71,7 +71,7 @@ void Utils::compress(const std::string& filename, const IVGMToolCallback& callba
     free(out);
 
     const auto sizeAfter = file_size(filename);
-    callback.show_status(std::format(
+    callback.verbose_message(std::format(
         "{} after: {} bytes ({:.2}% smaller, {:.4}% compression)", 
         filename, 
         sizeAfter, 
