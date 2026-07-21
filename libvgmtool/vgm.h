@@ -5,9 +5,6 @@
 
 #include <string>
 #include <vector>
-// Out third-party zlib includes windows.h :(
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #include <zlib.h>
 
 // VGM data bytes

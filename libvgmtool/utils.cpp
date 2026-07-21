@@ -1,7 +1,4 @@
 #include <cstdlib>
-// Out third-party zlib includes windows.h :(
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #include <zlib.h>
 #include <filesystem>
 #include "utils.h"

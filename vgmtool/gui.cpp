@@ -12,7 +12,7 @@
 
 #include <commdlg.h>
 #include <Uxtheme.h>
-#include <zlib.h>
+#include <zlib/zlib/zlib.h>
 
 #include "libvgmtool/gd3.h"
 #include "libvgmtool/Gd3Tag.h"
