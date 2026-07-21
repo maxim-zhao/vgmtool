@@ -35,7 +35,7 @@ void Utils::compress(const std::string& filename, const IStatusCallback& callbac
         filename, 
         sizeBefore, 
         data.size(), 
-        percent_reduction(static_cast<int>(data.size()), sizeBefore)));
+        percentReduction(static_cast<int>(data.size()), sizeBefore)));
 
     // Now compress
     ZopfliOptions options{};
@@ -72,8 +72,8 @@ void Utils::compress(const std::string& filename, const IStatusCallback& callbac
         "{} after: {} bytes ({:.2}% smaller, {:.4}% compression)", 
         filename, 
         sizeAfter, 
-        percent_reduction(sizeBefore, sizeAfter), 
-        percent_reduction(static_cast<int>(data.size()), sizeAfter)));
+        percentReduction(sizeBefore, sizeAfter), 
+        percentReduction(static_cast<int>(data.size()), sizeAfter)));
 }
 
 void Utils::decompress(const std::string& filename)
@@ -200,8 +200,8 @@ std::string Utils::note_name(const double frequencyHz)
 
 const std::string& Utils::on_off(const uint8_t value, const int bitIndex)
 {
-    static constexpr std::string on("on");
-    static constexpr std::string off("off");
+    static const std::string on("on");
+    static const std::string off("off");
     return bit_set(value, bitIndex) ? on : off;
 }
 
@@ -220,7 +220,7 @@ double Utils::db_to_percent(const double attenuation)
     return std::pow(10, -0.1 * attenuation) * 100;
 }
 
-double Utils::percent_reduction(const unsigned long long before, const unsigned long long after)
+double Utils::percentReduction(const unsigned long long before, const unsigned long long after)
 {
     return static_cast<double>(before - after) / static_cast<double>(before) * 100;
 }

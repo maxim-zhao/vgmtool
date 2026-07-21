@@ -131,11 +131,10 @@ void SN76489State::add(const std::shared_ptr<const VgmCommands::SN76489>& pComma
     if (const auto value = pCommand->value();
         (value & 0b10000000) != 0)
     {
-        // ReSharper disable CommentTypo
+        // ReSharper disable once CommentTypo
         // Latch/data byte %1nnvdddd
         // nnv = register index
         // dddd = low 4 bits of data
-        // ReSharper restore CommentTypo
         _latchedRegisterIndex = (value & 0b01110000) >> 4;
         _registers[_latchedRegisterIndex] &= 0b1111110000;
         _registers[_latchedRegisterIndex] |= value & 0b1111;

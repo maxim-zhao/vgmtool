@@ -10,7 +10,7 @@
 
 namespace
 {
-    constexpr std::string GD3_IDENT("Gd3 ");
+    const std::string GD3_IDENT("Gd3 ");
 }
 
 

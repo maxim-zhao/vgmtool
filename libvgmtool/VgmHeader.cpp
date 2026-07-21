@@ -9,7 +9,7 @@
 
 namespace
 {
-    constexpr std::string VGM_IDENT("Vgm ");
+    const std::string VGM_IDENT("Vgm ");
     constexpr auto EOF_DELTA = 0x04u;
     constexpr auto GD3_DELTA = 0x14u;
     constexpr auto LOOP_DELTA = 0x1cu;
