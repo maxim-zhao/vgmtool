@@ -130,9 +130,6 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CLI11.hpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\libpu8\libpu8.vcxproj">
       <Project>{b48e58cf-9561-4e18-a7b7-3e8e40db3d6c}</Project>
       <Private>false</Private>

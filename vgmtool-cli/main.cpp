@@ -6,7 +6,7 @@
 #include "libvgmtool/VgmFile.h"
 
 #include <libpu8/libpu8/libpu8.h>
-#include "CLI11.hpp"
+#include <CLI11/include/CLI/CLI.hpp>
 
 namespace
 {
