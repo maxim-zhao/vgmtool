@@ -1,5 +1,6 @@
 #include "YM2413State.h"
 
+#include <array>
 #include <format>
 #include <sstream>
 #include <unordered_set>
@@ -10,7 +11,7 @@
 
 namespace
 {
-    const std::unordered_set<int> validRegisters
+    const std::unordered_set VALID_REGISTERS
     {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // Custom instrument
         0x0e, // Rhythm control
@@ -19,24 +20,24 @@ namespace
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, // Instrument, volume
     };
 
-    const std::vector<double> customInstrumentMultiplyingFactors
+    constexpr std::array CUSTOM_INSTRUMENT_MULTIPLYING_FACTORS
     {
-        0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 12, 12, 15, 15
+        0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 10.0, 12.0, 12.0, 15.0, 15.0
     };
 
-    const std::vector customInstrumentFeedbackModulations
+    constexpr std::array CUSTOM_INSTRUMENT_FEEDBACK_MODULATIONS
     {
         "0", "π/16", "π/8", "π/4", "π/2", "π", "2π", "4π"
     };
 
-    const std::vector instrumentNames
+    constexpr std::array INSTRUMENT_NAMES
     {
         "User instrument", "Violin", "Guitar", "Piano", "Flute", "Clarinet", "Oboe", "Trumpet",
         "Organ", "Horn", "Synthesizer", "Harpsichord", "Vibraphone", "Synthesizer Bass", "Acoustic Bass", "Electric Guitar"
     };
 
     // Indices here correspond to bit indices
-    const std::vector rhythmInstrumentNames
+    constexpr std::array RHYTHM_INSTRUMENT_NAMES
     {
         "High hat", "Cymbal", "Tom-tom", "Snare drum", "Bass drum"
     };
@@ -49,7 +50,7 @@ YM2413State::YM2413State(const VgmHeader& header)
 void YM2413State::add(const std::shared_ptr<const VgmCommands::YM2413>& pCommand)
 {
     // We just stuff it in the registers (for now)
-    if (validRegisters.contains(pCommand->registerIndex()))
+    if (VALID_REGISTERS.contains(pCommand->registerIndex()))
     {
         _registers[pCommand->registerIndex()] = pCommand->value();
     }
@@ -71,7 +72,7 @@ std::string YM2413State::percussion_instruments(const uint8_t value)
             {
                 ss << ", ";
             }
-            ss << rhythmInstrumentNames[i];
+            ss << RHYTHM_INSTRUMENT_NAMES[i];
         }
     }
     return ss.str();
@@ -87,27 +88,27 @@ std::string YM2413State::percussion_volumes(const std::shared_ptr<const VgmComma
     {
     case 0x36:
         return std::format("{} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%",
-            rhythmInstrumentNames[4],
+            RHYTHM_INSTRUMENT_NAMES[4],
             volume2,
             attenuation2,
             Utils::db_to_percent(attenuation2));
     case 0x37:
         return std::format("{} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%",
-            rhythmInstrumentNames[0],
+            RHYTHM_INSTRUMENT_NAMES[0],
             volume1,
             attenuation1,
             Utils::db_to_percent(attenuation1),
-            rhythmInstrumentNames[3],
+            RHYTHM_INSTRUMENT_NAMES[3],
             volume2,
             attenuation2,
             Utils::db_to_percent(attenuation2));
     case 0x38:
         return std::format("{} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%",
-            rhythmInstrumentNames[2],
+            RHYTHM_INSTRUMENT_NAMES[2],
             volume1,
             attenuation1,
             Utils::db_to_percent(attenuation1),
-            rhythmInstrumentNames[1],
+            RHYTHM_INSTRUMENT_NAMES[1],
             volume2,
             attenuation2,
             Utils::db_to_percent(attenuation2));
@@ -145,7 +146,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
     const auto value = p->value();
 
     // Check if valid
-    if (!validRegisters.contains(p->registerIndex()))
+    if (!VALID_REGISTERS.contains(p->registerIndex()))
     {
         s << "Invalid register index " << std::format("{:03x}", p->registerIndex());
         return;
@@ -159,7 +160,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
     case 0x01:
         s << "Tone user instrument ("
             << (registerIndex == 1 ? "carrier" : "modulator")
-            << "): multiplier " << customInstrumentMultiplyingFactors[value & 0b1111]
+            << "): multiplier " << CUSTOM_INSTRUMENT_MULTIPLYING_FACTORS[value & 0b1111]
             << ", key scale rate " << Utils::bit_value(value, 4)
             << ", " << (Utils::bit_set(value, 5) ? "sustained" : "percussive") << " tone, vibrato "
             << Utils::on_off(value, 6)
@@ -179,7 +180,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
             s << "Tone user instrument: carrier key scale level " << keyScaleLevel << " db/oct"
                 << ", carrier " << (Utils::bit_set(value, 4) ? "" : "not ") << "rectified"
                 << ", modulator " << (Utils::bit_set(value, 3) ? "" : "not ") << "rectified"
-                << ", feedback modulation " << customInstrumentFeedbackModulations[value & 0b111];
+                << ", feedback modulation " << CUSTOM_INSTRUMENT_FEEDBACK_MODULATIONS[value & 0b111];
             return;
         }
     case 0x04:
@@ -268,7 +269,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
                 attenuation,
                 Utils::db_to_percent(attenuation),
                 instrument,
-                instrumentNames[instrument],
+                INSTRUMENT_NAMES[instrument],
                 channel < 6 ? "" : " OR Percussion volumes " + percussion_volumes(p));
             return;
         }

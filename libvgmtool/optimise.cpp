@@ -3,7 +3,6 @@
 #include <format>
 #include <zlib.h>
 #include "vgm.h"
-#include "trim.h"
 #include "gd3.h"
 #include "IStatusCallback.h"
 #include "utils.h"

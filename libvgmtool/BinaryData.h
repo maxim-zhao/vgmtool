@@ -76,7 +76,7 @@ public:
     void reset();
 
     // Compress in-place
-    void compress(int level, const IStatusCallback& callback, bool verbose_zopfli);
+    void compress(int level, const IStatusCallback& callback, bool verboseZopfli);
 
 private:
     void check_write_space(size_t size);

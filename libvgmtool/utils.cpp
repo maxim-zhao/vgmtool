@@ -213,8 +213,8 @@ std::string Utils::note_name(const double frequencyHz)
 
 const std::string& Utils::on_off(const uint8_t value, const int bitIndex)
 {
-    static const std::string on("on");
-    static const std::string off("off");
+    static constexpr std::string on("on");
+    static constexpr std::string off("off");
     return bit_set(value, bitIndex) ? on : off;
 }
 

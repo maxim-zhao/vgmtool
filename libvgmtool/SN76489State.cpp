@@ -111,6 +111,7 @@ void SN76489State::copy_to_command_stream(
             {
                 // Then there's a second data byte
                 auto command2 = std::make_shared<VgmCommands::SN76489>();
+                // ReSharper disable once CommentTypo
                 // Data byte %0ddddddd
                 command2->set_value(static_cast<uint8_t>(_registers[i] >> 4));
                 stream.commands().push_back(command2);

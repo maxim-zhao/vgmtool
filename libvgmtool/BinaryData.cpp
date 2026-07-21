@@ -101,7 +101,7 @@ void BinaryData::reset()
     _offset = 0;
 }
 
-void BinaryData::compress(const int level, const IStatusCallback& callback, const bool verbose_zopfli)
+void BinaryData::compress(const int level, const IStatusCallback& callback, const bool verboseZopfli)
 {
     auto sizeBefore = _data.size();
     ZopfliOptions options{};
@@ -111,7 +111,7 @@ void BinaryData::compress(const int level, const IStatusCallback& callback, cons
         // We let the library pick the default (15) if not set
         options.numiterations = level;
     }
-    options.verbose = verbose_zopfli ? 1 : 0;
+    options.verbose = verboseZopfli ? 1 : 0;
     unsigned char* out;
     size_t outSize = 0;
     callback.verbose_message(std::format("Compressing... level {}", level));

@@ -28,7 +28,7 @@ namespace VgmCommands
         uint8_t _marker = 0;
 
     public:
-        MarkedCommand(uint8_t marker, VgmHeader::Chip chip) : _marker(marker), _chip(chip) {}
+        MarkedCommand(uint8_t marker, VgmHeader::Chip chip) : _chip(chip), _marker(marker) {}
 
         [[nodiscard]] virtual uint8_t get_marker() const
         {

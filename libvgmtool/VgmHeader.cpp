@@ -1,9 +1,7 @@
 #include "VgmHeader.h"
 
 #include <format>
-#include <sstream>
 #include <stdexcept>
-#include <ranges>
 
 #include "BinaryData.h"
 #include "KeyValuePrinter.h"
@@ -11,7 +9,7 @@
 
 namespace
 {
-    const std::string VGM_IDENT("Vgm ");
+    constexpr std::string VGM_IDENT("Vgm ");
     constexpr auto EOF_DELTA = 0x04u;
     constexpr auto GD3_DELTA = 0x14u;
     constexpr auto LOOP_DELTA = 0x1cu;
