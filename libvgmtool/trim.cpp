@@ -64,14 +64,34 @@ static void add_pause(std::vector<std::shared_ptr<VgmCommands::ICommand>>& strea
 static void optimise_pauses(CommandStream& commandStream)
 {
     // We walk the command stream, merging any consecutive pure pauses
-    for (const auto & command : commandStream.commands())
+    auto currentPauseLength = 0;
+    std::vector<std::shared_ptr<VgmCommands::ICommand>> output;
+    for (const auto& command : commandStream.commands())
     {
         if (const auto& pause = std::dynamic_pointer_cast<VgmCommands::Wait>(command);
             pause && command->chip() == VgmHeader::Chip::Nothing)
         {
-            // WIP
+            // It's a pause. Add to the running total.
+            currentPauseLength += pause->duration();
+        }
+        else
+        {
+            // Emit any pending pause
+            if (currentPauseLength > 0)
+            {
+                add_pause(output, currentPauseLength);
+                currentPauseLength = 0;
+            }
+            output.push_back(command);
         }
     }
+    // And any trailing pause
+    if (currentPauseLength > 0)
+    {
+        add_pause(output, currentPauseLength);
+    }
+    // Finally, swap it in
+    commandStream.commands().swap(output);
 }
 
 void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatusCallback& callback)
