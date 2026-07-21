@@ -256,7 +256,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
     // Inject the start state at the beginning
     // TODO make this conditional on it being needed for each chip
     CommandStream startState;
-    currentPsgState.copy_to_command_stream(startState, startPsgState, true);
+    startPsgState.copy_to_command_stream(startState, startPsgState, true);
     vgmFile.data_before_loop().commands().insert(
         vgmFile.data_before_loop().commands().begin(),
         std::make_move_iterator(startState.commands().begin()),
