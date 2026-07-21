@@ -292,14 +292,15 @@ LRESULT CALLBACK Gui::dialog_proc([[maybe_unused]] HWND hWnd, UINT message, WPAR
                     const auto outputFilename = show_save_file_dialog(suggestedFilename);
                     if (!outputFilename.empty())
                     {
-                        trim(
-                            _currentFilename,
-                            get_int(_trimWnd, edtTrimStart),
+                        VgmFile f(_currentFilename);
+                        trim_vgm_file(
+                            f, get_int(_trimWnd, edtTrimStart),
                             get_bool(_trimWnd, cbLoop) ? get_int(_trimWnd, edtTrimLoop) : -1,
                             get_int(_trimWnd, edtTrimEnd),
-                            false,
-                            get_bool(_trimWnd, cbLogTrims),
-                            *this, outputFilename);
+                            //false,
+                            //get_bool(_trimWnd, cbLogTrims),
+                            *this);
+                        f.save_file(outputFilename, *this);
                     }
                 }
                 break;
@@ -841,12 +842,25 @@ void Gui::optimize(const std::string& filename) const
     // Trim (using the existing edit points), also merges pauses
     if (VGMHeader.LoopLength != 0u)
     {
-        trim(filename, 0, static_cast<int>(VGMHeader.TotalLength - VGMHeader.LoopLength),
-            static_cast<int>(VGMHeader.TotalLength), true, false, *this, "");
+        VgmFile f(_currentFilename);
+        trim_vgm_file(
+            f,
+            0,
+            static_cast<int>(VGMHeader.TotalLength - VGMHeader.LoopLength),
+            static_cast<int>(VGMHeader.TotalLength),
+            *this);
+        f.save_file(_currentFilename, *this);
     }
     else
     {
-        trim(filename, 0, -1, static_cast<int>(VGMHeader.TotalLength), true, false, *this, "");
+        VgmFile f(_currentFilename);
+        trim_vgm_file(
+            f,
+            0,
+            -1,
+            static_cast<int>(VGMHeader.TotalLength),
+            *this);
+        f.save_file(_currentFilename, *this);
     }
 
     in = gzopen(filename.c_str(), "rb");

@@ -13,9 +13,6 @@ class IStatusCallback;
 class Utils
 {
 public:
-    // Returns s in lowercase
-    static std::string to_lower(const std::string& s);
-
     // Returns true if filename exists
     static bool file_exists(const std::string& filename);
     // Returns the size of filename in bytes
@@ -55,5 +52,5 @@ public:
     static double db_to_percent(double attenuation);
 
     // Given two numbers, express the second as a percentage reduction compared to the first
-    static double percentReduction(unsigned long long before, unsigned long long after);
+    static double percent_reduction(unsigned long long before, unsigned long long after);
 };

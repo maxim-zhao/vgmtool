@@ -124,7 +124,7 @@ void BinaryData::compress(const int level, const IStatusCallback& callback, cons
         "Compressed from {} -> {} bytes ({:.4}% compression)", 
         sizeBefore, 
         outSize, 
-        Utils::percentReduction(sizeBefore, outSize)));
+        Utils::percent_reduction(sizeBefore, outSize)));
 }
 
 void BinaryData::check_write_space(const size_t size)

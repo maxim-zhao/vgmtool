@@ -50,11 +50,17 @@ public:
     OldVGMHeader() = default;
 };
 
-#define EOFDELTA  0x04
-#define GD3DELTA  0x14
-#define LOOPDELTA 0x1c
+enum
+{
+    EOFDELTA = 0x04,
+    GD3DELTA = 0x14,
+    LOOPDELTA = 0x1c
+};
 
-#define VGM_DATA_OFFSET 0x40
+enum
+{
+    VGM_DATA_OFFSET = 0x40
+};
 
 
 // Size of registers array for YM2413 - uses 0x00-0x38, with some gaps
@@ -167,8 +173,6 @@ void write_pause(gzFile out, long int pauselength);
 
 void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const IStatusCallback& callback);
 
-void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612, bool* UsesYM2151, bool* UsesReserved);
-
 void check_lengths(const std::string& filename, bool showResults, const IStatusCallback& callback);
 
 int detect_rate(const VgmFile& file);
@@ -178,10 +182,3 @@ bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IStatusCallback& callba
 void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, std::vector<int>& YM2413writes,
                     std::vector<int>& YM2612writes, std::vector<int>& YM2151writes,
                     std::vector<int>& reservedwrites, const IStatusCallback& callback);
-
-
-void ResetState(TSystemState* State);
-
-void WriteToState(TSystemState* state, int b0, int b1, int b2);
-
-void WriteStateToFile(gzFile out, TSystemState* State, bool WriteKeys);

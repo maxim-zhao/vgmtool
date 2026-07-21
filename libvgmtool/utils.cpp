@@ -35,7 +35,7 @@ void Utils::compress(const std::string& filename, const IStatusCallback& callbac
         filename, 
         sizeBefore, 
         data.size(), 
-        percentReduction(static_cast<int>(data.size()), sizeBefore)));
+        percent_reduction(static_cast<int>(data.size()), sizeBefore)));
 
     // Now compress
     ZopfliOptions options{};
@@ -72,8 +72,8 @@ void Utils::compress(const std::string& filename, const IStatusCallback& callbac
         "{} after: {} bytes ({:.2}% smaller, {:.4}% compression)", 
         filename, 
         sizeAfter, 
-        percentReduction(sizeBefore, sizeAfter), 
-        percentReduction(static_cast<int>(data.size()), sizeAfter)));
+        percent_reduction(sizeBefore, sizeAfter), 
+        percent_reduction(static_cast<int>(data.size()), sizeAfter)));
 }
 
 void Utils::decompress(const std::string& filename)
@@ -154,19 +154,6 @@ void Utils::replace_file(const std::string& destination, const std::string& sour
     std::filesystem::rename(source, destination);
 }
 
-std::string Utils::to_lower(const std::string& s)
-{
-    std::string result;
-    std::ranges::transform(
-        s,
-        result.begin(),
-        [](const std::string::value_type c)
-        {
-            return static_cast<std::string::value_type>(std::tolower(c));
-        });
-    return result;
-}
-
 int Utils::make_word(const int b1, const int b2)
 {
     return ((b1 & 0xff) << 0) |
@@ -233,7 +220,7 @@ double Utils::db_to_percent(const double attenuation)
     return std::pow(10, -0.1 * attenuation) * 100;
 }
 
-double Utils::percentReduction(const unsigned long long before, const unsigned long long after)
+double Utils::percent_reduction(const unsigned long long before, const unsigned long long after)
 {
     return static_cast<double>(before - after) / static_cast<double>(before) * 100;
 }
