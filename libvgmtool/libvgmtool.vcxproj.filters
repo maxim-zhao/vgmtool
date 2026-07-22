@@ -110,5 +110,8 @@
     <ClInclude Include="YM2413State.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="IChipState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

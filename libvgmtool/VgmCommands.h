@@ -1,5 +1,6 @@
 #pragma once
 #include "BinaryData.h"
+#include <array>
 
 namespace VgmCommands
 {
@@ -28,7 +29,7 @@ namespace VgmCommands
         uint8_t _marker = 0;
 
     public:
-        MarkedCommand(uint8_t marker, VgmHeader::Chip chip) : _chip(chip), _marker(marker) {}
+        MarkedCommand(const uint8_t marker, const VgmHeader::Chip chip) : _chip(chip), _marker(marker) {}
 
         [[nodiscard]] virtual uint8_t get_marker() const
         {
@@ -47,7 +48,7 @@ namespace VgmCommands
     class NoDataCommand : public MarkedCommand
     {
     public:
-        NoDataCommand(uint8_t marker, VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
+        NoDataCommand(const uint8_t marker, const VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
 
         void from_data(BinaryData& data) override;
         void to_data(BinaryData& data) const override;
@@ -58,7 +59,7 @@ namespace VgmCommands
     {
         uint8_t _value = 0;
     public:
-        OneByteCommand(uint8_t marker, VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
+        OneByteCommand(const uint8_t marker, const VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
 
         [[nodiscard]] uint8_t value() const;
         void set_value(uint8_t value);
@@ -72,7 +73,7 @@ namespace VgmCommands
         uint8_t _register = 0;
         uint8_t _value = 0;
     public:
-        RegisterDataCommand(uint8_t marker, VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
+        RegisterDataCommand(const uint8_t marker, const VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
 
         [[nodiscard]] uint8_t registerIndex() const;
         void set_register(uint8_t register_);
@@ -90,7 +91,7 @@ namespace VgmCommands
         uint8_t _register = 0;
         uint8_t _value = 0;
     public:
-        PortRegisterDataCommand(uint8_t marker, VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
+        PortRegisterDataCommand(const uint8_t marker, const VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
 
         [[nodiscard]] uint8_t port() const;
         void set_port(uint8_t port);
@@ -109,7 +110,7 @@ namespace VgmCommands
         uint16_t _address = 0;
         uint8_t _value = 0;
     public:
-        AddressDataCommand(uint8_t marker, VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
+        AddressDataCommand(const uint8_t marker, const VgmHeader::Chip chip): MarkedCommand(marker, chip) {}
 
         [[nodiscard]] uint16_t address() const;
         void set_address(uint16_t address);
@@ -256,7 +257,7 @@ namespace VgmCommands
         Wait50th();
     };
 
-    class Wait4bit : public Wait, public ICommand
+    class Wait4Bit : public Wait, public ICommand
     {
     public:
         void set_duration(int sampleCount);
@@ -576,13 +577,14 @@ namespace VgmCommands
     template <int N>
     class ReservedCommand : public ICommand
     {
-        std::vector<uint8_t> _data;
+        std::array<uint8_t, N> _data;
+
     public:
         void from_data(BinaryData& data) override
         {
             for (auto i = 0; i <= N; ++i)
             {
-                _data.push_back(data.read_uint8());
+                _data[i] = data.read_uint8();
             }
         }
 
@@ -600,13 +602,12 @@ namespace VgmCommands
         }
     };
 
-    class Invalid: public ICommand
+    class InvalidCommand: public ICommand
     {
+        uint8_t _value = 0;
     public:
-        Invalid();
-
-        void from_data(BinaryData&) override {}
-        void to_data(BinaryData&) const override {}
+        void from_data(BinaryData&) override;
+        void to_data(BinaryData&) const override;
 
         [[nodiscard]] VgmHeader::Chip chip() const override
         {

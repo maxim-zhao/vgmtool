@@ -3,11 +3,55 @@
 #include <format>
 #include <stdexcept>
 
-CommandStream::CommandStream()
+void CommandStream::from_data(BinaryData& data, uint32_t endOffset)
 {
+    register_commands();
+
+    while (data.offset() < endOffset && data.offset() < data.size())
+    {
+        const auto marker = data.peek();
+        auto it = _commandGenerators.find(marker);
+        if (it == _commandGenerators.end())
+        {
+            throw std::runtime_error(std::format("No generator for marker {:x}", marker));
+        }
+        auto pCommand = it->second(data);
+        _commands.push_back(pCommand);
+
+        if (std::dynamic_pointer_cast<VgmCommands::End>(pCommand))
+        {
+            if (data.offset() != endOffset)
+            {
+                throw std::runtime_error(std::format(
+                    "End of VGM data at offset {:x}, {} bytes unaccounted for before expected end at {:x}",
+                    data.offset() - 1,
+                    endOffset - data.offset(),
+                    endOffset));
+            }
+            return;
+        }
+    }
+    // If we get there then we ran out of data before we saw EOF
+    throw std::runtime_error("No EOF marker found in VGM data");
+}
+
+void CommandStream::to_binary(BinaryData& data) const
+{
+    for (const auto& pData : _commands)
+    {
+        pData->to_data(data);
+    }
+}
+
+void CommandStream::register_commands()
+{
+    if (!_commandGenerators.empty())
+    {
+        return;
+    }
     // Register all the commands we have handlers for
     // 0x00 to 0x2f: undefined
-    register_command<VgmCommands::Invalid>(0x00, 0x2f);
+    register_command<VgmCommands::InvalidCommand>(0x00, 0x2f);
     // 0x30 to 0x3f: reserved, one byte
     register_command<VgmCommands::ReservedCommand<1>>(0x30, 0x3f);
     // 0x40 to 0x4e: reserved, two bytes
@@ -32,6 +76,7 @@ CommandStream::CommandStream()
     register_command<VgmCommands::YMF262Port0>();
     register_command<VgmCommands::YMF262Port1>();
     // 0x60 undefined
+    register_command<VgmCommands::InvalidCommand>(0x60, 0x60);
     // 0x61-0x63: wait commands
     register_command<VgmCommands::Wait16bit>();
     register_command<VgmCommands::Wait60th>();
@@ -43,7 +88,7 @@ CommandStream::CommandStream()
     register_command<VgmCommands::PcmRamWrite>();
     // 0x69 to 0x6f undefined
     // 0x70-0x7f: 4-bit waits
-    register_command<VgmCommands::Wait4bit>(0x70, 0x7f);
+    register_command<VgmCommands::Wait4Bit>(0x70, 0x7f);
     // 0x80-0x8f: YM2612 samples with waits
     register_command<VgmCommands::YM2612Sample>(0x80, 0x8f);
     // 0x90-0x95: DAC stream control
@@ -99,44 +144,6 @@ CommandStream::CommandStream()
     */
 }
 
-void CommandStream::from_data(BinaryData& data, uint32_t end_offset)
-{
-    while (data.offset() < end_offset && data.offset() < data.size())
-    {
-        const auto marker = data.peek();
-        auto it = _commandGenerators.find(marker);
-        if (it == _commandGenerators.end())
-        {
-            throw std::runtime_error(std::format("No generator for marker {:x}", marker));
-        }
-        auto pCommand = it->second(data);
-        _commands.push_back(pCommand);
-
-        if (std::dynamic_pointer_cast<VgmCommands::End>(pCommand))
-        {
-            if (data.offset() != end_offset)
-            {
-                throw std::runtime_error(std::format(
-                    "End of VGM data at offset {:x}, {} bytes unaccounted for before expected end at {:x}",
-                    data.offset() - 1,
-                    end_offset - data.offset(),
-                    end_offset));
-            }
-            return;
-        }
-    }
-    // If we get there then we ran out of data before we saw EOF
-    throw std::runtime_error("No EOF marker found in VGM data");
-}
-
-void CommandStream::to_binary(BinaryData& data) const
-{
-    for (const auto& pData : _commands)
-    {
-        pData->to_data(data);
-    }
-}
-
 template <typename T>
 void CommandStream::register_command()
 {
@@ -166,7 +173,9 @@ void CommandStream::register_command(const uint8_t min, const uint8_t max)
         }
         _commandGenerators.insert(std::make_pair(marker, [&](BinaryData& data)
         {
+            // These command types have to have no-parameter constructors
             auto t = std::make_shared<T>();
+            // ...and consume the marker in here
             t->from_data(data);
             return std::move(t);
         }));

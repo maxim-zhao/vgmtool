@@ -49,7 +49,7 @@ static void add_pause(std::vector<std::shared_ptr<VgmCommands::ICommand>>& strea
     }
     else if (pauseLength <= 16)
     {
-        const auto wait = std::make_shared<VgmCommands::Wait4bit>();
+        const auto wait = std::make_shared<VgmCommands::Wait4Bit>();
         wait->set_duration(pauseLength);
         stream.push_back(wait);
     }

@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "IChipState.h"
+
 class CommandStream;
 
 namespace VgmCommands
@@ -15,7 +17,7 @@ namespace VgmCommands
 
 class VgmHeader;
 
-class SN76489State
+class SN76489State: public IChipState
 {
 public:
     explicit SN76489State(const VgmHeader& header);
@@ -26,15 +28,15 @@ public:
     void copy_to_command_stream(CommandStream& stream, SN76489State& lastWrittenPsgState, bool fullImage) const;
 
 private:
-    static std::string print_stereo_mask(uint8_t mask);
-    [[nodiscard]] double tone_length_to_hz(int length) const;
-    std::string make_noise_description(const char* prefix, int shift) const;
+    void prepare_text();
 
     // Registers are four tone, volume pairs
     std::vector<int> _registers{0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
-    std::vector<std::string> _noiseSpeedDescriptions;
-    std::vector<std::string> _volumeDescriptions;
     std::size_t _latchedRegisterIndex = 0;
     uint32_t _clockRate;
     uint8_t _stereoMask = 0xff;
+
+    // To-text reusable text
+    std::vector<std::string> _noiseSpeedDescriptions;
+    std::vector<std::string> _volumeDescriptions;
 };

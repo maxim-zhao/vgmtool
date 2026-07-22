@@ -10,27 +10,23 @@
 SN76489State::SN76489State(const VgmHeader& header)
     : _clockRate(header.clock(VgmHeader::Chip::SN76489))
 {
-    _noiseSpeedDescriptions =
-    {
-        make_noise_description("high", 0),
-        make_noise_description("med", 1),
-        make_noise_description("low", 2),
-        "ch 2"
-    };
-    for (int i = 0; i < 15; ++i)
-    {
-        const int dB = i * 2;
-        _volumeDescriptions.emplace_back(std::format("{:#x} = {:2} dB = {:3.0f}%", i, dB, Utils::db_to_percent(dB)));
-    }
-    _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
 }
 
 void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmCommands::ICommand>& pCommand)
 {
+    prepare_text();
     if (const auto ggStereo = std::dynamic_pointer_cast<const VgmCommands::GGStereo>(pCommand))
     {
         add(ggStereo);
-        s << "Stereo: " << print_stereo_mask(_stereoMask);
+        std::string bits("012N012N");
+        for (int i = 0; i < 8; ++i)
+        {
+            if ((_stereoMask >> i & 1) == 0)
+            {
+                bits[i] = '-';
+            }
+        }
+        s << "Stereo: " << bits;
         return;
     }
     if (const auto sn76489 = std::dynamic_pointer_cast<const VgmCommands::SN76489>(pCommand))
@@ -52,7 +48,9 @@ void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmComma
         case 4: // Tone registers
             {
                 const auto channel = _latchedRegisterIndex / 2;
-                double frequencyHz = tone_length_to_hz(registerValue);
+                double frequencyHz = registerValue == 0
+                    ? 0.0
+                    : static_cast<double>(_clockRate) / 32.0 / registerValue;
                 s << "Tone ch " << channel
                     << std::format(" -> {:#05x}", registerValue)
                     << std::format(" = {:8.2f} Hz", frequencyHz)
@@ -121,6 +119,36 @@ void SN76489State::copy_to_command_stream(
     }
 }
 
+void SN76489State::prepare_text()
+{
+    if (!_noiseSpeedDescriptions.empty())
+    {
+        return;
+    }
+
+    auto makeNoiseDescription = [&](const char* prefix, const int shift)
+    {
+        return std::format(
+            "{} ({}Hz)",
+            prefix,
+            _clockRate / 32 / (16 << shift));
+    };
+
+    _noiseSpeedDescriptions =
+    {
+        makeNoiseDescription("high", 0),
+        makeNoiseDescription("med", 1),
+        makeNoiseDescription("low", 2),
+        "ch 2"
+    };
+    for (int i = 0; i < 15; ++i)
+    {
+        const int dB = i * 2;
+        _volumeDescriptions.emplace_back(std::format("{:#x} = {:2} dB = {:3.0f}%", i, dB, Utils::db_to_percent(dB)));
+    }
+    _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
+}
+
 void SN76489State::add(const std::shared_ptr<const VgmCommands::GGStereo>& pStereo)
 {
     _stereoMask = pStereo->value();
@@ -155,35 +183,4 @@ void SN76489State::add(const std::shared_ptr<const VgmCommands::SN76489>& pComma
             _registers[_latchedRegisterIndex] = value & 0b1111;
         }
     }
-}
-
-
-std::string SN76489State::print_stereo_mask(const uint8_t mask)
-{
-    std::string bits("012N012N");
-    for (int i = 0; i < 8; ++i)
-    {
-        if ((mask >> i & 1) == 0)
-        {
-            bits[i] = '-';
-        }
-    }
-    return bits;
-}
-
-double SN76489State::tone_length_to_hz(const int length) const
-{
-    if (length == 0)
-    {
-        return 0.0;
-    }
-    return static_cast<double>(_clockRate) / 32.0 / length;
-}
-
-std::string SN76489State::make_noise_description(const char* prefix, const int shift) const
-{
-    return std::format(
-        "{} ({}Hz)",
-        prefix,
-        _clockRate / 32 / (16 << shift));
 }

@@ -9,10 +9,7 @@
 class CommandStream
 {
 public:
-    CommandStream();
-    // explicit CommandStream(BinaryData& data);
-
-    void from_data(BinaryData& data, uint32_t end_offset);
+    void from_data(BinaryData& data, uint32_t endOffset);
 
     std::vector<std::shared_ptr<VgmCommands::ICommand>>& commands()
     {
@@ -27,6 +24,7 @@ public:
     void to_binary(BinaryData& data) const;
 
 private:
+    void register_commands();
     template <typename T>
     void register_command();
     template <typename T>
