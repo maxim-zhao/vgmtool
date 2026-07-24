@@ -30,7 +30,7 @@ public:
 
     void add(const std::shared_ptr<const VgmCommands::ICommand>& command) override;
     void to_text(std::ostream& s, const std::shared_ptr<const VgmCommands::ICommand>& pCommand);
-    void copy_to_command_stream(CommandStream& stream, std::shared_ptr<IChipState> lastWrittenPsgStatePtr, bool fullImage) const override;
+    void copy_to_command_stream(CommandStream& stream, std::shared_ptr<IChipState> lastWritten, bool fullImage) const override;
     [[nodiscard]] std::shared_ptr<IChipState> clone() const override;
 
 private:

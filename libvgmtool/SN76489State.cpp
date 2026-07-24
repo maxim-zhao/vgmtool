@@ -80,10 +80,10 @@ void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmComma
 
 void SN76489State::copy_to_command_stream(
     CommandStream& stream,
-    std::shared_ptr<IChipState> lastWrittenPsgStatePtr,
+    const std::shared_ptr<IChipState> lastWritten,
     const bool fullImage) const
 {
-    auto lastWrittenPsgState = std::dynamic_pointer_cast<SN76489State>(lastWrittenPsgStatePtr);
+    const auto lastWrittenPsgState = std::dynamic_pointer_cast<SN76489State>(lastWritten);
     if (fullImage || _stereoMask != lastWrittenPsgState->_stereoMask)
     {
         auto ggStereo = std::make_shared<VgmCommands::GGStereo>();

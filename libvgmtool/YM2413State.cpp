@@ -5,13 +5,14 @@
 #include <sstream>
 #include <unordered_set>
 
+#include "CommandStream.h"
 #include "utils.h"
 #include "VgmHeader.h"
 #include "VgmCommands.h"
 
 namespace
 {
-    const std::unordered_set VALID_REGISTERS
+    const std::unordered_set<uint8_t> VALID_REGISTERS
     {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // Custom instrument
         0x0e, // Rhythm control
@@ -47,13 +48,47 @@ YM2413State::YM2413State(const VgmHeader& header)
     : _clockRate(header.clock(Chip::YM2413)),
       _registers(0x39) { }
 
-void YM2413State::add(const std::shared_ptr<const VgmCommands::YM2413>& pCommand)
+void YM2413State::add(const std::shared_ptr<const VgmCommands::ICommand>& command)
 {
+    const auto pCommand = std::dynamic_pointer_cast<const VgmCommands::YM2413>(command);
+    if (!pCommand)
+    {
+        throw std::exception("Unhandled command type");
+    }
+
     // We just stuff it in the registers (for now)
     if (VALID_REGISTERS.contains(pCommand->registerIndex()))
     {
         _registers[pCommand->registerIndex()] = pCommand->value();
     }
+}
+
+void YM2413State::copy_to_command_stream(CommandStream& stream, const std::shared_ptr<IChipState> lastWritten, bool fullImage) const
+{
+    const auto lastWrittenState = std::dynamic_pointer_cast<YM2413State>(lastWritten);
+    // For most registers we just want to emit the value (if changed)
+    for (uint8_t registerIndex = 0u; registerIndex < _registers.size(); ++registerIndex)
+    {
+        if (!VALID_REGISTERS.contains(registerIndex))
+        {
+            continue;
+        }
+
+        // TODO: key restarts, blips too
+        if (fullImage || _registers[registerIndex] != lastWrittenState->_registers[registerIndex])
+        {
+            auto command = std::make_shared<VgmCommands::YM2413>();
+            command->set_register(registerIndex);
+            command->set_value(_registers[registerIndex]);
+            stream.commands().push_back(command);
+            lastWrittenState->_registers[registerIndex] = _registers[registerIndex];
+        }
+    }
+}
+
+std::shared_ptr<IChipState> YM2413State::clone() const
+{
+    return std::make_shared<YM2413State>(*this);
 }
 
 std::string YM2413State::percussion_instruments(const uint8_t value)

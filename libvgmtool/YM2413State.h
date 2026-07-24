@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 
+#include "IChipState.h"
 #include "VgmCommands.h"
 
 namespace VgmCommands
@@ -11,14 +12,16 @@ namespace VgmCommands
 
 class VgmHeader;
 
-class YM2413State
+class YM2413State: public IChipState
 {
 public:
     explicit YM2413State(const VgmHeader& header);
 
     void to_text(const std::shared_ptr<const VgmCommands::ICommand>& pCommand, std::ostream& s);
 
-    void add(const std::shared_ptr<const VgmCommands::YM2413>& pCommand);
+    void add(const std::shared_ptr<const VgmCommands::ICommand>& command) override;
+    void copy_to_command_stream(CommandStream& stream, std::shared_ptr<IChipState> lastWritten, bool fullImage) const override;
+    [[nodiscard]] std::shared_ptr<IChipState> clone() const override;
 
 private:
     static std::string percussion_instruments(uint8_t value);

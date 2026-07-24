@@ -5,6 +5,7 @@
 
 #include "IStatusCallback.h"
 #include "SN76489State.h"
+#include "YM2413State.h"
 #include "VgmFile.h"
 #include "VgmCommands.h"
 
@@ -81,6 +82,8 @@ namespace
         {
         case Chip::SN76489:
             return map.emplace(chip, std::make_shared<ChipStatesTracker>(SN76489State(header))).first->second;
+        case Chip::YM2413:
+            return map.emplace(chip, std::make_shared<ChipStatesTracker>(YM2413State(header))).first->second;
         default:
             // Return nothing by default
             return {};
