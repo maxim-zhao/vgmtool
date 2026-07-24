@@ -174,12 +174,12 @@ void VgmCommands::Wait16bit::to_data(BinaryData& data) const
     data.write_uint16(_duration);
 }
 
-VgmCommands::Wait60th::Wait60th(): NoDataCommand(0x62, VgmHeader::Chip::Nothing)
+VgmCommands::Wait60th::Wait60th(): NoDataCommand(0x62, Chip::Nothing)
 {
     _duration = 44100 / 60;
 }
 
-VgmCommands::Wait50th::Wait50th(): NoDataCommand(0x63, VgmHeader::Chip::Nothing)
+VgmCommands::Wait50th::Wait50th(): NoDataCommand(0x63, Chip::Nothing)
 {
     _duration = 44100 / 50;
 }

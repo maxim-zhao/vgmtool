@@ -23,6 +23,9 @@ public:
 
     void to_binary(BinaryData& data) const;
 
+    void optimise_pauses();
+    void add_pause(int length);
+
 private:
     void register_commands();
     template <typename T>

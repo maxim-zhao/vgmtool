@@ -3,12 +3,13 @@
 #include <format>
 #include <iostream>
 
+#include "Chip.h"
 #include "CommandStream.h"
 #include "utils.h"
 #include "VgmCommands.h"
 
 SN76489State::SN76489State(const VgmHeader& header)
-    : _clockRate(header.clock(VgmHeader::Chip::SN76489))
+    : _clockRate(header.clock(Chip::SN76489))
 {
 }
 
@@ -79,20 +80,21 @@ void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmComma
 
 void SN76489State::copy_to_command_stream(
     CommandStream& stream,
-    SN76489State& lastWrittenPsgState,
+    std::shared_ptr<IChipState> lastWrittenPsgStatePtr,
     const bool fullImage) const
 {
-    if (fullImage || _stereoMask != lastWrittenPsgState._stereoMask)
+    auto lastWrittenPsgState = std::dynamic_pointer_cast<SN76489State>(lastWrittenPsgStatePtr);
+    if (fullImage || _stereoMask != lastWrittenPsgState->_stereoMask)
     {
         auto ggStereo = std::make_shared<VgmCommands::GGStereo>();
         ggStereo->set_value(_stereoMask);
         stream.commands().emplace_back(ggStereo);
-        lastWrittenPsgState._stereoMask = _stereoMask;
+        lastWrittenPsgState->_stereoMask = _stereoMask;
     }
 
     for (std::size_t i = 0; i < _registers.size(); ++i)
     {
-        if (fullImage || _registers[i] != lastWrittenPsgState._registers[i])
+        if (fullImage || _registers[i] != lastWrittenPsgState->_registers[i])
         {
             const auto channel = i / 2;
             const auto isTone = ((i % 2) == 0) && (i != 6); // Channels 0, 2, 4 are tone channels
@@ -114,9 +116,14 @@ void SN76489State::copy_to_command_stream(
                 command2->set_value(static_cast<uint8_t>(_registers[i] >> 4));
                 stream.commands().push_back(command2);
             }
-            lastWrittenPsgState._registers[i] = _registers[i];
+            lastWrittenPsgState->_registers[i] = _registers[i];
         }
     }
+}
+
+std::shared_ptr<IChipState> SN76489State::clone() const
+{
+    return std::make_shared<SN76489State>(*this);
 }
 
 void SN76489State::prepare_text()
@@ -149,38 +156,45 @@ void SN76489State::prepare_text()
     _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
 }
 
-void SN76489State::add(const std::shared_ptr<const VgmCommands::GGStereo>& pStereo)
-{
-    _stereoMask = pStereo->value();
-}
 
-void SN76489State::add(const std::shared_ptr<const VgmCommands::SN76489>& pCommand)
+void SN76489State::add(const std::shared_ptr<const VgmCommands::ICommand>& command)
 {
-    if (const auto value = pCommand->value();
-        (value & 0b10000000) != 0)
+    if (const auto pStereo = std::dynamic_pointer_cast<const VgmCommands::GGStereo>(command))
     {
-        // ReSharper disable once CommentTypo
-        // Latch/data byte %1nnvdddd
-        // nnv = register index
-        // dddd = low 4 bits of data
-        _latchedRegisterIndex = (value & 0b01110000) >> 4;
-        _registers[_latchedRegisterIndex] &= 0b1111110000;
-        _registers[_latchedRegisterIndex] |= value & 0b1111;
+        _stereoMask = pStereo->value();
     }
-    else
+    else if (const auto pCommand = std::dynamic_pointer_cast<const VgmCommands::SN76489>(command))
     {
-        // ReSharper disable once CommentTypo
-        // Data byte %0ddddddd
-        if (_latchedRegisterIndex % 2 == 0 && _latchedRegisterIndex < 5)
+        if (const auto value = pCommand->value();
+            (value & 0b10000000) != 0)
         {
-            // Tone register, apply to high bits
-            _registers[_latchedRegisterIndex] &= 0b0000001111;
-            _registers[_latchedRegisterIndex] |= (value & 0b111111) << 4;
+            // ReSharper disable once CommentTypo
+            // Latch/data byte %1nnvdddd
+            // nnv = register index
+            // dddd = low 4 bits of data
+            _latchedRegisterIndex = (value & 0b01110000) >> 4;
+            _registers[_latchedRegisterIndex] &= 0b1111110000;
+            _registers[_latchedRegisterIndex] |= value & 0b1111;
         }
         else
         {
-            // Other register, truncate to 4 bits and replace
-            _registers[_latchedRegisterIndex] = value & 0b1111;
+            // ReSharper disable once CommentTypo
+            // Data byte %0ddddddd
+            if (_latchedRegisterIndex % 2 == 0 && _latchedRegisterIndex < 5)
+            {
+                // Tone register, apply to high bits
+                _registers[_latchedRegisterIndex] &= 0b0000001111;
+                _registers[_latchedRegisterIndex] |= (value & 0b111111) << 4;
+            }
+            else
+            {
+                // Other register, truncate to 4 bits and replace
+                _registers[_latchedRegisterIndex] = value & 0b1111;
+            }
         }
+    }
+    else
+    {
+        throw std::exception("Unhandled command type");
     }
 }

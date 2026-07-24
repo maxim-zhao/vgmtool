@@ -30,6 +30,7 @@
   <ItemGroup>
     <ClInclude Include="BcdVersion.h" />
     <ClInclude Include="BinaryData.h" />
+    <ClInclude Include="Chip.h" />
     <ClInclude Include="CommandStream.h" />
     <ClInclude Include="gd3.h" />
     <ClInclude Include="Gd3Tag.h" />

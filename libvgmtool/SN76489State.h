@@ -21,15 +21,22 @@ class SN76489State: public IChipState
 {
 public:
     explicit SN76489State(const VgmHeader& header);
+    ~SN76489State() override = default;
 
-    void add(const std::shared_ptr<const VgmCommands::GGStereo>& pStereo);
-    void add(const std::shared_ptr<const VgmCommands::SN76489>& pCommand);
+    SN76489State(const SN76489State& other) = default;
+    SN76489State(SN76489State&& other) noexcept = default;
+    SN76489State& operator=(const SN76489State& other) = default;
+    SN76489State& operator=(SN76489State&& other) noexcept = default;
+
+    void add(const std::shared_ptr<const VgmCommands::ICommand>& command) override;
     void to_text(std::ostream& s, const std::shared_ptr<const VgmCommands::ICommand>& pCommand);
-    void copy_to_command_stream(CommandStream& stream, SN76489State& lastWrittenPsgState, bool fullImage) const;
+    void copy_to_command_stream(CommandStream& stream, std::shared_ptr<IChipState> lastWrittenPsgStatePtr, bool fullImage) const override;
+    [[nodiscard]] std::shared_ptr<IChipState> clone() const override;
 
 private:
     void prepare_text();
 
+private:
     // Registers are four tone, volume pairs
     std::vector<int> _registers{0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
     std::size_t _latchedRegisterIndex = 0;

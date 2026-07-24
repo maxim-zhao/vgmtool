@@ -113,5 +113,8 @@
     <ClInclude Include="IChipState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Chip.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

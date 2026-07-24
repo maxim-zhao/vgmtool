@@ -190,7 +190,7 @@ void VgmFile::write_command_as_text(std::ostream& s, size_t& offset, int& time, 
 
     switch (pCommand->chip())
     {
-    case VgmHeader::Chip::Nothing:
+    case Chip::Nothing:
         if (const auto pWait = std::dynamic_pointer_cast<const VgmCommands::Wait>(pCommand))
         {
             const auto duration = pWait->duration();
@@ -223,34 +223,34 @@ void VgmFile::write_command_as_text(std::ostream& s, size_t& offset, int& time, 
             s << "Unknown command";
         }
         break;
-    case VgmHeader::Chip::SN76489:
+    case Chip::SN76489:
         s << "SN76489: ";
         psgState.to_text(s, pCommand);
         break;
-    case VgmHeader::Chip::YM2413:
+    case Chip::YM2413:
         s << "YM2413: ";
         ym2413State.to_text(pCommand, s);
         break;
-    case VgmHeader::Chip::YM2612:
+    case Chip::YM2612:
         s << "YM2612";
         break;
-    case VgmHeader::Chip::YM2151: break;
-    case VgmHeader::Chip::SegaPCM: break;
-    case VgmHeader::Chip::RF5C68: break;
-    case VgmHeader::Chip::YM2203: break;
-    case VgmHeader::Chip::YM2608: break;
-    case VgmHeader::Chip::YM2610: break;
-    case VgmHeader::Chip::YM3812: break;
-    case VgmHeader::Chip::YM3526: break;
-    case VgmHeader::Chip::Y8950: break;
-    case VgmHeader::Chip::YMF262: break;
-    case VgmHeader::Chip::YMF278B: break;
-    case VgmHeader::Chip::YMF271: break;
-    case VgmHeader::Chip::YMZ280B: break;
-    case VgmHeader::Chip::RF5C164: break;
-    case VgmHeader::Chip::PWM: break;
-    case VgmHeader::Chip::AY8910: break;
-    case VgmHeader::Chip::GenericDAC: break;
+    case Chip::YM2151: break;
+    case Chip::SegaPCM: break;
+    case Chip::RF5C68: break;
+    case Chip::YM2203: break;
+    case Chip::YM2608: break;
+    case Chip::YM2610: break;
+    case Chip::YM3812: break;
+    case Chip::YM3526: break;
+    case Chip::Y8950: break;
+    case Chip::YMF262: break;
+    case Chip::YMF278B: break;
+    case Chip::YMF271: break;
+    case Chip::YMZ280B: break;
+    case Chip::RF5C164: break;
+    case Chip::PWM: break;
+    case Chip::AY8910: break;
+    case Chip::GenericDAC: break;
     default:
         break;
     }

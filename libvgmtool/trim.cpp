@@ -1,99 +1,92 @@
-#include <cstdlib>
 #include "trim.h"
 
 #include <filesystem>
+#include <ranges>
+
 #include "IStatusCallback.h"
 #include "SN76489State.h"
-#include "vgm.h"
 #include "VgmFile.h"
 #include "VgmCommands.h"
 
-static void add_pause(std::vector<std::shared_ptr<VgmCommands::ICommand>>& stream, int pauseLength)
+namespace
 {
-    if (pauseLength == 0)
+    class ChipStatesTracker
     {
-        return;
-    }
-
-    // This is not quite optimal - it depends upon what the length modulo 0xffff is.
-    // If it is not any of the <3 byte options, we would be better off emitting a
-    // 16-bit wait that makes it so, if possible. This is unlikely to happen
-    // very often.
-
-    while (pauseLength > 0xffff)
-    {
-        const auto wait = std::make_shared<VgmCommands::Wait16bit>();
-        wait->set_duration(0xffff);
-        stream.push_back(wait);
-        pauseLength -= 0xffff;
-    }
-
-    // Two one-byte commands are more efficient than a three-byte wait
-    if (pauseLength == LEN60TH * 2)
-    {
-        stream.push_back(std::make_shared<VgmCommands::Wait60th>());
-        stream.push_back(std::make_shared<VgmCommands::Wait60th>());
-    }
-    else if (pauseLength == LEN60TH)
-    {
-        stream.push_back(std::make_shared<VgmCommands::Wait60th>());
-    }
-    else if (pauseLength == LEN50TH * 2)
-    {
-        stream.push_back(std::make_shared<VgmCommands::Wait50th>());
-        stream.push_back(std::make_shared<VgmCommands::Wait50th>());
-    }
-    else if (pauseLength == LEN50TH)
-    {
-        stream.push_back(std::make_shared<VgmCommands::Wait50th>());
-    }
-    else if (pauseLength <= 16)
-    {
-        const auto wait = std::make_shared<VgmCommands::Wait4Bit>();
-        wait->set_duration(pauseLength);
-        stream.push_back(wait);
-    }
-    else
-    {
-        const auto wait = std::make_shared<VgmCommands::Wait16bit>();
-        wait->set_duration(static_cast<uint16_t>(pauseLength));
-        stream.push_back(wait);
-    }
-}
-
-static void optimise_pauses(CommandStream& commandStream)
-{
-    // We walk the command stream, merging any consecutive pure pauses
-    auto currentPauseLength = 0;
-    std::vector<std::shared_ptr<VgmCommands::ICommand>> output;
-    for (const auto& command : commandStream.commands())
-    {
-        if (const auto& pause = std::dynamic_pointer_cast<VgmCommands::Wait>(command);
-            pause && command->chip() == VgmHeader::Chip::Nothing)
+        std::shared_ptr<IChipState> _current;
+        std::shared_ptr<IChipState> _lastWritten;
+        std::shared_ptr<const IChipState> _start;
+        std::shared_ptr<const IChipState> _loop;
+    public:
+        ChipStatesTracker() = default; // Default one is empty!
+        explicit ChipStatesTracker(const IChipState& base)
+            : _current(base.clone()),
+        _lastWritten(base.clone()),
+        _start(nullptr),
+        _loop(nullptr)
         {
-            // It's a pause. Add to the running total.
-            currentPauseLength += pause->duration();
         }
-        else
+
+        void emit_delta(CommandStream& commandStream) const
         {
-            // Emit any pending pause
-            if (currentPauseLength > 0)
+            _current->copy_to_command_stream(commandStream, _lastWritten, false);
+        }
+
+        void snapshot_start()
+        {
+            _start = _current->clone();
+            *_lastWritten = *_current;
+        }
+
+        void snapshot_loop()
+        {
+            _loop = _current->clone();
+        }
+
+        void emit_loop_delta(CommandStream& commandStream) const
+        {
+            // We might not have one, in which case this is a no-op
+            if (_loop)
             {
-                add_pause(output, currentPauseLength);
-                currentPauseLength = 0;
+                _loop->copy_to_command_stream(commandStream, _current, false);
             }
-            output.push_back(command);
+        }
+
+        void insert_start_state(VgmFile& vgmFile) const
+        {
+            CommandStream startState;
+            _start->copy_to_command_stream(startState, _start->clone(), true);
+            vgmFile.data_before_loop().commands().insert(
+                vgmFile.data_before_loop().commands().begin(),
+                std::make_move_iterator(startState.commands().begin()),
+                std::make_move_iterator(startState.commands().end())
+            );
+
+        }
+
+        void add(const std::shared_ptr<VgmCommands::ICommand>& command) const
+        {
+            _current->add(command);
+        }
+    };
+
+    std::shared_ptr<ChipStatesTracker> getTracker(std::unordered_map<Chip, std::shared_ptr<ChipStatesTracker>>& map, const Chip chip, const VgmHeader& header)
+    {
+        // If we have it in the map, return it, else create it
+        auto it = map.find(chip);
+        if (it != map.end())
+        {
+            return it->second;
+        }
+        switch (chip)
+        {
+        case Chip::SN76489:
+            return map.emplace(chip, std::make_shared<ChipStatesTracker>(SN76489State(header))).first->second;
+        default:
+            // Return nothing by default
+            return {};
         }
     }
-    // And any trailing pause
-    if (currentPauseLength > 0)
-    {
-        add_pause(output, currentPauseLength);
-    }
-    // Finally, swap it in
-    commandStream.commands().swap(output);
 }
-
 void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatusCallback& callback)
 {
     callback.verbose_message(std::format("Trimming VGM file: start {}, loop {}, end {}", start, loop, end));
@@ -124,13 +117,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
     std::ranges::copy(vgmFile.data_with_loop().commands(), std::back_inserter(allCommands.commands()));
 
     // Initialize tracking state(s)
-    // TODO: make this extensible to more chips
-    SN76489State currentPsgState(header);
-    SN76489State lastWrittenPsgState(header);
-    SN76489State loopPsgState(header);
-    SN76489State startPsgState(header);
-    //uint8_t ym2413Regs[YM2413NumRegs]{};
-    //uint8_t lastWrittenYM2413Regs[YM2413NumRegs]{};
+    std::unordered_map<Chip, std::shared_ptr<ChipStatesTracker>> chipStateTrackers;
 
     CommandStream* currentStream = nullptr;
     vgmFile.data_before_loop().commands().clear();
@@ -153,16 +140,16 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
         }
         switch (command->chip())  // NOLINT(clang-diagnostic-switch-enum)
         {
-        case VgmHeader::Chip::Nothing:
+        case Chip::Nothing:
             break;
-        case VgmHeader::Chip::SN76489:
+        case Chip::SN76489:
             if (const auto ggStereo = std::dynamic_pointer_cast<VgmCommands::GGStereo>(command))
             {
-                currentPsgState.add(ggStereo);
+                getTracker(chipStateTrackers, Chip::SN76489, header)->add(ggStereo);
             }
             else if (const auto sn76489 = std::dynamic_pointer_cast<VgmCommands::SN76489>(command))
             {
-                currentPsgState.add(sn76489);
+                getTracker(chipStateTrackers, Chip::SN76489, header)->add(sn76489);
             }
             break;
             // TODO lots more chips to handle
@@ -179,8 +166,11 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
         {
             if (currentStream != nullptr)
             {
-                // Emit the delta...
-                currentPsgState.copy_to_command_stream(*currentStream, lastWrittenPsgState, false);
+                // Emit the deltas for each chip that's active...
+                for (const auto & tracker : chipStateTrackers | std::views::values)
+                {
+                    tracker->emit_delta(*currentStream);
+                }
             }
             // Add it on... but maybe not all of it.
             const auto timeBefore = time;
@@ -197,8 +187,10 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
                 // We are passing the start point
                 currentStream = &vgmFile.data_before_loop();
                 // Remember the state
-                startPsgState = currentPsgState;
-                lastWrittenPsgState = currentPsgState;
+                for (const auto & tracker : chipStateTrackers | std::views::values)
+                {
+                    tracker->snapshot_start();
+                }
                 // Subtract any time before the start point from the pending time
                 pendingTime -= (start - timeBefore);
                 // Emit as much time as we need to get to the loop point, or end, or just all the pending time
@@ -213,7 +205,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
                     // We are also passing the end point. Only emit time up to there.
                     timeToEmit = end - start;
                 }
-                add_pause(currentStream->commands(), timeToEmit);
+                currentStream->add_pause(timeToEmit);
                 pendingTime -= timeToEmit;
                 time += timeToEmit;
             }
@@ -221,12 +213,15 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
             {
                 // We are passing the loop point
                 // Capture the current state for later
-                loopPsgState = currentPsgState;
+                for (const auto & tracker : chipStateTrackers | std::views::values)
+                {
+                    tracker->snapshot_loop();
+                }
                 // Switch to the second stream
                 currentStream = &vgmFile.data_with_loop();
                 // And as much time as we need to get to the end point, or just all the pending time
                 const auto timeToEmit = std::min(pendingTime, end - loop);
-                add_pause(currentStream->commands(), timeToEmit);
+                currentStream->add_pause(timeToEmit);
                 pendingTime -= timeToEmit;
                 time += timeToEmit;
             }
@@ -235,9 +230,12 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
                 // We are reaching or passing the end point
                 // Emit as much time as we need to get to the end point, or just all the pending time
                 const auto timeToEmit = std::min(pendingTime, end - time);
-                add_pause(currentStream->commands(), timeToEmit);
+                currentStream->add_pause(timeToEmit);
                 // Emit a delta to get back to the loop state
-                loopPsgState.copy_to_command_stream(*currentStream, currentPsgState, false);
+                for (const auto& tracker : chipStateTrackers | std::views::values)
+                {
+                    tracker->emit_loop_delta(*currentStream);
+                }
                 // Add an end marker
                 currentStream->commands().push_back(std::make_shared<VgmCommands::End>());
                 // And then we are done. Break the outer loop.
@@ -246,7 +244,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
             if (pendingTime > 0 && currentStream != nullptr)
             {
                 // We are not passing any edit points, so just emit all the pending time
-                add_pause(currentStream->commands(), pendingTime);
+                currentStream->add_pause(pendingTime);
             }
             // Finally, remember the new time
             time = timeAfter;
@@ -254,18 +252,14 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
     }
 
     // Inject the start state at the beginning
-    // TODO make this conditional on it being needed for each chip
-    CommandStream startState;
-    startPsgState.copy_to_command_stream(startState, startPsgState, true);
-    vgmFile.data_before_loop().commands().insert(
-        vgmFile.data_before_loop().commands().begin(),
-        std::make_move_iterator(startState.commands().begin()),
-        std::make_move_iterator(startState.commands().end())
-    );
+    for (const auto& tracker : chipStateTrackers | std::views::values)
+    {
+        tracker->insert_start_state(vgmFile);
+    }
 
     // We emitted the pauses as-is. Now we optimise them.
-    optimise_pauses(vgmFile.data_before_loop());
-    optimise_pauses(vgmFile.data_with_loop());
+    vgmFile.data_before_loop().optimise_pauses();
+    vgmFile.data_with_loop().optimise_pauses();
 
     // Update header
     header.set_sample_count(end - start);

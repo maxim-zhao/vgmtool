@@ -3,6 +3,8 @@
 #include <format>
 #include <stdexcept>
 
+#include "vgm.h"
+
 void CommandStream::from_data(BinaryData& data, uint32_t endOffset)
 {
     register_commands();
@@ -40,6 +42,59 @@ void CommandStream::to_binary(BinaryData& data) const
     for (const auto& pData : _commands)
     {
         pData->to_data(data);
+    }
+}
+
+void CommandStream::add_pause(int pauseLength)
+{
+    if (pauseLength == 0)
+    {
+        return;
+    }
+
+    // This is not quite optimal - it depends upon what the length modulo 0xffff is.
+    // If it is not any of the <3 byte options, we would be better off emitting a
+    // 16-bit wait that makes it so, if possible. This is unlikely to happen
+    // very often.
+
+    while (pauseLength > 0xffff)
+    {
+        const auto wait = std::make_shared<VgmCommands::Wait16bit>();
+        wait->set_duration(0xffff);
+        _commands.push_back(wait);
+        pauseLength -= 0xffff;
+    }
+
+    // Two one-byte commands are more efficient than a three-byte wait
+    if (pauseLength == LEN60TH * 2)
+    {
+        _commands.push_back(std::make_shared<VgmCommands::Wait60th>());
+        _commands.push_back(std::make_shared<VgmCommands::Wait60th>());
+    }
+    else if (pauseLength == LEN60TH)
+    {
+        _commands.push_back(std::make_shared<VgmCommands::Wait60th>());
+    }
+    else if (pauseLength == LEN50TH * 2)
+    {
+        _commands.push_back(std::make_shared<VgmCommands::Wait50th>());
+        _commands.push_back(std::make_shared<VgmCommands::Wait50th>());
+    }
+    else if (pauseLength == LEN50TH)
+    {
+        _commands.push_back(std::make_shared<VgmCommands::Wait50th>());
+    }
+    else if (pauseLength <= 16)
+    {
+        const auto wait = std::make_shared<VgmCommands::Wait4Bit>();
+        wait->set_duration(pauseLength);
+        _commands.push_back(wait);
+    }
+    else
+    {
+        const auto wait = std::make_shared<VgmCommands::Wait16bit>();
+        wait->set_duration(static_cast<uint16_t>(pauseLength));
+        _commands.push_back(wait);
     }
 }
 
@@ -180,4 +235,38 @@ void CommandStream::register_command(const uint8_t min, const uint8_t max)
             return std::move(t);
         }));
     }
+}
+
+void CommandStream::optimise_pauses()
+{
+    // We walk the command stream, merging any consecutive pure pauses.
+    // We do this by copying the non-pauses into a new object as we go, then swapping.
+    auto currentPauseLength = 0;
+    CommandStream temp;
+    for (const auto& command : _commands)
+    {
+        if (const auto& pause = std::dynamic_pointer_cast<VgmCommands::Wait>(command);
+            pause && command->chip() == Chip::Nothing)
+        {
+            // It's a pause. Add to the running total.
+            currentPauseLength += pause->duration();
+        }
+        else
+        {
+            // Emit any pending pause
+            if (currentPauseLength > 0)
+            {
+                temp.add_pause(currentPauseLength);
+                currentPauseLength = 0;
+            }
+            temp._commands.push_back(command);
+        }
+    }
+    // And any trailing pause
+    if (currentPauseLength > 0)
+    {
+        temp.add_pause(currentPauseLength);
+    }
+    // Finally, swap it in
+    _commands.swap(temp._commands);
 }

@@ -711,10 +711,10 @@ void Gui::load_file(const std::string& filename)
     SetDlgItemText(_headerWnd, edtVersion, _currentFile.header().version().string().c_str());
 
     // Clock speeds
-    SetDlgItemInt(_headerWnd, edtPSGClock, _currentFile.header().clock(VgmHeader::Chip::SN76489), FALSE);
-    SetDlgItemInt(_headerWnd, edtYM2413Clock, _currentFile.header().clock(VgmHeader::Chip::YM2413), FALSE);
-    SetDlgItemInt(_headerWnd, edtYM2612Clock, _currentFile.header().clock(VgmHeader::Chip::YM2612), FALSE);
-    SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFile.header().clock(VgmHeader::Chip::YM2151), FALSE);
+    SetDlgItemInt(_headerWnd, edtPSGClock, _currentFile.header().clock(Chip::SN76489), FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2413Clock, _currentFile.header().clock(Chip::YM2413), FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2612Clock, _currentFile.header().clock(Chip::YM2612), FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFile.header().clock(Chip::YM2151), FALSE);
 
     // PSG settings
     SetDlgItemText(_headerWnd, edtPSGFeedback, std::format(
@@ -803,10 +803,10 @@ void Gui::update_header()
         throw std::runtime_error(std::format("Invalid version \"{}\"", s));
     }
 
-    _currentFile.header().set_clock(VgmHeader::Chip::SN76489, get_int(_headerWnd, edtPSGClock));
-    _currentFile.header().set_clock(VgmHeader::Chip::YM2413, get_int(_headerWnd, edtYM2413Clock));
-    _currentFile.header().set_clock(VgmHeader::Chip::YM2612, get_int(_headerWnd, edtYM2612Clock));
-    _currentFile.header().set_clock(VgmHeader::Chip::YM2151, get_int(_headerWnd, edtYM2151Clock));
+    _currentFile.header().set_clock(Chip::SN76489, get_int(_headerWnd, edtPSGClock));
+    _currentFile.header().set_clock(Chip::YM2413, get_int(_headerWnd, edtYM2413Clock));
+    _currentFile.header().set_clock(Chip::YM2612, get_int(_headerWnd, edtYM2612Clock));
+    _currentFile.header().set_clock(Chip::YM2151, get_int(_headerWnd, edtYM2151Clock));
 
     s = get_utf8_string(_headerWnd, edtPSGFeedback);
     if (std::smatch m; std::regex_search(s, m, std::regex(R"(^0x([0-9a-fA-F]+))")))

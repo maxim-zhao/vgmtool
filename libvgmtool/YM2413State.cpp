@@ -44,7 +44,7 @@ namespace
 }
 
 YM2413State::YM2413State(const VgmHeader& header)
-    : _clockRate(header.clock(VgmHeader::Chip::YM2413)),
+    : _clockRate(header.clock(Chip::YM2413)),
       _registers(0x39) { }
 
 void YM2413State::add(const std::shared_ptr<const VgmCommands::YM2413>& pCommand)
