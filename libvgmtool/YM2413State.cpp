@@ -221,7 +221,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
     // Check if valid
     if (!VALID_REGISTERS.contains(p->registerIndex()))
     {
-        s << "Invalid register index " << std::format("{:03x}", p->registerIndex());
+        s << std::format("Invalid register index {:03x}", p->registerIndex());
         return;
     }
 
@@ -231,37 +231,43 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
     {
     case 0x00:
     case 0x01:
-        s << "Tone user instrument ("
-            << (registerIndex == 1
-                ? "carrier"
-                : "modulator")
-            << "): multiplier " << CUSTOM_INSTRUMENT_MULTIPLYING_FACTORS[value & 0b1111]
-            << ", key scale rate " << Utils::bit_value(value, 4)
-            << ", " << (Utils::bit_set(value, 5)
-                ? "sustained"
-                : "percussive") << " tone, vibrato "
-            << Utils::on_off(value, 6)
-            << ", AM " << Utils::on_off(value, 7);
+        s << std::format(
+            "Tone user instrument ({}): multiplier {}, "
+            "key scale rate {}, "
+            "{} tone, "
+            "vibrato {}, "
+            "AM {}",
+            registerIndex == 1 ? "carrier" : "modulator",
+            CUSTOM_INSTRUMENT_MULTIPLYING_FACTORS[value & 0b1111],
+            Utils::bit_value(value, 4),
+            Utils::bit_set(value, 5) ? "sustained" : "percussive",
+            Utils::on_off(value, 6),
+            Utils::on_off(value, 7));
         return;
     case 0x02:
         {
             const double keyScaleLevel = 1.5 * (value >> 6);
             const double attenuation = 0.75 * (value & 0b111111);
-            s << "Tone user instrument: modulator key scale level " << keyScaleLevel << " dB/oct, total level "
-                << attenuation << " dB = " << std::format("{:3.0f}%", Utils::db_to_percent(attenuation));
+            s << std::format(
+                "Tone user instrument: modulator key scale level {} dB/oct, "
+                "total level {} dB = {:3.0f}%",
+                keyScaleLevel,
+                attenuation,
+                Utils::db_to_percent(attenuation));
             return;
         }
     case 0x03:
         {
             const double keyScaleLevel = 1.5 * (value >> 6);
-            s << "Tone user instrument: carrier key scale level " << keyScaleLevel << " db/oct"
-                << ", carrier " << (Utils::bit_set(value, 4)
-                    ? ""
-                    : "not ") << "rectified"
-                << ", modulator " << (Utils::bit_set(value, 3)
-                    ? ""
-                    : "not ") << "rectified"
-                << ", feedback modulation " << CUSTOM_INSTRUMENT_FEEDBACK_MODULATIONS[value & 0b111];
+            s << std::format(
+                "Tone user instrument: carrier key scale level {} db/oct, "
+                "carrier {}rectified, "
+                "modulator {}rectified, "
+                "feedback modulation {}",
+                keyScaleLevel,
+                Utils::bit_set(value, 4) ? "" : "not ",
+                Utils::bit_set(value, 3) ? "" : "not ",
+                CUSTOM_INSTRUMENT_FEEDBACK_MODULATIONS[value & 0b111]);
             return;
         }
     case 0x04:
@@ -269,11 +275,11 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
         {
             const int attackRate = value >> 4;
             const int decayRate = value & 0xf;
-            s << "Tone user instrument (" << (p->registerIndex() == 4
-                    ? "modulator"
-                    : "carrier") << "): "
-                << "attack rate " << attackRate
-                << ", decay rate " << decayRate;
+            s << std::format(
+                "Tone user instrument ({}): attack rate {}, decay rate {}",
+                p->registerIndex() == 4 ? "modulator" : "carrier",
+                attackRate,
+                decayRate);
             return;
         }
     case 0x06:
@@ -281,15 +287,20 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
         {
             const int sustainLevel = 3 * (value >> 4);
             const int releaseRate = value & 0xf;
-            s << "Tone user instrument (" << (p->registerIndex() == 6
-                    ? "modulator"
-                    : "carrier") << "): "
-                << "sustain level " << sustainLevel << " dB = " << std::format("{:3.0f}%", Utils::db_to_percent(sustainLevel))
-                << ", release rate " << releaseRate;
+            s << std::format(
+                "Tone user instrument ({}): "
+                "sustain level {} dB = {:3.0f}%, release rate {}",
+                p->registerIndex() == 6 ? "modulator" : "carrier",
+                sustainLevel,
+                Utils::db_to_percent(sustainLevel),
+                releaseRate);
             return;
         }
     case 0x0e: // Percussion
-        s << "Rhythm control: percussion " << Utils::on_off(value, 5) << ", instruments: " << percussion_instruments(value);
+        s << std::format(
+            "Rhythm control: percussion {}, instruments: {}",
+            Utils::on_off(value, 5),
+            percussion_instruments(value));
         return;
     case 0x10:
     case 0x11:
@@ -303,8 +314,13 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
         {
             const auto channel = p->registerIndex() & 0xf;
             const auto frequency = this->frequency(channel);
-            s << "Tone frequency: ch " << channel << " -> " << std::format("{:03d}", f_number(channel))
-                << "(" << block(channel) << ") = " << std::format("{:8.2f}", frequency) << " Hz = " << Utils::note_name(frequency);
+            s << std::format(
+                "Tone frequency: ch {} -> {:03d} ({}) = {:8.2f} Hz = {}",
+                channel,
+                f_number(channel),
+                block(channel),
+                frequency,
+                Utils::note_name(frequency));
             if (channel >= 6)
             {
                 s << " OR Percussion F-num";
