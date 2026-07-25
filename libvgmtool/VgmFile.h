@@ -62,10 +62,10 @@ public:
 
 private:
     static void write_command_as_text(
-        std::ostream& s, 
-        size_t& offset, 
-        int& time, 
-        SN76489State& psgState, 
+        std::ostream& s,
+        size_t& offset,
+        int& time,
+        SN76489State& psgState,
         YM2413State& ym2413State,
-        const std::shared_ptr<VgmCommands::ICommand>& pCommand);
+        const std::shared_ptr<const VgmCommands::ICommand>& pCommand);
 };

@@ -15,8 +15,8 @@ namespace
     {
         std::shared_ptr<IChipState> _current;
         std::shared_ptr<IChipState> _lastWritten;
-        std::shared_ptr<const IChipState> _start;
-        std::shared_ptr<const IChipState> _loop;
+        std::shared_ptr<IChipState> _start;
+        std::shared_ptr<IChipState> _loop;
     public:
         ChipStatesTracker() = default; // Default one is empty!
         explicit ChipStatesTracker(const IChipState& base)
@@ -29,7 +29,7 @@ namespace
 
         void emit_delta(CommandStream& commandStream) const
         {
-            _current->copy_to_command_stream(commandStream, _lastWritten, false);
+            _current->copy_to_command_stream(commandStream, _lastWritten, IChipState::WriteTypes::automatic);
         }
 
         void snapshot_start()
@@ -48,14 +48,14 @@ namespace
             // We might not have one, in which case this is a no-op
             if (_loop)
             {
-                _loop->copy_to_command_stream(commandStream, _current, false);
+                _loop->copy_to_command_stream(commandStream, _current, IChipState::WriteTypes::force_delta);
             }
         }
 
         void insert_start_state(VgmFile& vgmFile) const
         {
             CommandStream startState;
-            _start->copy_to_command_stream(startState, _start->clone(), true);
+            _start->copy_to_command_stream(startState, _start->clone(), IChipState::WriteTypes::force_full_image);
             vgmFile.data_before_loop().commands().insert(
                 vgmFile.data_before_loop().commands().begin(),
                 std::make_move_iterator(startState.commands().begin()),
@@ -64,7 +64,7 @@ namespace
 
         }
 
-        void add(const std::shared_ptr<VgmCommands::ICommand>& command) const
+        void add(const std::shared_ptr<const VgmCommands::ICommand>& command) const
         {
             _current->add(command);
         }
@@ -73,8 +73,7 @@ namespace
     std::shared_ptr<ChipStatesTracker> getTracker(std::unordered_map<Chip, std::shared_ptr<ChipStatesTracker>>& map, const Chip chip, const VgmHeader& header)
     {
         // If we have it in the map, return it, else create it
-        auto it = map.find(chip);
-        if (it != map.end())
+        if (const auto it = map.find(chip); it != map.end())
         {
             return it->second;
         }
@@ -137,7 +136,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
     {
         // Every command maybe has some time, and maybe changes the chip state(s).
         auto pendingTime = 0;
-        if (const auto wait = std::dynamic_pointer_cast<VgmCommands::Wait>(command))
+        if (const auto wait = std::dynamic_pointer_cast<const VgmCommands::Wait>(command))
         {
             pendingTime += wait->duration();
         }
@@ -146,11 +145,11 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
         case Chip::Nothing:
             break;
         case Chip::SN76489:
-            if (const auto ggStereo = std::dynamic_pointer_cast<VgmCommands::GGStereo>(command))
+            if (const auto ggStereo = std::dynamic_pointer_cast<const VgmCommands::GGStereo>(command))
             {
                 getTracker(chipStateTrackers, Chip::SN76489, header)->add(ggStereo);
             }
-            else if (const auto sn76489 = std::dynamic_pointer_cast<VgmCommands::SN76489>(command))
+            else if (const auto sn76489 = std::dynamic_pointer_cast<const VgmCommands::SN76489>(command))
             {
                 getTracker(chipStateTrackers, Chip::SN76489, header)->add(sn76489);
             }

@@ -81,10 +81,10 @@ void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmComma
 void SN76489State::copy_to_command_stream(
     CommandStream& stream,
     const std::shared_ptr<IChipState> lastWritten,
-    const bool fullImage) const
+    WriteTypes mode)
 {
     const auto lastWrittenPsgState = std::dynamic_pointer_cast<SN76489State>(lastWritten);
-    if (fullImage || _stereoMask != lastWrittenPsgState->_stereoMask)
+    if (mode == WriteTypes::force_full_image || _stereoMask != lastWrittenPsgState->_stereoMask)
     {
         auto ggStereo = std::make_shared<VgmCommands::GGStereo>();
         ggStereo->set_value(_stereoMask);
@@ -94,7 +94,7 @@ void SN76489State::copy_to_command_stream(
 
     for (std::size_t i = 0; i < _registers.size(); ++i)
     {
-        if (fullImage || _registers[i] != lastWrittenPsgState->_registers[i])
+        if (mode == WriteTypes::force_full_image || _registers[i] != lastWrittenPsgState->_registers[i])
         {
             const auto channel = i / 2;
             const auto isTone = ((i % 2) == 0) && (i != 6); // Channels 0, 2, 4 are tone channels

@@ -20,7 +20,7 @@ void CommandStream::from_data(BinaryData& data, uint32_t endOffset)
         auto pCommand = it->second(data);
         _commands.push_back(pCommand);
 
-        if (std::dynamic_pointer_cast<VgmCommands::End>(pCommand))
+        if (std::dynamic_pointer_cast<const VgmCommands::End>(pCommand))
         {
             if (data.offset() != endOffset)
             {
@@ -245,7 +245,7 @@ void CommandStream::optimise_pauses()
     CommandStream temp;
     for (const auto& command : _commands)
     {
-        if (const auto& pause = std::dynamic_pointer_cast<VgmCommands::Wait>(command);
+        if (const auto& pause = std::dynamic_pointer_cast<const VgmCommands::Wait>(command);
             pause && command->chip() == Chip::Nothing)
         {
             // It's a pause. Add to the running total.

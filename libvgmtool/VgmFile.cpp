@@ -165,7 +165,7 @@ void VgmFile::check_header(const bool fix, const IStatusCallback& callback)
     }
 }
 
-void VgmFile::write_command_as_text(std::ostream& s, size_t& offset, int& time, SN76489State& psgState, YM2413State& ym2413State, const std::shared_ptr<VgmCommands::ICommand>& pCommand)
+void VgmFile::write_command_as_text(std::ostream& s, size_t& offset, int& time, SN76489State& psgState, YM2413State& ym2413State, const std::shared_ptr<const VgmCommands::ICommand>& pCommand)
 {
     // File offset
     s << std::format("{:#010x} ", offset);

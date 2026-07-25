@@ -11,12 +11,14 @@ class CommandStream
 public:
     void from_data(BinaryData& data, uint32_t endOffset);
 
-    std::vector<std::shared_ptr<VgmCommands::ICommand>>& commands()
+    [[nodiscard]]
+    std::vector<std::shared_ptr<const VgmCommands::ICommand>>& commands()
     {
         return _commands;
     }
 
-    [[nodiscard]] const std::vector<std::shared_ptr<VgmCommands::ICommand>>& commands() const
+    [[nodiscard]]
+    const std::vector<std::shared_ptr<const VgmCommands::ICommand>>& commands() const
     {
         return _commands;
     }
@@ -33,6 +35,6 @@ private:
     template <typename T>
     void register_command(uint8_t min, uint8_t max);
 
-    std::vector<std::shared_ptr<VgmCommands::ICommand>> _commands;
-    std::unordered_map<uint8_t, std::function<std::shared_ptr<VgmCommands::ICommand>(BinaryData& data)>> _commandGenerators;
+    std::vector<std::shared_ptr<const VgmCommands::ICommand>> _commands;
+    std::unordered_map<uint8_t, std::function<std::shared_ptr<const VgmCommands::ICommand>(BinaryData& data)>> _commandGenerators;
 };
