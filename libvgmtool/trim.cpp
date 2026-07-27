@@ -18,11 +18,10 @@ namespace
         std::shared_ptr<IChipState> _start;
         std::shared_ptr<IChipState> _loop;
     public:
-        ChipStatesTracker() = default; // Default one is empty!
         explicit ChipStatesTracker(const IChipState& base)
             : _current(base.clone()),
         _lastWritten(base.clone()),
-        _start(nullptr),
+        _start(base.clone()), // May get overwritten later
         _loop(nullptr)
         {
         }
@@ -36,7 +35,7 @@ namespace
         {
             _current->clear_memory();
             _start = _current->clone();
-            *_lastWritten = *_current;
+            _lastWritten = _current->clone();
         }
 
         void snapshot_loop()
@@ -55,6 +54,11 @@ namespace
 
         void insert_start_state(VgmFile& vgmFile) const
         {
+            if (!_start)
+            {
+                throw std::runtime_error("No start state");
+            }
+
             CommandStream startState;
             _start->copy_to_command_stream(startState, _start->clone(), IChipState::WriteTypes::force_full_image);
             vgmFile.data_before_loop().commands().insert(
@@ -112,7 +116,14 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
         end = static_cast<int>(header.sample_count());
     }
 
-    callback.verbose_message("Trimming VGM data...");
+    if (std::cmp_greater(loop, header.sample_count()))
+    {
+        callback.message(std::format(
+            "Loop point ({} samples) beyond end of file!\nDisabling looping",
+            loop,
+            header.sample_count()));
+        loop = -1;
+    }
 
     // Copy all the commands from the VGM file into one big stream
     CommandStream allCommands;
@@ -126,13 +137,15 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
     vgmFile.data_before_loop().commands().clear();
     vgmFile.data_with_loop().commands().clear();
 
+    callback.verbose_message("Looking for start...");
+
     // I want to walk through all the data...
     // While time < start, we just track chip state.
     // When time passes start, we emit a full image and any remaining wait until either loop or end.
     // While time < end, we track chip state and emit waits and deltas.
     // When time passes loop, we capture the chip state for later.
     // When time passes end, we emit the delta to get back to the loop state.
-    int time = 0; // TODO extend times to 64 bit? 2^32 samples is 2^32 / 44100 = 27 hours, so probably not needed for now
+    int time = 0; // No need for 64-bit times - 32-bit is enough for 13.5 hours, plus the header is limited to uint32 anyway
     for (const auto& command : allCommands.commands())
     {
         // Every command maybe has some time, and maybe changes the chip state(s).
@@ -181,6 +194,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
             // just before the time is added.
             if (timeBefore <= start && timeAfter > start)
             {
+                callback.verbose_message("Found start, optimizing data...");
                 // We are passing the start point
                 currentStream = &vgmFile.data_before_loop();
                 // Remember the state
@@ -208,6 +222,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
             }
             if (timeBefore <= loop && timeAfter > loop)
             {
+                callback.verbose_message("Found loop...");
                 // We are passing the loop point
                 // Capture the current state for later
                 for (const auto & tracker : chipStateTrackers | std::views::values)
@@ -224,6 +239,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
             }
             if (timeBefore < end && timeAfter >= end)
             {
+                callback.verbose_message("Found end...");
                 // We are reaching or passing the end point
                 // Emit as much time as we need to get to the end point, or just all the pending time
                 const auto timeToEmit = std::min(pendingTime, end - time);
@@ -248,6 +264,7 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
         }
     }
 
+    callback.verbose_message("Injecting start state...");
     // Inject the start state at the beginning
     for (const auto& tracker : chipStateTrackers | std::views::values)
     {
@@ -255,10 +272,12 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
     }
 
     // We emitted the pauses as-is. Now we optimise them.
+    callback.verbose_message("Optimizing pauses...");
     vgmFile.data_before_loop().optimise_pauses();
     vgmFile.data_with_loop().optimise_pauses();
 
     // Update header
+    callback.verbose_message("Updating header...");
     header.set_sample_count(end - start);
     if (loop > -1)
     {

@@ -67,7 +67,7 @@ void YM2413State::add(const std::shared_ptr<const VgmCommands::ICommand>& comman
         const uint8_t previousValue = _registers[registerIndex];
         const uint8_t value = pCommand->value();
 
-        // We queue any events which are actually changing a register, in a per-register queue
+        // We queue any events which are actually changing a register
         if (value != previousValue)
         {
             _eventsQueue.push_back(pCommand);
