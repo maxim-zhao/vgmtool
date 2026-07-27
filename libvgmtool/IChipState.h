@@ -19,4 +19,5 @@ public:
     virtual void add(const std::shared_ptr<const VgmCommands::ICommand>& command) = 0;
     virtual void copy_to_command_stream(CommandStream& stream, std::shared_ptr<IChipState> lastWritten, WriteTypes mode) = 0;
     [[nodiscard]] virtual std::shared_ptr<IChipState> clone() const = 0;
+    virtual void clear_memory() = 0;
 };

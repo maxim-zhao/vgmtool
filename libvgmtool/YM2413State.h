@@ -23,6 +23,7 @@ public:
     void add(const std::shared_ptr<const VgmCommands::ICommand>& command) override;
     void copy_to_command_stream(CommandStream& stream, std::shared_ptr<IChipState> lastWritten, WriteTypes mode) override;
     [[nodiscard]] std::shared_ptr<IChipState> clone() const override;
+    void clear_memory() override;
 
 private:
     static std::string percussion_instruments(uint8_t value);

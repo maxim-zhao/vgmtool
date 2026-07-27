@@ -9,7 +9,7 @@
 class CommandStream
 {
 public:
-    void from_data(BinaryData& data, uint32_t endOffset);
+    void from_data(BinaryData& data, uint32_t endOffset, bool expectEnd);
 
     [[nodiscard]]
     std::vector<std::shared_ptr<const VgmCommands::ICommand>>& commands()

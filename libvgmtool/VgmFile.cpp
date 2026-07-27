@@ -52,12 +52,12 @@ void VgmFile::load_file(const std::string& filename)
     // If not, leave the "loop" empty.
     if (_header.loop_offset() != 0)
     {
-        _dataBeforeLoop.from_data(data, _header.loop_offset());
-        _dataWithLoop.from_data(data, endOffset);
+        _dataBeforeLoop.from_data(data, _header.loop_offset(), false);
+        _dataWithLoop.from_data(data, endOffset, true);
     }
     else
     {
-        _dataBeforeLoop.from_data(data, endOffset);
+        _dataBeforeLoop.from_data(data, endOffset, true);
     }
 
     // Check for orphaned data
@@ -67,7 +67,7 @@ void VgmFile::load_file(const std::string& filename)
     }
 }
 
-void VgmFile::save_file(const std::string& filename, const IStatusCallback& callback, const bool verbose_zopfli, int compression)
+void VgmFile::save_file(const std::string& filename, const IStatusCallback& callback, const bool verboseZopfli, const int compression)
 {
     BinaryData data;
 
@@ -109,7 +109,7 @@ void VgmFile::save_file(const std::string& filename, const IStatusCallback& call
 
     if (compression > 0)
     {
-        data.compress(compression, callback, verbose_zopfli);
+        data.compress(compression, callback, verboseZopfli);
     }
 
     // Finally, save to disk.

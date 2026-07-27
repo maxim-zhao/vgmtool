@@ -34,6 +34,7 @@ namespace
 
         void snapshot_start()
         {
+            _current->clear_memory();
             _start = _current->clone();
             *_lastWritten = *_current;
         }
@@ -140,28 +141,22 @@ void trim_vgm_file(VgmFile& vgmFile, int start, int loop, int end, const IStatus
         {
             pendingTime += wait->duration();
         }
-        switch (command->chip())  // NOLINT(clang-diagnostic-switch-enum)
+
+        if (command->chip() != Chip::Nothing)
         {
-        case Chip::Nothing:
-            break;
-        case Chip::SN76489:
-            if (const auto ggStereo = std::dynamic_pointer_cast<const VgmCommands::GGStereo>(command))
+            auto tracker = getTracker(chipStateTrackers, command->chip(), header);
+            if (tracker)
             {
-                getTracker(chipStateTrackers, Chip::SN76489, header)->add(ggStereo);
+                tracker->add(command);
             }
-            else if (const auto sn76489 = std::dynamic_pointer_cast<const VgmCommands::SN76489>(command))
+            else
             {
-                getTracker(chipStateTrackers, Chip::SN76489, header)->add(sn76489);
+                // Pass through commands for other chips, if we are past the start.
+                if (time > start)
+                {
+                    currentStream->commands().push_back(command);
+                }
             }
-            break;
-            // TODO lots more chips to handle
-        default:
-            // Pass through commands for other chips, if we are past the start.
-            if (time > start)
-            {
-                currentStream->commands().push_back(command);
-            }
-            break;
         }
 
         if (pendingTime > 0)

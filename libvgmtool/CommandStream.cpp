@@ -5,7 +5,7 @@
 
 #include "vgm.h"
 
-void CommandStream::from_data(BinaryData& data, uint32_t endOffset)
+void CommandStream::from_data(BinaryData& data, uint32_t endOffset, bool expectEnd)
 {
     register_commands();
 
@@ -33,8 +33,11 @@ void CommandStream::from_data(BinaryData& data, uint32_t endOffset)
             return;
         }
     }
-    // If we get there then we ran out of data before we saw EOF
-    throw std::runtime_error("No EOF marker found in VGM data");
+    if (expectEnd)
+    {
+        // If we get there then we ran out of data before we saw EOF
+        throw std::runtime_error("No EOF marker found in VGM data");
+    }
 }
 
 void CommandStream::to_binary(BinaryData& data) const

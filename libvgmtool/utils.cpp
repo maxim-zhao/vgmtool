@@ -4,6 +4,7 @@
 #include "utils.h"
 
 #include <fstream>
+#include <numbers>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -185,7 +186,7 @@ std::string Utils::note_name(const double frequencyHz)
         return "notanote";
     }
 
-    const double midiNote = (log(frequencyHz) - log(440)) / log(2) * 12 + 69;
+    const double midiNote = (log(frequencyHz) - log(440)) / std::numbers::ln2 * 12 + 69;
     const int nearestNote = static_cast<int>(std::round(midiNote));
     const char* noteNames[] = {"A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"};
     return std::format(

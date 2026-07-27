@@ -32,6 +32,7 @@ public:
     void to_text(std::ostream& s, const std::shared_ptr<const VgmCommands::ICommand>& pCommand);
     void copy_to_command_stream(CommandStream& stream, std::shared_ptr<IChipState> lastWritten, WriteTypes mode) override;
     [[nodiscard]] std::shared_ptr<IChipState> clone() const override;
+    void clear_memory() override;
 
 private:
     void prepare_text();
@@ -42,6 +43,7 @@ private:
     std::size_t _latchedRegisterIndex = 0;
     uint32_t _clockRate;
     uint8_t _stereoMask = 0xff;
+    bool _noiseChanged = false;
 
     // To-text reusable text
     std::vector<std::string> _noiseSpeedDescriptions;

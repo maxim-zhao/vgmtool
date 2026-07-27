@@ -78,7 +78,7 @@ void YM2413State::add(const std::shared_ptr<const VgmCommands::ICommand>& comman
     }
 }
 
-void YM2413State::copy_to_command_stream(CommandStream& stream, const std::shared_ptr<IChipState> lastWritten, WriteTypes mode)
+void YM2413State::copy_to_command_stream(CommandStream& stream, const std::shared_ptr<IChipState> lastWritten, const WriteTypes mode)
 {
     const auto lastWrittenState = std::dynamic_pointer_cast<YM2413State>(lastWritten);
 
@@ -126,6 +126,11 @@ void YM2413State::copy_to_command_stream(CommandStream& stream, const std::share
 std::shared_ptr<IChipState> YM2413State::clone() const
 {
     return std::make_shared<YM2413State>(*this);
+}
+
+void YM2413State::clear_memory()
+{
+    _eventsQueue.clear();
 }
 
 std::string YM2413State::percussion_instruments(const uint8_t value)

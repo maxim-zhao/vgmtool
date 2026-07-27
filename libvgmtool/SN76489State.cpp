@@ -27,7 +27,7 @@ void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmComma
                 bits[i] = '-';
             }
         }
-        s << "Stereo: " << bits;
+        s << std::format("Stereo: {}", bits);
         return;
     }
     if (const auto sn76489 = std::dynamic_pointer_cast<const VgmCommands::SN76489>(pCommand))
@@ -48,31 +48,29 @@ void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmComma
         case 2:
         case 4: // Tone registers
             {
-                const auto channel = _latchedRegisterIndex / 2;
                 double frequencyHz = registerValue == 0
                     ? 0.0
                     : static_cast<double>(_clockRate) / 32.0 / registerValue;
-                s << "Tone ch " << channel
-                    << std::format(" -> {:#05x}", registerValue)
-                    << std::format(" = {:8.2f} Hz", frequencyHz)
-                    << " = " << Utils::note_name(frequencyHz);
+                s << std::format(
+                    "Tone ch {} -> {:#05x} = {:8.2f} Hz = {}",
+                    _latchedRegisterIndex / 2,
+                    registerValue,
+                    frequencyHz,
+                    Utils::note_name(frequencyHz));
                 return;
             }
         case 6: // Noise
-            {
-                const char* noiseType = (registerValue & 0b100) == 0
-                    ? "synchronous"
-                    : "white";
-                const int noiseSpeed = registerValue & 0b011;
-                s << "Noise: " << noiseType << ", " << _noiseSpeedDescriptions[noiseSpeed];
-                return;
-            }
+            s << std::format(
+                "Noise: {}, {}",
+                (registerValue & 0b100) == 0 ? "synchronous" : "white",
+                _noiseSpeedDescriptions[(registerValue & 0b011)]);
+            return;
         default: // Volume
-            {
-                const auto channel = _latchedRegisterIndex / 2;
-                s << "Attenuation ch " << channel << " -> " << _volumeDescriptions[registerValue];
-                return;
-            }
+            s << std::format(
+                "Attenuation ch {} -> {}",
+                _latchedRegisterIndex / 2,
+                _volumeDescriptions[registerValue]);
+            return;
         } // end switch
     }
     throw std::runtime_error("Unexpected command type");
@@ -81,7 +79,7 @@ void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmComma
 void SN76489State::copy_to_command_stream(
     CommandStream& stream,
     const std::shared_ptr<IChipState> lastWritten,
-    WriteTypes mode)
+    const WriteTypes mode)
 {
     const auto lastWrittenPsgState = std::dynamic_pointer_cast<SN76489State>(lastWritten);
     if (mode == WriteTypes::force_full_image || _stereoMask != lastWrittenPsgState->_stereoMask)
@@ -94,7 +92,9 @@ void SN76489State::copy_to_command_stream(
 
     for (std::size_t i = 0; i < _registers.size(); ++i)
     {
-        if (mode == WriteTypes::force_full_image || _registers[i] != lastWrittenPsgState->_registers[i])
+        if (mode == WriteTypes::force_full_image || 
+            _registers[i] != lastWrittenPsgState->_registers[i] ||
+            i == 6 && _noiseChanged)
         {
             const auto channel = i / 2;
             const auto isTone = ((i % 2) == 0) && (i != 6); // Channels 0, 2, 4 are tone channels
@@ -119,11 +119,19 @@ void SN76489State::copy_to_command_stream(
             lastWrittenPsgState->_registers[i] = _registers[i];
         }
     }
+
+    // Then clear our memory
+    _noiseChanged = false;
 }
 
 std::shared_ptr<IChipState> SN76489State::clone() const
 {
     return std::make_shared<SN76489State>(*this);
+}
+
+void SN76489State::clear_memory()
+{
+    _noiseChanged = false;
 }
 
 void SN76489State::prepare_text()
@@ -192,6 +200,8 @@ void SN76489State::add(const std::shared_ptr<const VgmCommands::ICommand>& comma
                 _registers[_latchedRegisterIndex] = value & 0b1111;
             }
         }
+        // TODO: noise restart on write! Can't believe I missed that
+        _noiseChanged = _latchedRegisterIndex == 6;
     }
     else
     {
