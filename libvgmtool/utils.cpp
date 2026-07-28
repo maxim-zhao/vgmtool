@@ -36,7 +36,7 @@ void Utils::compress(const std::string& filename, const IStatusCallback& callbac
         filename, 
         sizeBefore, 
         data.size(), 
-        percentReduction(static_cast<int>(data.size()), sizeBefore)));
+        percent_reduction(static_cast<int>(data.size()), sizeBefore)));
 
     // Now compress
     ZopfliOptions options{};
@@ -73,8 +73,8 @@ void Utils::compress(const std::string& filename, const IStatusCallback& callbac
         "{} after: {} bytes ({:.2}% smaller, {:.4}% compression)", 
         filename, 
         sizeAfter, 
-        percentReduction(sizeBefore, sizeAfter), 
-        percentReduction(static_cast<int>(data.size()), sizeAfter)));
+        percent_reduction(sizeBefore, sizeAfter), 
+        percent_reduction(static_cast<int>(data.size()), sizeAfter)));
 }
 
 void Utils::decompress(const std::string& filename)
@@ -216,12 +216,27 @@ bool Utils::bit_set(const uint8_t value, const int bitIndex)
     return bit_value(value, bitIndex) == 1;
 }
 
-double Utils::db_to_percent(const double attenuation)
+double Utils::attenuation_db_to_percent(const int attenuationDb)
 {
-    return std::pow(10, -0.1 * attenuation) * 100;
+    return std::pow(10, -0.1 * attenuationDb) * 100;
 }
 
-double Utils::percentReduction(const unsigned long long before, const unsigned long long after)
+double Utils::attenuation_db_to_percent(const double attenuationDb)
+{
+    return std::pow(10, -0.1 * attenuationDb) * 100;
+}
+
+double Utils::volume_db_to_percent(const int volumeDb, const int maxDb)
+{
+    if (volumeDb == 0)
+    {
+        return 0.0;
+    }
+    // TODO this is wrong
+    return std::pow(10, 0.1 * volumeDb) / std::pow(10, 0.1 * maxDb) * 100;
+}
+
+double Utils::percent_reduction(const unsigned long long before, const unsigned long long after)
 {
     return static_cast<double>(before - after) / static_cast<double>(before) * 100;
 }

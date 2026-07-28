@@ -159,7 +159,7 @@ void SN76489State::prepare_text()
     for (int i = 0; i < 15; ++i)
     {
         const int dB = i * 2;
-        _volumeDescriptions.emplace_back(std::format("{:#x} = {:2} dB = {:3.0f}%", i, dB, Utils::db_to_percent(dB)));
+        _volumeDescriptions.emplace_back(std::format("{:#x} = {:2} dB = {:3.0f}%", i, dB, Utils::attenuation_db_to_percent(dB)));
     }
     _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
 }

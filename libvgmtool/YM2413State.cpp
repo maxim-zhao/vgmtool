@@ -2,8 +2,13 @@
 
 #include <array>
 #include <format>
+#include <ranges>
 #include <set>
 #include <sstream>
+#include <unordered_set>
+#include <range/v3/view/filter.hpp>
+#include <range/v3/view/concat.hpp>
+#include <range/v3/view/single.hpp>
 
 #include "CommandStream.h"
 #include "utils.h"
@@ -12,17 +17,18 @@
 
 namespace
 {
-    // ordered so we emit them in this order in a full image, else it's non-deterministic
-    const std::set<uint8_t> VALID_REGISTERS // NOLINT(bugprone-throwing-static-initialization)
+    std::vector<uint8_t> FULL_IMAGE_REGISTER_ORDER
     {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // Custom instrument
-        0x0e, // Rhythm control
         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, // F-number low 8 bits
         0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, // F-number high bit, block, key, sustain
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, // Instrument, volume
+        0x0e, // Rhythm control at the end. TODO check which YM2413 emulators care
     };
 
-    const uint8_t MAX_REGISTER_INDEX = std::ranges::max(VALID_REGISTERS); // NOLINT(bugprone-throwing-static-initialization)
+    const std::unordered_set VALID_REGISTERS(FULL_IMAGE_REGISTER_ORDER.begin(), FULL_IMAGE_REGISTER_ORDER.end());
+
+    const uint8_t MAX_REGISTER_INDEX = std::ranges::max(FULL_IMAGE_REGISTER_ORDER); // NOLINT(bugprone-throwing-static-initialization)
 
     constexpr std::array CUSTOM_INSTRUMENT_MULTIPLYING_FACTORS
     {
@@ -85,7 +91,10 @@ void YM2413State::copy_to_command_stream(CommandStream& stream, const std::share
     switch (mode)
     {
     case WriteTypes::force_full_image:
-        for (const uint8_t registerIndex : VALID_REGISTERS)
+        for (const uint8_t registerIndex :
+        ranges::views::concat(
+            VALID_REGISTERS | ranges::views::filter([](auto x) { return x != 0x0e; }),
+            ranges::views::single(uint8_t{0x0e})))
         {
             auto command = std::make_shared<VgmCommands::YM2413>();
             command->set_register(registerIndex);
@@ -157,38 +166,38 @@ std::string YM2413State::percussion_instruments(const uint8_t value)
 
 std::string YM2413State::percussion_volumes(const std::shared_ptr<const VgmCommands::YM2413>& pCommand)
 {
-    const auto volume1 = pCommand->value() >> 4;
+    const auto volume1 = (pCommand->value() >> 4);
     const auto volume2 = pCommand->value() & 0b1111;
-    const auto attenuation1 = 3 * volume1;
-    const auto attenuation2 = 3 * volume2;
+    const auto volume1db = 3 * volume1;
+    const auto volume2db = 3 * volume2;
     switch (pCommand->registerIndex())
     {
     case 0x36:
-        return std::format("{} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%",
+        return std::format("{} -> vol 0x{:x} = {:3} dB = {:3.0f}%",
             RHYTHM_INSTRUMENT_NAMES[4],
             volume2,
-            attenuation2,
-            Utils::db_to_percent(attenuation2));
+            volume2db,
+            Utils::volume_db_to_percent(volume2db, 45));
     case 0x37:
-        return std::format("{} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%",
+        return std::format("{} -> vol 0x{:x} = {:3} dB = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB = {:3.0f}%",
             RHYTHM_INSTRUMENT_NAMES[0],
             volume1,
-            attenuation1,
-            Utils::db_to_percent(attenuation1),
+            volume1db,
+            Utils::volume_db_to_percent(volume1db, 45),
             RHYTHM_INSTRUMENT_NAMES[3],
             volume2,
-            attenuation2,
-            Utils::db_to_percent(attenuation2));
+            volume2db,
+            Utils::volume_db_to_percent(volume2db, 45));
     case 0x38:
-        return std::format("{} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%",
+        return std::format("{} -> vol 0x{:x} = {:3} dB = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB = {:3.0f}%",
             RHYTHM_INSTRUMENT_NAMES[2],
             volume1,
-            attenuation1,
-            Utils::db_to_percent(attenuation1),
+            volume1db,
+            Utils::volume_db_to_percent(volume1db, 45),
             RHYTHM_INSTRUMENT_NAMES[1],
             volume2,
-            attenuation2,
-            Utils::db_to_percent(attenuation2));
+            volume2db,
+            Utils::volume_db_to_percent(volume2db, 45));
     default:
         throw std::runtime_error(std::format("Unexpected register index {}", pCommand->registerIndex()));
     }
@@ -252,13 +261,13 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
     case 0x02:
         {
             const double keyScaleLevel = 1.5 * (value >> 6);
-            const double attenuation = 0.75 * (value & 0b111111);
+            const double db = 0.75 * (value & 0b111111);
             s << std::format(
                 "Tone user instrument: modulator key scale level {} dB/oct, "
                 "total level {} dB = {:3.0f}%",
                 keyScaleLevel,
-                attenuation,
-                Utils::db_to_percent(attenuation));
+                db,
+                Utils::attenuation_db_to_percent(db));
             return;
         }
     case 0x03:
@@ -297,7 +306,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
                 "sustain level {} dB = {:3.0f}%, release rate {}",
                 p->registerIndex() == 6 ? "modulator" : "carrier",
                 sustainLevel,
-                Utils::db_to_percent(sustainLevel),
+                Utils::volume_db_to_percent(sustainLevel, 45),
                 releaseRate);
             return;
         }
@@ -370,12 +379,12 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
             const auto channel = p->registerIndex() & 0xf;
             const auto instrument = value >> 4;
             const auto volume = value & 0b1111;
-            const auto attenuation = 3 * volume;
-            s << std::format("YM2413: Tone volume/instrument: ch {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; inst 0x{:x} = {}{}",
+            const auto volumeDecibels = 3 * volume;
+            s << std::format("YM2413: Tone volume/instrument: ch {} -> vol 0x{:x} = {:3} dB = {:3.0f}%; inst 0x{:x} = {}{}",
                 channel,
                 volume,
-                attenuation,
-                Utils::db_to_percent(attenuation),
+                volumeDecibels,
+                Utils::volume_db_to_percent(volumeDecibels, 45),
                 instrument,
                 INSTRUMENT_NAMES[instrument],
                 channel < 6

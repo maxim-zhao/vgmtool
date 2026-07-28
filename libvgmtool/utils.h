@@ -49,8 +49,14 @@ public:
     static bool bit_set(uint8_t value, int bitIndex);
 
     // dB attenuation to percentage; 0 dB -> 100%, more dB -> less percent
-    static double db_to_percent(double attenuation);
+    static double attenuation_db_to_percent(int attenuationDb);
+
+    // dB attenuation to percentage; 0 dB -> 100%, more dB -> less percent
+    static double attenuation_db_to_percent(double attenuationDb);
+
+    // dB volume to percentage; 0 dB -> 0%, max dB -> 100%
+    static double volume_db_to_percent(int volumeDb, int maxDb);
 
     // Given two numbers, express the second as a percentage reduction compared to the first
-    static double percentReduction(unsigned long long before, unsigned long long after);
+    static double percent_reduction(unsigned long long before, unsigned long long after);
 };
