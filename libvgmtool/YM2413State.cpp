@@ -3,12 +3,8 @@
 #include <array>
 #include <format>
 #include <ranges>
-#include <set>
 #include <sstream>
 #include <unordered_set>
-#include <range/v3/view/filter.hpp>
-#include <range/v3/view/concat.hpp>
-#include <range/v3/view/single.hpp>
 
 #include "CommandStream.h"
 #include "utils.h"
@@ -91,10 +87,7 @@ void YM2413State::copy_to_command_stream(CommandStream& stream, const std::share
     switch (mode)
     {
     case WriteTypes::force_full_image:
-        for (const uint8_t registerIndex :
-        ranges::views::concat(
-            VALID_REGISTERS | ranges::views::filter([](auto x) { return x != 0x0e; }),
-            ranges::views::single(uint8_t{0x0e})))
+        for (const uint8_t registerIndex : FULL_IMAGE_REGISTER_ORDER)
         {
             auto command = std::make_shared<VgmCommands::YM2413>();
             command->set_register(registerIndex);

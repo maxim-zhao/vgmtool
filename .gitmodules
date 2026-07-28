@@ -14,7 +14,3 @@
 	path = CLI11
 	url = https://github.com/CLIUtils/CLI11.git
 	branch = main
-[submodule "range-v3"]
-	path = range-v3
-	url = https://github.com/ericniebler/range-v3.git
-	branch = master
