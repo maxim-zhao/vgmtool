@@ -218,12 +218,14 @@ bool Utils::bit_set(const uint8_t value, const int bitIndex)
 
 double Utils::attenuation_db_to_percent(const int attenuationDb)
 {
-    return std::pow(10, -0.1 * attenuationDb) * 100;
+    // Level is 10^(-n/20) for attenuation n in dB.
+    return std::pow(10, -0.05 * attenuationDb) * 100;
 }
 
 double Utils::attenuation_db_to_percent(const double attenuationDb)
 {
-    return std::pow(10, -0.1 * attenuationDb) * 100;
+    // Level is 10^(-n/20) for attenuation n in dB.
+    return std::pow(10, -0.05 * attenuationDb) * 100;
 }
 
 double Utils::volume_db_to_percent(const int volumeDb, const int maxDb)
@@ -232,8 +234,7 @@ double Utils::volume_db_to_percent(const int volumeDb, const int maxDb)
     {
         return 0.0;
     }
-    // TODO this is wrong
-    return std::pow(10, 0.1 * volumeDb) / std::pow(10, 0.1 * maxDb) * 100;
+    return attenuation_db_to_percent(maxDb - volumeDb);
 }
 
 double Utils::percent_reduction(const unsigned long long before, const unsigned long long after)

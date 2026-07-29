@@ -164,13 +164,13 @@ std::string YM2413State::percussion_volumes(const std::shared_ptr<const VgmComma
     switch (pCommand->registerIndex())
     {
     case 0x36:
-        return std::format("{} -> vol 0x{:x} = {:3} dB = {:3.0f}%",
+        return std::format("{} -> vol 0x{:x} = {} dB = {:.2f}%",
             RHYTHM_INSTRUMENT_NAMES[4],
             volume2,
             volume2db,
             Utils::volume_db_to_percent(volume2db, 45));
     case 0x37:
-        return std::format("{} -> vol 0x{:x} = {:3} dB = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB = {:3.0f}%",
+        return std::format("{} -> vol 0x{:x} = {} dB = {:.2f}%; {} -> vol 0x{:x} = {} dB = {:.2f}%",
             RHYTHM_INSTRUMENT_NAMES[0],
             volume1,
             volume1db,
@@ -180,7 +180,7 @@ std::string YM2413State::percussion_volumes(const std::shared_ptr<const VgmComma
             volume2db,
             Utils::volume_db_to_percent(volume2db, 45));
     case 0x38:
-        return std::format("{} -> vol 0x{:x} = {:3} dB = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB = {:3.0f}%",
+        return std::format("{} -> vol 0x{:x} = {} dB = {:.2f}%; {} -> vol 0x{:x} = {} dB = {:.2f}%",
             RHYTHM_INSTRUMENT_NAMES[2],
             volume1,
             volume1db,
@@ -226,7 +226,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
     // Check if valid
     if (!VALID_REGISTERS.contains(p->registerIndex()))
     {
-        s << std::format("Invalid register index {:03x}", p->registerIndex());
+        s << std::format("Invalid register index {:x}", p->registerIndex());
         return;
     }
 
@@ -255,7 +255,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
             const double db = 0.75 * (value & 0b111111);
             s << std::format(
                 "Tone user instrument: modulator key scale level {} dB/oct, "
-                "total level {} dB = {:3.0f}%",
+                "total level {} dB = {:.2f}%",
                 keyScaleLevel,
                 db,
                 Utils::attenuation_db_to_percent(db));
@@ -294,7 +294,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
             const int releaseRate = value & 0xf;
             s << std::format(
                 "Tone user instrument ({}): "
-                "sustain level {} dB = {:3.0f}%, release rate {}",
+                "sustain level {} dB = {:.2f}%, release rate {}",
                 p->registerIndex() == 6 ? "modulator" : "carrier",
                 sustainLevel,
                 Utils::volume_db_to_percent(sustainLevel, 45),
@@ -371,7 +371,7 @@ void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pC
             const auto instrument = value >> 4;
             const auto volume = value & 0b1111;
             const auto volumeDecibels = 3 * volume;
-            s << std::format("YM2413: Tone volume/instrument: ch {} -> vol 0x{:x} = {:3} dB = {:3.0f}%; inst 0x{:x} = {}{}",
+            s << std::format("YM2413: Tone volume/instrument: ch {} -> vol 0x{:x} = {} dB = {:.2f}%; inst 0x{:x} = {}{}",
                 channel,
                 volume,
                 volumeDecibels,
