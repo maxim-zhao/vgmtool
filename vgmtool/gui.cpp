@@ -625,12 +625,9 @@ void Gui::make_tabbed_dialog()
     newTab.pszText = const_cast<char*>("GD3 tag");
     newTab.iImage = 3;
     TabCtrl_InsertItem(tabCtrlWnd, 3, &newTab);
-    newTab.pszText = const_cast<char*>("Conversion");
+    newTab.pszText = const_cast<char*>("More functions");
     newTab.iImage = 4;
     TabCtrl_InsertItem(tabCtrlWnd, 4, &newTab);
-    newTab.pszText = const_cast<char*>("More functions");
-    newTab.iImage = 5;
-    TabCtrl_InsertItem(tabCtrlWnd, 5, &newTab);
 
     // We need to locate all the child tabs aligned to the tab control.
     // So first we get the area of the tab control...
