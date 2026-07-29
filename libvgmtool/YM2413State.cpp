@@ -13,18 +13,16 @@
 
 namespace
 {
-    std::vector<uint8_t> FULL_IMAGE_REGISTER_ORDER
+    const std::unordered_set<uint8_t> VALID_REGISTERS // NOLINT(bugprone-throwing-static-initialization)
     {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // Custom instrument
+        0x0e, // Rhythm control
         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, // F-number low 8 bits
         0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, // F-number high bit, block, key, sustain
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, // Instrument, volume
-        0x0e, // Rhythm control at the end. TODO check which YM2413 emulators care
     };
 
-    const std::unordered_set VALID_REGISTERS(FULL_IMAGE_REGISTER_ORDER.begin(), FULL_IMAGE_REGISTER_ORDER.end());
-
-    const uint8_t MAX_REGISTER_INDEX = std::ranges::max(FULL_IMAGE_REGISTER_ORDER); // NOLINT(bugprone-throwing-static-initialization)
+    const uint8_t MAX_REGISTER_INDEX = std::ranges::max(VALID_REGISTERS); // NOLINT(bugprone-throwing-static-initialization)
 
     constexpr std::array CUSTOM_INSTRUMENT_MULTIPLYING_FACTORS
     {
@@ -87,7 +85,7 @@ void YM2413State::copy_to_command_stream(CommandStream& stream, const std::share
     switch (mode)
     {
     case WriteTypes::force_full_image:
-        for (const uint8_t registerIndex : FULL_IMAGE_REGISTER_ORDER)
+        for (const uint8_t registerIndex : VALID_REGISTERS)
         {
             auto command = std::make_shared<VgmCommands::YM2413>();
             command->set_register(registerIndex);
