@@ -112,7 +112,7 @@ std::string Gd3Tag::write_to_text() const
     printer.add("System (EN)", u8narrow(get_text(Key::SystemEn)));
     printer.add("System (JA)", u8narrow(get_text(Key::SystemJa)));
     printer.add("Release date", u8narrow(get_text(Key::ReleaseDate)));
-    printer.add("Creator", u8narrow(get_text(Key::Creator)));;
+    printer.add("Creator", u8narrow(get_text(Key::Creator)));
     const auto notes = u8narrow(get_text(Key::Notes));
     if (notes.find('\n') == std::string::npos)
     {

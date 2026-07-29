@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\StoneSteps.zLib.VS2022.Static.1.3.2.1\build\native\StoneSteps.zLib.VS2022.Static.props" Condition="Exists('..\packages\StoneSteps.zLib.VS2022.Static.1.3.2.1\build\native\StoneSteps.zLib.VS2022.Static.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -15,7 +14,6 @@
     <ClCompile Include="BcdVersion.cpp" />
     <ClCompile Include="BinaryData.cpp" />
     <ClCompile Include="CommandStream.cpp" />
-    <ClCompile Include="convert.cpp" />
     <ClCompile Include="gd3.cpp" />
     <ClCompile Include="Gd3Tag.cpp" />
     <ClCompile Include="KeyValuePrinter.cpp" />
@@ -32,11 +30,12 @@
   <ItemGroup>
     <ClInclude Include="BcdVersion.h" />
     <ClInclude Include="BinaryData.h" />
+    <ClInclude Include="Chip.h" />
     <ClInclude Include="CommandStream.h" />
-    <ClInclude Include="convert.h" />
     <ClInclude Include="gd3.h" />
     <ClInclude Include="Gd3Tag.h" />
-    <ClInclude Include="IVGMToolCallback.h" />
+    <ClInclude Include="IChipState.h" />
+    <ClInclude Include="IStatusCallback.h" />
     <ClInclude Include="KeyValuePrinter.h" />
     <ClInclude Include="optimise.h" />
     <ClInclude Include="SN76489State.h" />
@@ -47,9 +46,6 @@
     <ClInclude Include="VgmFile.h" />
     <ClInclude Include="VgmHeader.h" />
     <ClInclude Include="YM2413State.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -85,7 +81,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)zopfli\zopfli\src\zopfli;$(SolutionDir)libpu8\libpu8</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)zlib\zlib;$(SolutionDir)zopfli\zopfli\src\zopfli;$(SolutionDir)libpu8\libpu8</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -96,7 +92,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)zopfli\zopfli\src\zopfli;$(SolutionDir)libpu8\libpu8</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)zlib\zlib;$(SolutionDir)zopfli\zopfli\src\zopfli;$(SolutionDir)libpu8\libpu8</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -105,14 +101,5 @@
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\StoneSteps.zLib.VS2022.Static.1.3.2.1\build\native\StoneSteps.zLib.VS2022.Static.targets" Condition="Exists('..\packages\StoneSteps.zLib.VS2022.Static.1.3.2.1\build\native\StoneSteps.zLib.VS2022.Static.targets')" />
-  </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\StoneSteps.zLib.VS2022.Static.1.3.2.1\build\native\StoneSteps.zLib.VS2022.Static.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\StoneSteps.zLib.VS2022.Static.1.3.2.1\build\native\StoneSteps.zLib.VS2022.Static.props'))" />
-    <Error Condition="!Exists('..\packages\StoneSteps.zLib.VS2022.Static.1.3.2.1\build\native\StoneSteps.zLib.VS2022.Static.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\StoneSteps.zLib.VS2022.Static.1.3.2.1\build\native\StoneSteps.zLib.VS2022.Static.targets'))" />
-  </Target>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

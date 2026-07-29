@@ -1,14 +1,14 @@
 #include "gd3.h"
 #include <zlib.h>
 
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 #include "vgm.h"
 #include "utils.h"
 
 //----------------------------------------------------------------------------------------------
 // Remove GD3 from file
 //----------------------------------------------------------------------------------------------
-void remove_gd3(const std::string& filename, const IVGMToolCallback& callback)
+void remove_gd3(const std::string& filename, const IStatusCallback& callback)
 {
     OldVGMHeader VGMHeader;
     if (!Utils::file_exists(filename))
@@ -49,5 +49,5 @@ void remove_gd3(const std::string& filename, const IVGMToolCallback& callback)
 
     Utils::replace_file(filename, outFilename);
 
-    callback.show_status("GD3 tag removed");
+    callback.verbose_message("GD3 tag removed");
 }

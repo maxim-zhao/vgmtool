@@ -3,39 +3,37 @@
 #include <format>
 #include <iostream>
 
+#include "Chip.h"
+#include "CommandStream.h"
 #include "utils.h"
 #include "VgmCommands.h"
 
 SN76489State::SN76489State(const VgmHeader& header)
-    : _clockRate(header.clock(VgmHeader::Chip::SN76489))
+    : _clockRate(header.clock(Chip::SN76489))
 {
-    _noiseSpeedDescriptions =
-    {
-        make_noise_description("high", 0),
-        make_noise_description("med", 1),
-        make_noise_description("low", 2),
-        "ch 2"
-    };
-    for (int i = 0; i < 15; ++i)
-    {
-        const int dB = i * 2;
-        _volumeDescriptions.emplace_back(std::format("{:#x} = {:2} dB = {:3.0f}%", i, dB, Utils::db_to_percent(dB)));
-    }
-    _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
 }
 
-void SN76489State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s)
+void SN76489State::to_text(std::ostream& s, const std::shared_ptr<const VgmCommands::ICommand>& pCommand)
 {
-    if (const auto* pStereo = dynamic_cast<const VgmCommands::GGStereo*>(pCommand); pStereo != nullptr)
+    prepare_text();
+    if (const auto ggStereo = std::dynamic_pointer_cast<const VgmCommands::GGStereo>(pCommand))
     {
-        add(pStereo);
-        s << "Stereo: " << print_stereo_mask(_stereoMask);
+        add(ggStereo);
+        std::string bits("012N012N");
+        for (int i = 0; i < 8; ++i)
+        {
+            if ((_stereoMask >> i & 1) == 0)
+            {
+                bits[i] = '-';
+            }
+        }
+        s << std::format("Stereo: {}", bits);
         return;
     }
-    if (const auto* p = dynamic_cast<const VgmCommands::SN76489*>(pCommand); p != nullptr)
+    if (const auto sn76489 = std::dynamic_pointer_cast<const VgmCommands::SN76489>(pCommand))
     {
-        add(p);
-        if ((p->value() & 0b10000000) == 0)
+        add(sn76489);
+        if ((sn76489->value() & 0b10000000) == 0)
         {
             s << "Data:       ";
         }
@@ -50,98 +48,163 @@ void SN76489State::add_with_text(const VgmCommands::ICommand* pCommand, std::ost
         case 2:
         case 4: // Tone registers
             {
-                const int channel = _latchedRegisterIndex / 2;
-                double frequencyHz = tone_length_to_hz(registerValue);
-                s << "Tone ch " << channel
-                    << std::format(" -> {:#05x}", registerValue)
-                    << std::format(" = {:8.2f} Hz", frequencyHz)
-                    << " = " << Utils::note_name(frequencyHz);
+                double frequencyHz = registerValue == 0
+                    ? 0.0
+                    : static_cast<double>(_clockRate) / 32.0 / registerValue;
+                s << std::format(
+                    "Tone ch {} -> {:#05x} = {:8.2f} Hz = {}",
+                    _latchedRegisterIndex / 2,
+                    registerValue,
+                    frequencyHz,
+                    Utils::note_name(frequencyHz));
                 return;
             }
         case 6: // Noise
-            {
-                const char* noiseType = (registerValue & 0b100) == 0
-                    ? "synchronous"
-                    : "white";
-                const int noiseSpeed = registerValue & 0b011;
-                s << "Noise: " << noiseType << ", " << _noiseSpeedDescriptions[noiseSpeed];
-                return;
-            }
+            s << std::format(
+                "Noise: {}, {}",
+                (registerValue & 0b100) == 0 ? "synchronous" : "white",
+                _noiseSpeedDescriptions[(registerValue & 0b011)]);
+            return;
         default: // Volume
-            {
-                const int channel = _latchedRegisterIndex / 2;
-                s << "Attenuation ch " << channel << " -> " << _volumeDescriptions[registerValue];
-                return;
-            }
+            s << std::format(
+                "Attenuation ch {} -> {}",
+                _latchedRegisterIndex / 2,
+                _volumeDescriptions[registerValue]);
+            return;
         } // end switch
     }
     throw std::runtime_error("Unexpected command type");
 }
 
-void SN76489State::add(const VgmCommands::GGStereo* pStereo)
+void SN76489State::copy_to_command_stream(
+    CommandStream& stream,
+    const std::shared_ptr<IChipState> lastWritten,
+    const WriteTypes mode)
 {
-    _stereoMask = pStereo->value();
+    const auto lastWrittenPsgState = std::dynamic_pointer_cast<SN76489State>(lastWritten);
+    if (mode == WriteTypes::force_full_image || _stereoMask != lastWrittenPsgState->_stereoMask)
+    {
+        auto ggStereo = std::make_shared<VgmCommands::GGStereo>();
+        ggStereo->set_value(_stereoMask);
+        stream.commands().emplace_back(ggStereo);
+        lastWrittenPsgState->_stereoMask = _stereoMask;
+    }
+
+    for (std::size_t i = 0; i < _registers.size(); ++i)
+    {
+        if (mode == WriteTypes::force_full_image || 
+            _registers[i] != lastWrittenPsgState->_registers[i] ||
+            i == 6 && _noiseChanged)
+        {
+            const auto channel = i / 2;
+            const auto isTone = ((i % 2) == 0) && (i != 6); // Channels 0, 2, 4 are tone channels
+            const auto isVolume = (i % 2) == 1; // Channels 1, 3, 5, 7 are volume channels
+            const auto mask = (channel << 5) | (isVolume
+                ? 0b10000
+                : 0);
+
+            // All registers have a first byte, whether they're tone, noise or volume
+            auto command1 = std::make_shared<VgmCommands::SN76489>();
+            command1->set_value(static_cast<uint8_t>(0b10000000 | mask | (_registers[i] & 0b1111)));
+            stream.commands().push_back(command1);
+            if (isTone)
+            {
+                // Then there's a second data byte
+                auto command2 = std::make_shared<VgmCommands::SN76489>();
+                // ReSharper disable once CommentTypo
+                // Data byte %0ddddddd
+                command2->set_value(static_cast<uint8_t>(_registers[i] >> 4));
+                stream.commands().push_back(command2);
+            }
+            lastWrittenPsgState->_registers[i] = _registers[i];
+        }
+    }
+
+    // Then clear our memory
+    _noiseChanged = false;
 }
 
-void SN76489State::add(const VgmCommands::SN76489* pCommand)
+std::shared_ptr<IChipState> SN76489State::clone() const
 {
-    if (const auto value = pCommand->value();
-        (value & 0b10000000) != 0)
+    return std::make_shared<SN76489State>(*this);
+}
+
+void SN76489State::clear_memory()
+{
+    _noiseChanged = false;
+}
+
+void SN76489State::prepare_text()
+{
+    if (!_noiseSpeedDescriptions.empty())
     {
-        // ReSharper disable CommentTypo
-        // Latch/data byte %1nnvdddd
-        // nnv = register index
-        // dddd = low 4 bits of data
-        // ReSharper restore CommentTypo
-        _latchedRegisterIndex = (value & 0b01110000) >> 4;
-        _registers[_latchedRegisterIndex] &= 0b1111110000;
-        _registers[_latchedRegisterIndex] |= value & 0b1111;
+        return;
     }
-    else
+
+    auto makeNoiseDescription = [&](const char* prefix, const int shift)
     {
-        // ReSharper disable once CommentTypo
-        // Data byte %0ddddddd
-        if (_latchedRegisterIndex % 2 == 0 && _latchedRegisterIndex < 5)
+        return std::format(
+            "{} ({}Hz)",
+            prefix,
+            _clockRate / 32 / (16 << shift));
+    };
+
+    _noiseSpeedDescriptions =
+    {
+        makeNoiseDescription("high", 0),
+        makeNoiseDescription("med", 1),
+        makeNoiseDescription("low", 2),
+        "ch 2"
+    };
+    for (int i = 0; i < 15; ++i)
+    {
+        const int dB = i * 2;
+        _volumeDescriptions.emplace_back(std::format("{:#x} = {:2} dB = {:3.0f}%", i, dB, Utils::attenuation_db_to_percent(dB)));
+    }
+    _volumeDescriptions.emplace_back(std::format("{:#x} =  ∞ dB = {:3.0f}%", 15, 0.0));
+}
+
+
+void SN76489State::add(const std::shared_ptr<const VgmCommands::ICommand>& command)
+{
+    if (const auto pStereo = std::dynamic_pointer_cast<const VgmCommands::GGStereo>(command))
+    {
+        _stereoMask = pStereo->value();
+    }
+    else if (const auto pCommand = std::dynamic_pointer_cast<const VgmCommands::SN76489>(command))
+    {
+        if (const auto value = pCommand->value();
+            (value & 0b10000000) != 0)
         {
-            // Tone register, apply to high bits
-            _registers[_latchedRegisterIndex] &= 0b0000001111;
-            _registers[_latchedRegisterIndex] |= (value & 0b111111) << 4;
+            // ReSharper disable once CommentTypo
+            // Latch/data byte %1nnvdddd
+            // nnv = register index
+            // dddd = low 4 bits of data
+            _latchedRegisterIndex = (value & 0b01110000) >> 4;
+            _registers[_latchedRegisterIndex] &= 0b1111110000;
+            _registers[_latchedRegisterIndex] |= value & 0b1111;
         }
         else
         {
-            // Other register, truncate to 4 bits and replace
-            _registers[_latchedRegisterIndex] = value & 0b1111;
+            // ReSharper disable once CommentTypo
+            // Data byte %0ddddddd
+            if (_latchedRegisterIndex % 2 == 0 && _latchedRegisterIndex < 5)
+            {
+                // Tone register, apply to high bits
+                _registers[_latchedRegisterIndex] &= 0b0000001111;
+                _registers[_latchedRegisterIndex] |= (value & 0b111111) << 4;
+            }
+            else
+            {
+                // Other register, truncate to 4 bits and replace
+                _registers[_latchedRegisterIndex] = value & 0b1111;
+            }
         }
+        // TODO: noise restart on write! Can't believe I missed that
+        _noiseChanged = _latchedRegisterIndex == 6;
     }
-}
-
-
-std::string SN76489State::print_stereo_mask(const uint8_t mask)
-{
-    std::string bits("012N012N");
-    for (int i = 0; i < 8; ++i)
+    else
     {
-        if ((mask >> i & 1) == 0)
-        {
-            bits[i] = '-';
-        }
+        throw std::exception("Unhandled command type");
     }
-    return bits;
-}
-
-double SN76489State::tone_length_to_hz(const int length) const
-{
-    if (length == 0)
-    {
-        return 0.0;
-    }
-    return static_cast<double>(_clockRate) / 32.0 / length;
-}
-
-std::string SN76489State::make_noise_description(const char* prefix, int shift) const
-{
-    return std::format(
-        "{} ({}Hz)",
-        prefix,
-        _clockRate / 32 / (16 << shift));
 }

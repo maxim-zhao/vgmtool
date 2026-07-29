@@ -1,40 +1,31 @@
-#include "libvgmtool/IVGMToolCallback.h"
+#include "libvgmtool/IStatusCallback.h"
 #include <libvgmtool/trim.h>
 
-#include "libvgmtool/convert.h"
 #include "libvgmtool/utils.h"
 #include "libvgmtool/vgm.h"
 #include "libvgmtool/VgmFile.h"
 
 #include <libpu8/libpu8/libpu8.h>
-#include "CLI11.hpp"
+#include <CLI11/include/CLI/CLI.hpp>
 
 namespace
 {
-    class Callback final : public IVGMToolCallback
+    class Callback final : public IStatusCallback
     {
     public:
         bool is_verbose = false;
 
-        void show_message(const std::string& message) const override
+        void message(const std::string& message) const override
         {
             printf("%s\n", message.c_str());
         }
 
-        void show_error(const std::string& message) const override
+        void error(const std::string& message) const override
         {
             fprintf(stderr, "%s\n", message.c_str()); // NOLINT(cert-err33-c)
         }
 
-        void show_status(const std::string& message) const override
-        {
-            if (is_verbose)
-            {
-                printf("%s\n", message.c_str());
-            }
-        }
-
-        void show_conversion_progress(const std::string& message) const override
+        void verbose_message(const std::string& message) const override
         {
             if (is_verbose)
             {
@@ -43,12 +34,12 @@ namespace
         }
     } callback;
 
-    void write_to_text(const std::string& filename, const std::string& outputFilename, bool gd3Only, bool forTextFile)
+    void write_to_text(const VgmFile& f, const std::string& outputFilename, bool gd3Only, bool forTextFile)
     {
-        // Read in file
-        VgmFile f(filename);
         // Write to stdout if no filename is given
-        auto* s = outputFilename.empty() ? &std::cout : new std::ofstream(outputFilename);
+        auto* s = outputFilename.empty()
+            ? &std::cout
+            : new std::ofstream(outputFilename);
 
         if (gd3Only)
         {
@@ -89,188 +80,149 @@ int main_utf8(int argc, char** argv)
     {
         CLI::App app{"VGMTool CLI: VGM file editing utility"};
         app.require_subcommand()
-           ->fallthrough()
-           ->allow_windows_style_options()
-           ->set_help_all_flag("--help-all", "Show all subcommands help");
+            ->fallthrough()
+            ->allow_windows_style_options()
+            ->set_help_all_flag("--help-all", "Show all subcommands help");
         app.add_flag("-v, --verbose", callback.is_verbose)
-           ->description("Print messages while working");
+            ->description("Print messages while working");
 
+        // - Always take a file
+        std::string filename;
+        app.add_option("filename", filename)
+            ->description("The input file")
+            ->required()
+            ->check(CLI::ExistingFile);
+
+        // We want to load the file first...
+        VgmFile f;
+        app.parse_complete_callback([&]
         {
-            auto* toTextVerb = app.add_subcommand("totext")
-                                  ->description("Emits a text file conversion of the VGM file");
-            std::vector<std::string> filenames;
-            toTextVerb->add_option("filename", filenames)
-                      ->description("The file(s) to process")
-                      ->required()
-                      ->check(CLI::ExistingFile);
+            f.load_file(filename);
+        });
 
-            std::string outputFilename;
-            toTextVerb->add_option("--output", outputFilename)
-                      ->description("Filename to output to. If not specified, output to stdout.");
-            bool forTextFile = false;
-            toTextVerb->add_flag("--fortxt", forTextFile)
-                      ->description("Emit only the title and times for use in generating a description text file");
-            bool gd3Only = false;
-            toTextVerb->add_flag("--gd3", gd3Only)
-                      ->description("Emit only the GD3 tag");
-            toTextVerb->callback([&]
+        // - Then take verbs for actions on it.
+        // These must have storage for the parameters that lasts for as long as the time to the callback,
+        // which means they clutter the scope, so we put them in local structs.
+        struct
+        {
+            std::wstring titleEn;
+            std::wstring titleJa;
+            std::wstring gameEn;
+            std::wstring gameJa;
+            std::wstring systemEn;
+            std::wstring systemJa;
+            std::wstring authorEn;
+            std::wstring authorJa;
+            std::wstring releaseDate;
+            std::wstring creator;
+            std::wstring notes;
+        } gd3Args;
+        auto* pGd3Verb = app.add_subcommand("gd3")
+            ->description("Set GD3 tag fields on a VGM file")
+            ->callback([&]
             {
-                for (const auto& filename : filenames)
-                {
-                    write_to_text(filename, outputFilename, gd3Only, forTextFile);
-                }
+                f.gd3().set_text(Gd3Tag::Key::TitleEn, gd3Args.titleEn);
+                f.gd3().set_text(Gd3Tag::Key::TitleJa, gd3Args.titleJa);
+                f.gd3().set_text(Gd3Tag::Key::GameEn, gd3Args.gameEn);
+                f.gd3().set_text(Gd3Tag::Key::GameJa, gd3Args.gameJa);
+                f.gd3().set_text(Gd3Tag::Key::SystemEn, gd3Args.systemEn);
+                f.gd3().set_text(Gd3Tag::Key::SystemJa, gd3Args.systemJa);
+                f.gd3().set_text(Gd3Tag::Key::AuthorEn, gd3Args.authorEn);
+                f.gd3().set_text(Gd3Tag::Key::AuthorJa, gd3Args.authorJa);
+                f.gd3().set_text(Gd3Tag::Key::ReleaseDate, gd3Args.releaseDate);
+                f.gd3().set_text(Gd3Tag::Key::Creator, gd3Args.creator);
+                f.gd3().set_text(Gd3Tag::Key::Notes, gd3Args.notes);
             });
-        }
+        pGd3Verb->add_option("--title-en", gd3Args.titleEn)->description("Title (EN)");
+        pGd3Verb->add_option("--title-ja", gd3Args.titleJa)->description("Title (JA)");
+        pGd3Verb->add_option("--game-en", gd3Args.gameEn)->description("Game (EN)");
+        pGd3Verb->add_option("--game-ja", gd3Args.gameJa)->description("Game (JA)");
+        pGd3Verb->add_option("--system-en", gd3Args.systemEn)->description("System (EN)");
+        pGd3Verb->add_option("--system-ja", gd3Args.systemJa)->description("System (JA)");
+        pGd3Verb->add_option("--author-en", gd3Args.authorEn)->description("Author (EN)");
+        pGd3Verb->add_option("--author-ja", gd3Args.authorJa)->description("Author (JA)");
+        pGd3Verb->add_option("--release-date", gd3Args.releaseDate)->description("Release date");
+        pGd3Verb->add_option("--creator", gd3Args.creator)->description("Creator");
+        pGd3Verb->add_option("--notes", gd3Args.notes)->description("Notes");
 
+        struct
         {
-            auto* trimVerb = app.add_subcommand("trim", "Trim the file");
-            std::string filename;
-            trimVerb->add_option("filename", filename)
-                    ->description("The file to process")
-                    ->required()
-                    ->check(CLI::ExistingFile);
+            std::string output{};
+            bool forTextFile{};
+            bool gd3Only{};
+        } toTextArgs;
+        auto* toTextVerb = app.add_subcommand("totext")
+            ->description("Emit a text file conversion of the VGM file")
+            ->callback([&]
+            {
+                write_to_text(f, toTextArgs.output, toTextArgs.gd3Only, toTextArgs.forTextFile);
+            });
+        toTextVerb->add_option("--output", toTextArgs.output)
+            ->description("Filename to output to. If not specified, output to stdout.");
+        toTextVerb->add_flag("--fortxt", toTextArgs.forTextFile)
+            ->description("Emit only the title and times for use in generating a description text file");
+        toTextVerb->add_flag("--gd3", toTextArgs.gd3Only)
+            ->description("Emit only the GD3 tag");
+
+        struct
+        {
             int start = 0;
-            trimVerb->add_option("--start", start)
-                    ->description("Trim start point in samples")
-                    ->default_val(0)
-                    ->check(CLI::NonNegativeNumber);
             int loop = -1;
-            trimVerb->add_option("--loop", loop)
-                    ->description("Trim loop point in samples. Omit or set to negative value to disable.")
-                    ->default_val(-1)
-                    ->check(CLI::Number);
             int end;
-            trimVerb->add_option("--end", end)
-                    ->description("Trim end point in samples")
-                    ->required()
-                    ->check(CLI::NonNegativeNumber);
-            bool logTrim;
-            trimVerb->add_flag("--log", logTrim)
-                    ->description("Log trim points to editpoints.txt");
-            std::string outputFilename;
-            trimVerb->add_option("--output", outputFilename)
-                    ->required()
-                    ->description("Filename to output to");
-            trimVerb->callback([&]
+            std::string logTrim;
+        } trimArgs;
+        auto* trimVerb = app.add_subcommand("trim")
+            ->description("Trim the file")
+            ->callback([&]
             {
-                trim(filename, start, loop, end, false, logTrim, callback, outputFilename);
+                trim_vgm_file(f, trimArgs.start, trimArgs.loop, trimArgs.end, callback);
             });
-        }
+        trimVerb->add_option("--start", trimArgs.start)
+            ->description("Trim start point in samples")
+            ->default_val(0)
+            ->check(CLI::NonNegativeNumber);
+        trimVerb->add_option("--loop", trimArgs.loop)
+            ->description("Trim loop point in samples. Omit or set to negative value to disable.");
+        trimVerb->add_option("--end", trimArgs.end)
+            ->description("Trim end point in samples")
+            ->required()
+            ->check(CLI::NonNegativeNumber);
+        //trimVerb->add_option("--log", trimArgs.logTrim)
+        //    ->description("Log trim points to this file");
 
-        {
-            const auto verb = app.add_subcommand("check")
-                                 ->description("Check the VGM file(s) for errors");
-            std::vector<std::string> filenames;
-            verb->add_option("filename", filenames)
-                ->description("The file(s) to process")
-                ->required()
-                ->check(CLI::ExistingFile);
-
-            verb->callback([&]
+        app.add_subcommand("check")
+            ->description("Check the VGM file for errors")
+            ->callback([&]
             {
-                for (const auto& filename : filenames)
+                f.check_header(false, callback); // Will throw if it's wrong, and be logged at the end
+            });
+
+        struct
+        {
+            // The last verb is save, which saves the file back to disk
+            std::string saveFilename;
+            int compression = 15;
+        } saveArgs;
+        auto* saveVerb = app.add_subcommand("save")
+            ->description("Save the modified VGM file")
+            ->callback([&]
+            {
+                if (saveArgs.saveFilename.empty())
                 {
-                    check_lengths(filename, true, callback);
+                    saveArgs.saveFilename = filename;
                 }
+                f.save_file(saveArgs.saveFilename, callback, callback.is_verbose, saveArgs.compression);
             });
-        }
+        saveVerb->add_option("--as", saveArgs.saveFilename)
+            ->description("The output file. If not set, the original file will be overwritten.");
+        saveVerb->add_option("--compression", saveArgs.compression)
+            ->description("Compress the output file. Higher values result in smaller files but take longer to compress. Use 0 for no compression. A value of 15 is a good middle ground.")
+            ->default_val(saveArgs.compression)
+            ->check(CLI::Range(0, 1000));
 
-        {
-            auto* compressVerb = app.add_subcommand("compress", "Compress VGM file(s)");
-            std::vector<std::string> filenames;
-            compressVerb->add_option("filename", filenames)
-                        ->description("The file(s) to process")
-                        ->required()
-                        ->check(CLI::ExistingFile);
-            int iterations;
-            compressVerb->add_option("--iterations", iterations)
-                        ->description("Zopfli compression iterations")
-                        ->default_val(15);
-            compressVerb->callback([&]
-            {
-                for (const auto& filename : filenames)
-                {
-                    Utils::compress(filename, callback, iterations);
-                }
-            });
-        }
-
-        {
-            const auto verb = app.add_subcommand("decompress")
-                                 ->description("Decompress VGM file(s)");
-            std::vector<std::string> filenames;
-            verb->add_option("filename", filenames)
-                ->description("The file(s) to process")
-                ->required()
-                ->check(CLI::ExistingFile);
-
-            verb->callback([&]
-            {
-                for (const auto& filename : filenames)
-                {
-                    Utils::decompress(filename);
-                }
-            });
-        }
-
-        {
-            auto verb = app.add_subcommand("convert")
-                           ->description("Convert GYM, CYM, SSL files to VGM");
-            std::vector<std::string> filenames;
-            verb->add_option("filename", filenames)
-                ->description("The file(s) to process")
-                ->required()
-                ->check(CLI::ExistingFile);
-            verb->callback([&]
-            {
-                for (const auto& filename : filenames)
-                {
-                    Convert::to_vgm(filename, callback);
-                }
-            });
-        }
-
-        {
-            auto verb = app.add_subcommand("setgd3")
-                           ->description("Set GD3 tag fields on a VGM file");
-            std::string filename;
-            verb->add_option("filename", filename)
-                ->description("The file to modify (in place)")
-                ->required()
-                ->check(CLI::ExistingFile);
-
-            std::wstring titleEn, titleJa, gameEn, gameJa, systemEn, systemJa, authorEn, authorJa, releaseDate, creator,
-                         notes;
-
-            verb->add_option("--title-en", titleEn)->description("Title (EN)");
-            verb->add_option("--title-ja", titleJa)->description("Title (JA)");
-            verb->add_option("--game-en", gameEn)->description("Game (EN)");
-            verb->add_option("--game-ja", gameJa)->description("Game (JA)");
-            verb->add_option("--system-en", systemEn)->description("System (EN)");
-            verb->add_option("--system-ja", systemJa)->description("System (JA)");
-            verb->add_option("--author-en", authorEn)->description("Author (EN)");
-            verb->add_option("--author-ja", authorJa)->description("Author (JA)");
-            verb->add_option("--release-date", releaseDate)->description("Release date");
-            verb->add_option("--creator", creator)->description("Creator");
-            verb->add_option("--notes", notes)->description("Notes");
-
-            verb->callback([&]
-            {
-                VgmFile f(filename);
-                f.gd3().set_text(Gd3Tag::Key::TitleEn, titleEn);
-                f.gd3().set_text(Gd3Tag::Key::TitleJa, titleJa);
-                f.gd3().set_text(Gd3Tag::Key::GameEn, gameEn);
-                f.gd3().set_text(Gd3Tag::Key::GameJa, gameJa);
-                f.gd3().set_text(Gd3Tag::Key::SystemEn, systemEn);
-                f.gd3().set_text(Gd3Tag::Key::SystemJa, systemJa);
-                f.gd3().set_text(Gd3Tag::Key::AuthorEn, authorEn);
-                f.gd3().set_text(Gd3Tag::Key::AuthorJa, authorJa);
-                f.gd3().set_text(Gd3Tag::Key::ReleaseDate, releaseDate);
-                f.gd3().set_text(Gd3Tag::Key::Creator, creator);
-                f.gd3().set_text(Gd3Tag::Key::Notes, notes);
-                f.save_file(filename);
-            });
-        }
+        // TODO: warn, or something else, if we don't save and something happened to the VGM
+        // Tricky to do - what if they did a no-op to it?
+        // We could deep-copy the whole thing at the start and compare at the end, but that seems like a lot of overhead.
 
         try
         {

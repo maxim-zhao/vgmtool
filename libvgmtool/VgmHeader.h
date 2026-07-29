@@ -2,6 +2,7 @@
 #include "BcdVersion.h"
 #include <unordered_map>
 #include <cstdint>
+enum class Chip : std::uint8_t;
 class BinaryData;
 
 class VgmHeader
@@ -223,31 +224,6 @@ public:
 
     void to_binary(BinaryData& data) const;
 
-    enum class Chip
-    {
-        Nothing,
-        SN76489,
-        YM2413,
-        YM2612,
-        YM2151,
-        SegaPCM,
-        RF5C68,
-        YM2203,
-        YM2608,
-        YM2610,
-        YM3812,
-        YM3526,
-        Y8950,
-        YMF262,
-        YMF278B,
-        YMF271,
-        YMZ280B,
-        RF5C164,
-        PWM,
-        AY8910,
-        GenericDAC
-    };
-
     enum class Flag
     {
         IsT6W28,
@@ -260,7 +236,7 @@ public:
     [[nodiscard]] bool flag(Flag flag) const;
 
 private:
-    void check_second_chip_bit(::VgmHeader::Chip chip);
+    void check_second_chip_bit(Chip chip);
 
     uint32_t _eofOffset{};
     BcdVersion _version{};

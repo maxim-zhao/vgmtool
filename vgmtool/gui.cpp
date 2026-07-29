@@ -10,11 +10,10 @@
 #include <stdexcept>
 #include <string>
 
-#include <Windows.h>
+#include <commdlg.h>
 #include <Uxtheme.h>
-#include <zlib.h>
+#include <zlib/zlib/zlib.h>
 
-#include "libvgmtool/convert.h"
 #include "libvgmtool/gd3.h"
 #include "libvgmtool/Gd3Tag.h"
 #include "libvgmtool/optimise.h"
@@ -219,7 +218,7 @@ bool Gui::get_bool(HWND hDlg, int item)
     return IsDlgButtonChecked(hDlg, item) != 0u;
 }
 
-LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK Gui::dialog_proc([[maybe_unused]] HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     try
     {
@@ -233,22 +232,15 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
         case WM_DROPFILES: // File dropped
             {
                 const auto hDrop = reinterpret_cast<HDROP>(wParam); // NOLINT(performance-no-int-to-ptr)
-                if (hWnd == _convertWnd)
-                {
-                    convert_dropped_files(hDrop);
-                }
-                else
-                {
-                    const int filenameLength = DragQueryFile(hDrop, 0, nullptr, 0);
-                    // The API wants to null-terminate, so we make the string big enough for that...
-                    std::string droppedFilename(filenameLength + 1, '\0');
-                    // Get filename of first file, discard the rest
-                    DragQueryFile(hDrop, 0, droppedFilename.data(), filenameLength + 1);
-                    DragFinish(hDrop); // Tell Windows I've finished
-                    // But now our string has a trailing \0, so we remove that
-                    droppedFilename.erase(filenameLength);
-                    load_file(droppedFilename);
-                }
+                const int filenameLength = DragQueryFile(hDrop, 0, nullptr, 0);
+                // The API wants to null-terminate, so we make the string big enough for that...
+                std::string droppedFilename(filenameLength + 1, '\0');
+                // Get filename of first file, discard the rest
+                DragQueryFile(hDrop, 0, droppedFilename.data(), filenameLength + 1);
+                DragFinish(hDrop); // Tell Windows I've finished
+                // But now our string has a trailing \0, so we remove that
+                droppedFilename.erase(filenameLength);
+                load_file(droppedFilename);
             }
             return TRUE;
         case WM_COMMAND:
@@ -270,14 +262,14 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 //load_file(_currentFilename);
                 try
                 {
-                    _currentFile.check_header(false);
-                    show_status("Header check OK");
+                    _currentFile.check_header(false, *this);
+                    verbose_message("Header check OK");
                 }
                 catch (const std::exception& ex)
                 {
                     if (show_question_message_box(std::format("Error found:\n{}\nDo you want to fix it?", ex.what())) == IDYES)
                     {
-                        _currentFile.check_header(true);
+                        _currentFile.check_header(true, *this);
                     }
                 }
                 break;
@@ -300,14 +292,15 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                     const auto outputFilename = show_save_file_dialog(suggestedFilename);
                     if (!outputFilename.empty())
                     {
-                        trim(
-                            _currentFilename,
-                            get_int(_trimWnd, edtTrimStart),
+                        VgmFile f(_currentFilename);
+                        trim_vgm_file(
+                            f, get_int(_trimWnd, edtTrimStart),
                             get_bool(_trimWnd, cbLoop) ? get_int(_trimWnd, edtTrimLoop) : -1,
                             get_int(_trimWnd, edtTrimEnd),
-                            false,
-                            get_bool(_trimWnd, cbLogTrims),
-                            *this, outputFilename);
+                            //false,
+                            //get_bool(_trimWnd, cbLogTrims),
+                            *this);
+                        f.save_file(outputFilename, *this);
                     }
                 }
                 break;
@@ -414,16 +407,16 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
                 break;
             case btnRateDetect:
                 {
-                    show_status("Detecting VGM recording rate...");
+                    verbose_message("Detecting VGM recording rate...");
                     const int i = detect_rate(_currentFile);
                     if (i != 0)
                     {
                         SetDlgItemInt(_headerWnd, edtPlaybackRate, i, FALSE);
-                        show_status(std::format("VGM rate detected as {}Hz", i));
+                        verbose_message(std::format("VGM rate detected as {}Hz", i));
                     }
                     else
                     {
-                        show_status("VGM rate not detected");
+                        verbose_message("VGM rate not detected");
                     }
                 }
                 break;
@@ -512,7 +505,7 @@ LRESULT CALLBACK Gui::dialog_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
     }
     catch (const std::exception& e)
     {
-        show_error(e.what());
+        error(e.what());
     }
     return FALSE; // return FALSE to signify message not processed
 }
@@ -649,7 +642,7 @@ void Gui::make_tabbed_dialog()
     MapWindowPoints(HWND_DESKTOP, _hWndMain, reinterpret_cast<LPPOINT>(&tabDisplayRect), 2);
 
     // Create child windows
-    for (const auto id : {DlgVGMHeader, DlgTrimming, DlgStripping, DlgGD3, DlgConvert, DlgMisc})
+    for (const auto id : {DlgVGMHeader, DlgTrimming, DlgStripping, DlgGD3, DlgMisc})
     {
         _tabChildWindows.push_back(CreateDialog(_hInstance, MAKEINTRESOURCE(id), _hWndMain, static_dialog_proc));
     }
@@ -657,7 +650,6 @@ void Gui::make_tabbed_dialog()
     _trimWnd = _tabChildWindows[1];
     _stripWnd = _tabChildWindows[2];
     _gd3Wnd = _tabChildWindows[3];
-    _convertWnd = _tabChildWindows[4];
 
     // Put them in the right place, and hide them
     for (const auto& tabChildWnd : _tabChildWindows)
@@ -679,7 +671,7 @@ void Gui::load_file(const std::string& filename)
         return;
     }
 
-    show_status("Loading file...");
+    verbose_message("Loading file...");
 
     try
     {
@@ -687,10 +679,10 @@ void Gui::load_file(const std::string& filename)
     }
     catch (const std::exception& e)
     {
-        show_error(std::format("Failed to load \"{}\":\n{}", filename, e.what()));
+        error(std::format("Failed to load \"{}\":\n{}", filename, e.what()));
         _currentFilename.clear();
         SetDlgItemText(_hWndMain, edtFileName, "Drop a file onto the window to load");
-        show_status("");
+        verbose_message("");
         return;
     }
 
@@ -719,10 +711,10 @@ void Gui::load_file(const std::string& filename)
     SetDlgItemText(_headerWnd, edtVersion, _currentFile.header().version().string().c_str());
 
     // Clock speeds
-    SetDlgItemInt(_headerWnd, edtPSGClock, _currentFile.header().clock(VgmHeader::Chip::SN76489), FALSE);
-    SetDlgItemInt(_headerWnd, edtYM2413Clock, _currentFile.header().clock(VgmHeader::Chip::YM2413), FALSE);
-    SetDlgItemInt(_headerWnd, edtYM2612Clock, _currentFile.header().clock(VgmHeader::Chip::YM2612), FALSE);
-    SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFile.header().clock(VgmHeader::Chip::YM2151), FALSE);
+    SetDlgItemInt(_headerWnd, edtPSGClock, _currentFile.header().clock(Chip::SN76489), FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2413Clock, _currentFile.header().clock(Chip::YM2413), FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2612Clock, _currentFile.header().clock(Chip::YM2612), FALSE);
+    SetDlgItemInt(_headerWnd, edtYM2151Clock, _currentFile.header().clock(Chip::YM2151), FALSE);
 
     // PSG settings
     SetDlgItemText(_headerWnd, edtPSGFeedback, std::format(
@@ -751,11 +743,11 @@ void Gui::load_file(const std::string& filename)
 
     if (_currentFile.gd3().empty())
     {
-        show_status("File loaded - file has no GD3 tag, previous tag kept");
+        verbose_message("File loaded - file has no GD3 tag, previous tag kept");
     }
     else
     {
-        show_status("File loaded");
+        verbose_message("File loaded");
     }
 }
 
@@ -793,35 +785,6 @@ void Gui::fill_combo_box(HWND parent, int id, const std::vector<std::string>& it
     }
 }
 
-void Gui::convert_dropped_files(HDROP hDrop) const
-{
-    int numConverted = 0;
-    const auto startTime = GetTickCount();
-
-    // Get number of files dropped
-    const int numFiles = DragQueryFile(hDrop, 0xFFFFFFFF, nullptr, 0);
-
-    // Go through files
-    for (int i = 0; i < numFiles; ++i)
-    {
-        // Get filename length
-        const int filenameLength = DragQueryFile(hDrop, i, nullptr, 0);
-        // Make a string to hold it
-        std::string droppedFilename(filenameLength, '\0');
-        // Get it into the string
-        DragQueryFile(hDrop, i, droppedFilename.data(), filenameLength);
-        //  Convert it
-        if (Convert::to_vgm(droppedFilename, *this))
-        {
-            ++numConverted;
-        }
-    }
-
-    DragFinish(hDrop);
-
-    show_conversion_progress(std::format("{} of {} file(s) successfully converted in {}ms", numConverted, numFiles, GetTickCount() - startTime));
-}
-
 void Gui::update_header()
 {
     _currentFile.header().set_frame_rate(get_int(_headerWnd, edtPlaybackRate));
@@ -840,10 +803,10 @@ void Gui::update_header()
         throw std::runtime_error(std::format("Invalid version \"{}\"", s));
     }
 
-    _currentFile.header().set_clock(VgmHeader::Chip::SN76489, get_int(_headerWnd, edtPSGClock));
-    _currentFile.header().set_clock(VgmHeader::Chip::YM2413, get_int(_headerWnd, edtYM2413Clock));
-    _currentFile.header().set_clock(VgmHeader::Chip::YM2612, get_int(_headerWnd, edtYM2612Clock));
-    _currentFile.header().set_clock(VgmHeader::Chip::YM2151, get_int(_headerWnd, edtYM2151Clock));
+    _currentFile.header().set_clock(Chip::SN76489, get_int(_headerWnd, edtPSGClock));
+    _currentFile.header().set_clock(Chip::YM2413, get_int(_headerWnd, edtYM2413Clock));
+    _currentFile.header().set_clock(Chip::YM2612, get_int(_headerWnd, edtYM2612Clock));
+    _currentFile.header().set_clock(Chip::YM2151, get_int(_headerWnd, edtYM2151Clock));
 
     s = get_utf8_string(_headerWnd, edtPSGFeedback);
     if (std::smatch m; std::regex_search(s, m, std::regex(R"(^0x([0-9a-fA-F]+))")))
@@ -854,7 +817,7 @@ void Gui::update_header()
 
     _currentFile.header().set_sn76489_shift_register_width(static_cast<uint8_t>(get_int(_headerWnd, edtPSGSRWidth)));
 
-    _currentFile.save_file(_currentFilename);
+    _currentFile.save_file(_currentFilename, *this);
 }
 
 void Gui::optimize(const std::string& filename) const
@@ -879,12 +842,25 @@ void Gui::optimize(const std::string& filename) const
     // Trim (using the existing edit points), also merges pauses
     if (VGMHeader.LoopLength != 0u)
     {
-        trim(filename, 0, static_cast<int>(VGMHeader.TotalLength - VGMHeader.LoopLength),
-            static_cast<int>(VGMHeader.TotalLength), true, false, *this, "");
+        VgmFile f(_currentFilename);
+        trim_vgm_file(
+            f,
+            0,
+            static_cast<int>(VGMHeader.TotalLength - VGMHeader.LoopLength),
+            static_cast<int>(VGMHeader.TotalLength),
+            *this);
+        f.save_file(_currentFilename, *this);
     }
     else
     {
-        trim(filename, 0, -1, static_cast<int>(VGMHeader.TotalLength), true, false, *this, "");
+        VgmFile f(_currentFilename);
+        trim_vgm_file(
+            f,
+            0,
+            -1,
+            static_cast<int>(VGMHeader.TotalLength),
+            *this);
+        f.save_file(_currentFilename, *this);
     }
 
     in = gzopen(filename.c_str(), "rb");
@@ -909,29 +885,17 @@ void Gui::optimize(const std::string& filename) const
     }
 }
 
-void Gui::show_message(const std::string& message) const
+void Gui::message(const std::string& message) const
 {
     MessageBox(_hWndMain, message.c_str(), _programName.c_str(), 0);
 }
 
-void Gui::show_status(const std::string& message) const
+void Gui::verbose_message(const std::string& message) const
 {
     SetDlgItemText(_hWndMain, txtStatusBar, message.c_str());
 }
 
-void Gui::show_conversion_progress(const std::string& message) const
-{
-    const auto withBreak = message + "\r\n";
-    // Get length
-    const auto length = SendDlgItemMessage(_convertWnd, edtConvertResults, WM_GETTEXTLENGTH, 0, 0);
-    // move caret to end of text
-    SendDlgItemMessage(_convertWnd, edtConvertResults, EM_SETSEL, length, length);
-    // insert text there
-    SendDlgItemMessage(_convertWnd, edtConvertResults, EM_REPLACESEL, FALSE,
-        reinterpret_cast<LPARAM>(withBreak.c_str()));
-}
-
-void Gui::show_error(const std::string& message) const
+void Gui::error(const std::string& message) const
 {
     MessageBox(_hWndMain, message.c_str(), _programName.c_str(), MB_ICONERROR + MB_OK);
 }
@@ -943,7 +907,7 @@ void Gui::update_gd3() const
         return;
     }
 
-    show_status("Updating GD3 tag...");
+    verbose_message("Updating GD3 tag...");
 
     gzFile in = gzopen(_currentFilename.c_str(), "rb");
     OldVGMHeader VGMHeader;
@@ -1006,7 +970,7 @@ void Gui::update_gd3() const
 
     Utils::replace_file(_currentFilename, outFilename);
 
-    show_status("GD3 tag updated");
+    verbose_message("GD3 tag updated");
 }
 
 void Gui::clear_gd3_strings() const
@@ -1079,7 +1043,7 @@ void Gui::strip_checked(const std::string& filename) const
         return;
     }
 
-    show_status("Stripping chip data...");
+    verbose_message("Stripping chip data...");
 
     gzFile in = gzopen(filename.c_str(), "rb");
     if (!ReadVGMHeader(in, &VGMHeader, *this))
@@ -1106,7 +1070,7 @@ void Gui::strip_checked(const std::string& filename) const
       DeleteFile(Tmpfilename);
     */
 
-    show_status("Data stripping complete");
+    verbose_message("Data stripping complete");
 
     if (show_question_message_box(std::format(
         "Stripped VGM data written to\n{}\nDo you want to open it in the associated program?",
@@ -1488,7 +1452,7 @@ void Gui::copy_lengths_to_clipboard() const
     WideCharToMultiByte(CP_ACP, 0, result.data(), static_cast<int>(result.size()), strTo.data(), sizeNeeded, nullptr,
         nullptr);
 
-    show_status(std::format("Copied: \"{}\"", strTo));
+    verbose_message(std::format("Copied: \"{}\"", strTo));
 }
 
 // Check checkboxes and show numbers for how many times each channel/data type is used
@@ -1547,7 +1511,7 @@ void Gui::check_write_counts(const std::string& filename)
     }
     EnableWindow(GetDlgItem(_stripWnd, gbYM2413), (j != 0));
 
-    show_status("Scan for chip data complete");
+    verbose_message("Scan for chip data complete");
 }
 
 void Gui::update_write_count(const std::vector<int>& ids, const std::vector<int>& counts) const

@@ -5,7 +5,7 @@
 // GD3 tag format definitions
 // and functionality
 
-class IVGMToolCallback;
+class IStatusCallback;
 
 // GD3 file header
 struct TGD3Header
@@ -31,4 +31,4 @@ enum Gd3Indices
     Count
 };
 
-void remove_gd3(const std::string& filename, const IVGMToolCallback& callback);
+void remove_gd3(const std::string& filename, const IStatusCallback& callback);

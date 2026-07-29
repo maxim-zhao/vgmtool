@@ -4,7 +4,9 @@
 #include <stdexcept>
 #include <fstream>
 
+#include "IStatusCallback.h"
 #include "utils.h"
+#include "zopfli.h"
 
 BinaryData::BinaryData(const std::string& filename)
 {
@@ -97,6 +99,32 @@ void BinaryData::reset()
 {
     _data.clear();
     _offset = 0;
+}
+
+void BinaryData::compress(const int level, const IStatusCallback& callback, const bool verboseZopfli)
+{
+    auto sizeBefore = _data.size();
+    ZopfliOptions options{};
+    ZopfliInitOptions(&options);
+    if (level > 0)
+    {
+        // We let the library pick the default (15) if not set
+        options.numiterations = level;
+    }
+    options.verbose = verboseZopfli ? 1 : 0;
+    unsigned char* out;
+    size_t outSize = 0;
+    callback.verbose_message(std::format("Compressing... level {}", level));
+    ZopfliCompress(&options, ZOPFLI_FORMAT_GZIP, _data.data(), _data.size(), &out, &outSize);
+    // Then we want to copy that into our buffer
+    _data.clear();
+    _data.reserve(outSize);
+    std::copy_n(out, outSize, std::back_inserter(_data));
+    callback.verbose_message(std::format(
+        "Compressed from {} -> {} bytes ({:.4}% compression)", 
+        sizeBefore, 
+        outSize, 
+        Utils::percent_reduction(sizeBefore, outSize)));
 }
 
 void BinaryData::check_write_space(const size_t size)

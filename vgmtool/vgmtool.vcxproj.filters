@@ -52,6 +52,7 @@
     </Manifest>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <Library Include="$(ZLibDir)lib\$(Platform)\Debug\$(ZLibName)d.lib" />
+    <Library Include="$(ZLibDir)lib\$(Platform)\Release\$(ZLibName).lib" />
   </ItemGroup>
 </Project>

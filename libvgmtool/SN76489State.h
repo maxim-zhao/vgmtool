@@ -1,7 +1,12 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
+
+#include "IChipState.h"
+
+class CommandStream;
 
 namespace VgmCommands
 {
@@ -12,26 +17,35 @@ namespace VgmCommands
 
 class VgmHeader;
 
-class SN76489State
+class SN76489State: public IChipState
 {
 public:
     explicit SN76489State(const VgmHeader& header);
+    ~SN76489State() override = default;
 
-    void add(const VgmCommands::GGStereo* pStereo);
-    void add(const VgmCommands::SN76489* pCommand);
-    void add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s);
+    SN76489State(const SN76489State& other) = default;
+    SN76489State(SN76489State&& other) noexcept = default;
+    SN76489State& operator=(const SN76489State& other) = default;
+    SN76489State& operator=(SN76489State&& other) noexcept = default;
+
+    void add(const std::shared_ptr<const VgmCommands::ICommand>& command) override;
+    void to_text(std::ostream& s, const std::shared_ptr<const VgmCommands::ICommand>& pCommand);
+    void copy_to_command_stream(CommandStream& stream, std::shared_ptr<IChipState> lastWritten, WriteTypes mode) override;
+    [[nodiscard]] std::shared_ptr<IChipState> clone() const override;
+    void clear_memory() override;
 
 private:
-    static std::string print_stereo_mask(uint8_t mask);
-    [[nodiscard]] double tone_length_to_hz(int length) const;
-    std::string make_noise_description(const char* prefix, int shift) const;
+    void prepare_text();
 
+private:
     // Registers are four tone, volume pairs
     std::vector<int> _registers{0, 0xf, 0, 0xf, 0, 0xf, 0, 0xf};
-    uint8_t _stereoMask = 0xff;
-    int _latchedRegisterIndex = 0;
-
+    std::size_t _latchedRegisterIndex = 0;
     uint32_t _clockRate;
+    uint8_t _stereoMask = 0xff;
+    bool _noiseChanged = false;
+
+    // To-text reusable text
     std::vector<std::string> _noiseSpeedDescriptions;
     std::vector<std::string> _volumeDescriptions;
 };

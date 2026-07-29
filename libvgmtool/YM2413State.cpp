@@ -1,16 +1,19 @@
 #include "YM2413State.h"
 
+#include <array>
 #include <format>
+#include <ranges>
 #include <sstream>
 #include <unordered_set>
 
+#include "CommandStream.h"
 #include "utils.h"
 #include "VgmHeader.h"
 #include "VgmCommands.h"
 
 namespace
 {
-    const std::unordered_set<int> validRegisters
+    const std::unordered_set<uint8_t> VALID_REGISTERS // NOLINT(bugprone-throwing-static-initialization)
     {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // Custom instrument
         0x0e, // Rhythm control
@@ -19,40 +22,115 @@ namespace
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, // Instrument, volume
     };
 
-    const std::vector<double> customInstrumentMultiplyingFactors
+    const uint8_t MAX_REGISTER_INDEX = std::ranges::max(VALID_REGISTERS); // NOLINT(bugprone-throwing-static-initialization)
+
+    constexpr std::array CUSTOM_INSTRUMENT_MULTIPLYING_FACTORS
     {
-        0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 12, 12, 15, 15
+        0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 10.0, 12.0, 12.0, 15.0, 15.0
     };
 
-    const std::vector customInstrumentFeedbackModulations
+    constexpr std::array CUSTOM_INSTRUMENT_FEEDBACK_MODULATIONS
     {
         "0", "π/16", "π/8", "π/4", "π/2", "π", "2π", "4π"
     };
 
-    const std::vector instrumentNames
+    constexpr std::array INSTRUMENT_NAMES
     {
         "User instrument", "Violin", "Guitar", "Piano", "Flute", "Clarinet", "Oboe", "Trumpet",
         "Organ", "Horn", "Synthesizer", "Harpsichord", "Vibraphone", "Synthesizer Bass", "Acoustic Bass", "Electric Guitar"
     };
 
     // Indices here correspond to bit indices
-    const std::vector rhythmInstrumentNames
+    constexpr std::array RHYTHM_INSTRUMENT_NAMES
     {
         "High hat", "Cymbal", "Tom-tom", "Snare drum", "Bass drum"
     };
 }
 
 YM2413State::YM2413State(const VgmHeader& header)
-    : _clockRate(header.clock(VgmHeader::Chip::YM2413)),
-      _registers(0x39) { }
-
-void YM2413State::add(const VgmCommands::YM2413* pCommand)
+    : _clockRate(header.clock(Chip::YM2413)),
+      _registers(MAX_REGISTER_INDEX + 1)
 {
-    // We just stuff it in the registers (for now)
-    if (validRegisters.contains(pCommand->registerIndex()))
+}
+
+void YM2413State::add(const std::shared_ptr<const VgmCommands::ICommand>& command)
+{
+    const auto pCommand = std::dynamic_pointer_cast<const VgmCommands::YM2413>(command);
+    if (!pCommand)
     {
-        _registers[pCommand->registerIndex()] = pCommand->value();
+        throw std::exception("Unhandled command type");
     }
+
+    if (const uint8_t registerIndex = pCommand->registerIndex();
+        VALID_REGISTERS.contains(registerIndex))
+    {
+        const uint8_t previousValue = _registers[registerIndex];
+        const uint8_t value = pCommand->value();
+
+        // We queue any events which are actually changing a register
+        if (value != previousValue)
+        {
+            _eventsQueue.push_back(pCommand);
+        }
+
+        // Then record the register value as well
+        _registers[registerIndex] = value;
+    }
+}
+
+void YM2413State::copy_to_command_stream(CommandStream& stream, const std::shared_ptr<IChipState> lastWritten, const WriteTypes mode)
+{
+    const auto lastWrittenState = std::dynamic_pointer_cast<YM2413State>(lastWritten);
+
+    switch (mode)
+    {
+    case WriteTypes::force_full_image:
+        for (const uint8_t registerIndex : VALID_REGISTERS)
+        {
+            auto command = std::make_shared<VgmCommands::YM2413>();
+            command->set_register(registerIndex);
+            command->set_value(_registers[registerIndex]);
+            stream.commands().push_back(command);
+            lastWrittenState->_registers[registerIndex] = _registers[registerIndex];
+        }
+        break;
+    case WriteTypes::force_delta:
+        for (const uint8_t registerIndex : VALID_REGISTERS)
+        {
+            if (_registers[registerIndex] == lastWrittenState->_registers[registerIndex])
+            {
+                continue; // Register is not changed
+            }
+            auto command = std::make_shared<VgmCommands::YM2413>();
+            command->set_register(registerIndex);
+            command->set_value(_registers[registerIndex]);
+            stream.commands().push_back(command);
+            lastWrittenState->_registers[registerIndex] = _registers[registerIndex];
+        }
+        break;
+    case WriteTypes::automatic:
+        // Flush the queue
+        std::ranges::copy(_eventsQueue, std::back_inserter(stream.commands()));
+        // And the state
+        for (const uint8_t registerIndex : VALID_REGISTERS)
+        {
+            lastWrittenState->_registers[registerIndex] = _registers[registerIndex];
+        }
+        break;
+    }
+
+    // And empty the queue every time
+    _eventsQueue.clear();
+}
+
+std::shared_ptr<IChipState> YM2413State::clone() const
+{
+    return std::make_shared<YM2413State>(*this);
+}
+
+void YM2413State::clear_memory()
+{
+    _eventsQueue.clear();
 }
 
 std::string YM2413State::percussion_instruments(const uint8_t value)
@@ -71,48 +149,49 @@ std::string YM2413State::percussion_instruments(const uint8_t value)
             {
                 ss << ", ";
             }
-            ss << rhythmInstrumentNames[i];
+            ss << RHYTHM_INSTRUMENT_NAMES[i];
         }
     }
     return ss.str();
 }
 
-std::string YM2413State::percussion_volumes(const VgmCommands::YM2413* pCommand)
+std::string YM2413State::percussion_volumes(const std::shared_ptr<const VgmCommands::YM2413>& pCommand)
 {
-    const auto volume1 = pCommand->value() >> 4;
+    const auto volume1 = (pCommand->value() >> 4);
     const auto volume2 = pCommand->value() & 0b1111;
-    const auto attenuation1 = 3 * volume1;
-    const auto attenuation2 = 3 * volume2;
+    const auto volume1db = 3 * volume1;
+    const auto volume2db = 3 * volume2;
     switch (pCommand->registerIndex())
     {
     case 0x36:
-        return std::format("{} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%",
-            rhythmInstrumentNames[4],
+        return std::format("{} -> vol 0x{:x} = {} dB = {:.2f}%",
+            RHYTHM_INSTRUMENT_NAMES[4],
             volume2,
-            attenuation2,
-            Utils::db_to_percent(attenuation2));
+            volume2db,
+            Utils::volume_db_to_percent(volume2db, 45));
     case 0x37:
-        return std::format("{} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%",
-            rhythmInstrumentNames[0],
+        return std::format("{} -> vol 0x{:x} = {} dB = {:.2f}%; {} -> vol 0x{:x} = {} dB = {:.2f}%",
+            RHYTHM_INSTRUMENT_NAMES[0],
             volume1,
-            attenuation1,
-            Utils::db_to_percent(attenuation1),
-            rhythmInstrumentNames[3],
+            volume1db,
+            Utils::volume_db_to_percent(volume1db, 45),
+            RHYTHM_INSTRUMENT_NAMES[3],
             volume2,
-            attenuation2,
-            Utils::db_to_percent(attenuation2));
+            volume2db,
+            Utils::volume_db_to_percent(volume2db, 45));
     case 0x38:
-        return std::format("{} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%",
-            rhythmInstrumentNames[2],
+        return std::format("{} -> vol 0x{:x} = {} dB = {:.2f}%; {} -> vol 0x{:x} = {} dB = {:.2f}%",
+            RHYTHM_INSTRUMENT_NAMES[2],
             volume1,
-            attenuation1,
-            Utils::db_to_percent(attenuation1),
-            rhythmInstrumentNames[1],
+            volume1db,
+            Utils::volume_db_to_percent(volume1db, 45),
+            RHYTHM_INSTRUMENT_NAMES[1],
             volume2,
-            attenuation2,
-            Utils::db_to_percent(attenuation2));
+            volume2db,
+            Utils::volume_db_to_percent(volume2db, 45));
+    default:
+        throw std::runtime_error(std::format("Unexpected register index {}", pCommand->registerIndex()));
     }
-    throw std::runtime_error(std::format("Unexpected register index {}", pCommand->registerIndex()));
 }
 
 int YM2413State::f_number(const int channel) const
@@ -131,9 +210,9 @@ double YM2413State::frequency(const int channel) const
     return static_cast<double>(f_number(channel)) * _clockRate / 72 / (1 << (19 - block(channel)));
 }
 
-void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostream& s)
+void YM2413State::to_text(const std::shared_ptr<const VgmCommands::ICommand>& pCommand, std::ostream& s)
 {
-    const auto* p = dynamic_cast<const VgmCommands::YM2413*>(pCommand);
+    const auto& p = std::dynamic_pointer_cast<const VgmCommands::YM2413>(pCommand);
     if (p == nullptr)
     {
         throw std::runtime_error("Unexpected command type");
@@ -145,9 +224,9 @@ void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostr
     const auto value = p->value();
 
     // Check if valid
-    if (!validRegisters.contains(p->registerIndex()))
+    if (!VALID_REGISTERS.contains(p->registerIndex()))
     {
-        s << "Invalid register index " << std::format("{:03x}", p->registerIndex());
+        s << std::format("Invalid register index {:x}", p->registerIndex());
         return;
     }
 
@@ -157,29 +236,43 @@ void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostr
     {
     case 0x00:
     case 0x01:
-        s << "Tone user instrument ("
-            << (registerIndex == 1 ? "carrier" : "modulator")
-            << "): multiplier " << customInstrumentMultiplyingFactors[value & 0b1111]
-            << ", key scale rate " << Utils::bit_value(value, 4)
-            << ", " << (Utils::bit_set(value, 5) ? "sustained" : "percussive") << " tone, vibrato "
-            << Utils::on_off(value, 6)
-            << ", AM " << Utils::on_off(value, 7);
+        s << std::format(
+            "Tone user instrument ({}): multiplier {}, "
+            "key scale rate {}, "
+            "{} tone, "
+            "vibrato {}, "
+            "AM {}",
+            registerIndex == 1 ? "carrier" : "modulator",
+            CUSTOM_INSTRUMENT_MULTIPLYING_FACTORS[value & 0b1111],
+            Utils::bit_value(value, 4),
+            Utils::bit_set(value, 5) ? "sustained" : "percussive",
+            Utils::on_off(value, 6),
+            Utils::on_off(value, 7));
         return;
     case 0x02:
         {
             const double keyScaleLevel = 1.5 * (value >> 6);
-            const double attenuation = 0.75 * (value & 0b111111);
-            s << "Tone user instrument: modulator key scale level " << keyScaleLevel << " dB/oct, total level "
-                << attenuation << " dB = " << std::format("{:3.0f}%", Utils::db_to_percent(attenuation));
+            const double db = 0.75 * (value & 0b111111);
+            s << std::format(
+                "Tone user instrument: modulator key scale level {} dB/oct, "
+                "total level {} dB = {:.2f}%",
+                keyScaleLevel,
+                db,
+                Utils::attenuation_db_to_percent(db));
             return;
         }
     case 0x03:
         {
             const double keyScaleLevel = 1.5 * (value >> 6);
-            s << "Tone user instrument: carrier key scale level " << keyScaleLevel << " db/oct"
-                << ", carrier " << (Utils::bit_set(value, 4) ? "" : "not ") << "rectified"
-                << ", modulator " << (Utils::bit_set(value, 3) ? "" : "not ") << "rectified"
-                << ", feedback modulation " << customInstrumentFeedbackModulations[value & 0b111];
+            s << std::format(
+                "Tone user instrument: carrier key scale level {} db/oct, "
+                "carrier {}rectified, "
+                "modulator {}rectified, "
+                "feedback modulation {}",
+                keyScaleLevel,
+                Utils::bit_set(value, 4) ? "" : "not ",
+                Utils::bit_set(value, 3) ? "" : "not ",
+                CUSTOM_INSTRUMENT_FEEDBACK_MODULATIONS[value & 0b111]);
             return;
         }
     case 0x04:
@@ -187,9 +280,11 @@ void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostr
         {
             const int attackRate = value >> 4;
             const int decayRate = value & 0xf;
-            s << "Tone user instrument (" << (p->registerIndex() == 4 ? "modulator" : "carrier") << "): "
-                << "attack rate " << attackRate
-                << ", decay rate " << decayRate;
+            s << std::format(
+                "Tone user instrument ({}): attack rate {}, decay rate {}",
+                p->registerIndex() == 4 ? "modulator" : "carrier",
+                attackRate,
+                decayRate);
             return;
         }
     case 0x06:
@@ -197,13 +292,20 @@ void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostr
         {
             const int sustainLevel = 3 * (value >> 4);
             const int releaseRate = value & 0xf;
-            s << "Tone user instrument (" << (p->registerIndex() == 6 ? "modulator" : "carrier") << "): "
-                << "sustain level " << sustainLevel << " dB = " << std::format("{:3.0f}%", Utils::db_to_percent(sustainLevel))
-                << ", release rate " << releaseRate;
+            s << std::format(
+                "Tone user instrument ({}): "
+                "sustain level {} dB = {:.2f}%, release rate {}",
+                p->registerIndex() == 6 ? "modulator" : "carrier",
+                sustainLevel,
+                Utils::volume_db_to_percent(sustainLevel, 45),
+                releaseRate);
             return;
         }
     case 0x0e: // Percussion
-        s << "Rhythm control: percussion " << Utils::on_off(value, 5) << ", instruments: " << percussion_instruments(value);
+        s << std::format(
+            "Rhythm control: percussion {}, instruments: {}",
+            Utils::on_off(value, 5),
+            percussion_instruments(value));
         return;
     case 0x10:
     case 0x11:
@@ -217,8 +319,13 @@ void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostr
         {
             const auto channel = p->registerIndex() & 0xf;
             const auto frequency = this->frequency(channel);
-            s << "Tone frequency: ch " << channel << " -> " << std::format("{:03d}", f_number(channel))
-                << "(" << block(channel) << ") = " << std::format("{:8.2f}", frequency) << " Hz = " << Utils::note_name(frequency);
+            s << std::format(
+                "Tone frequency: ch {} -> {:03d} ({}) = {:8.2f} Hz = {}",
+                channel,
+                f_number(channel),
+                block(channel),
+                frequency,
+                Utils::note_name(frequency));
             if (channel >= 6)
             {
                 s << " OR Percussion F-num";
@@ -245,7 +352,9 @@ void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostr
                 Utils::note_name(frequency),
                 Utils::on_off(value, 5),
                 Utils::on_off(value, 4),
-                channel >= 6 ? " OR Percussion F-num" : "");
+                channel >= 6
+                ? " OR Percussion F-num"
+                : "");
             return;
         }
     case 0x30:
@@ -261,15 +370,17 @@ void YM2413State::add_with_text(const VgmCommands::ICommand* pCommand, std::ostr
             const auto channel = p->registerIndex() & 0xf;
             const auto instrument = value >> 4;
             const auto volume = value & 0b1111;
-            const auto attenuation = 3 * volume;
-            s << std::format("YM2413: Tone volume/instrument: ch {} -> vol 0x{:x} = {:3} dB attenuation = {:3.0f}%; inst 0x{:x} = {}{}",
+            const auto volumeDecibels = 3 * volume;
+            s << std::format("YM2413: Tone volume/instrument: ch {} -> vol 0x{:x} = {} dB = {:.2f}%; inst 0x{:x} = {}{}",
                 channel,
                 volume,
-                attenuation,
-                Utils::db_to_percent(attenuation),
+                volumeDecibels,
+                Utils::volume_db_to_percent(volumeDecibels, 45),
                 instrument,
-                instrumentNames[instrument],
-                channel < 6 ? "" : " OR Percussion volumes " + percussion_volumes(p));
+                INSTRUMENT_NAMES[instrument],
+                channel < 6
+                ? ""
+                : " OR Percussion volumes " + percussion_volumes(p));
             return;
         }
     }

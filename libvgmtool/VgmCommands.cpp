@@ -174,17 +174,17 @@ void VgmCommands::Wait16bit::to_data(BinaryData& data) const
     data.write_uint16(_duration);
 }
 
-VgmCommands::Wait60th::Wait60th(): NoDataCommand(0x62, VgmHeader::Chip::Nothing)
+VgmCommands::Wait60th::Wait60th(): NoDataCommand(0x62, Chip::Nothing)
 {
     _duration = 44100 / 60;
 }
 
-VgmCommands::Wait50th::Wait50th(): NoDataCommand(0x63, VgmHeader::Chip::Nothing)
+VgmCommands::Wait50th::Wait50th(): NoDataCommand(0x63, Chip::Nothing)
 {
     _duration = 44100 / 50;
 }
 
-void VgmCommands::Wait4bit::set_duration(const int sampleCount)
+void VgmCommands::Wait4Bit::set_duration(const int sampleCount)
 {
     if (sampleCount <= 0 || sampleCount >= 16)
     {
@@ -193,7 +193,7 @@ void VgmCommands::Wait4bit::set_duration(const int sampleCount)
     _duration = static_cast<uint16_t>(sampleCount);
 }
 
-void VgmCommands::Wait4bit::from_data(BinaryData& data)
+void VgmCommands::Wait4Bit::from_data(BinaryData& data)
 {
     const auto b = data.read_uint8();
     if ((b & 0xf0) != 0x70)
@@ -203,7 +203,7 @@ void VgmCommands::Wait4bit::from_data(BinaryData& data)
     _duration = (b & 0xf) + 1;
 }
 
-void VgmCommands::Wait4bit::to_data(BinaryData& data) const
+void VgmCommands::Wait4Bit::to_data(BinaryData& data) const
 {
     data.write_uint8(static_cast<uint8_t>((_duration - 1) | 0x70));
 }
@@ -475,3 +475,14 @@ void VgmCommands::PCMSeek::to_data(BinaryData& data) const
     data.write_uint8(get_marker());
     data.write_uint32(_address);
 }
+
+void VgmCommands::InvalidCommand::from_data(BinaryData& data)
+{
+    _value = data.read_uint8();
+}
+
+void VgmCommands::InvalidCommand::to_data(BinaryData& data) const
+{
+    data.write_uint8(_value);
+}
+

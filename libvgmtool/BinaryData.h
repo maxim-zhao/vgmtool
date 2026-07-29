@@ -4,6 +4,7 @@
 
 #include "VgmHeader.h"
 
+class IStatusCallback;
 // Holds binary data and lets us read stuff from it easily
 // - just holds the whole file in memory
 // - decompresses from GZip transparently
@@ -73,6 +74,9 @@ public:
 
     // Reset to empty
     void reset();
+
+    // Compress in-place
+    void compress(int level, const IStatusCallback& callback, bool verboseZopfli);
 
 private:
     void check_write_space(size_t size);

@@ -6,3 +6,11 @@
 	path = libpu8/libpu8
 	url = https://github.com/jofeu/libpu8.git
 	branch = master
+[submodule "zlib/zlib"]
+	path = zlib/zlib
+	url = https://github.com/madler/zlib.git
+	branch = master
+[submodule "CLI11"]
+	path = CLI11
+	url = https://github.com/CLIUtils/CLI11.git
+	branch = main

@@ -9,8 +9,13 @@ class BinaryData;
 class Gd3Tag
 {
 public:
-    Gd3Tag() = default;;
+    Gd3Tag() = default;
     ~Gd3Tag() = default;
+
+    Gd3Tag(const Gd3Tag& other) = default;
+    Gd3Tag(Gd3Tag&& other) noexcept = default;
+    Gd3Tag& operator=(const Gd3Tag& other) = default;
+    Gd3Tag& operator=(Gd3Tag&& other) noexcept = default;
 
     void from_binary(BinaryData& data);
     void to_binary(BinaryData& data) const;

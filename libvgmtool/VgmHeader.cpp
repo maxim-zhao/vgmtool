@@ -1,9 +1,7 @@
 #include "VgmHeader.h"
 
 #include <format>
-#include <sstream>
 #include <stdexcept>
-#include <ranges>
 
 #include "BinaryData.h"
 #include "KeyValuePrinter.h"
@@ -213,7 +211,7 @@ void VgmHeader::to_binary(BinaryData& data) const
     data.write_uint32(clock(Chip::YM2413));
     data.write_uint32(_gd3Offset == 0u ? 0u : _gd3Offset - GD3_DELTA);
     data.write_uint32(_sampleCount);
-    data.write_uint32(_loopOffset - LOOP_DELTA);
+    data.write_uint32(_loopOffset == 0u ? 0u : _loopOffset - LOOP_DELTA);
     data.write_uint32(_loopSampleCount);
     if (_version.at_least(1, 1))
     {

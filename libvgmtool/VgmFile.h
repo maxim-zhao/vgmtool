@@ -8,7 +8,7 @@
 
 class YM2413State;
 class SN76489State;
-class IVGMToolCallback;
+class IStatusCallback;
 
 class VgmFile
 {
@@ -22,30 +22,50 @@ public:
     explicit VgmFile(const std::string& filename);
 
     void load_file(const std::string& filename);
-    void save_file(const std::string& filename);
+    void save_file(const std::string& filename, const IStatusCallback& callback, bool verboseZopfli = false, int compression = 0);
 
-    VgmHeader& header()
+    [[nodiscard]] VgmHeader& header()
     {
         return _header;
     }
 
-    Gd3Tag& gd3()
+    [[nodiscard]] const VgmHeader& header() const
+    {
+        return _header;
+    }
+
+    [[nodiscard]] Gd3Tag& gd3()
     {
         return _gd3Tag;
     }
 
+    [[nodiscard]] const Gd3Tag& gd3() const
+    {
+        return _gd3Tag;
+    }
+
+    [[nodiscard]] CommandStream& data_before_loop()
+    {
+        return _dataBeforeLoop;
+    }
+
+    [[nodiscard]] CommandStream& data_with_loop()
+    {
+        return _dataWithLoop;
+    }
+
     // Checks the header. Throws on any errors found if fix=false, else tries to fix them.
-    void check_header(bool fix);
+    void check_header(bool fix, const IStatusCallback& callback);
 
     // Writes the VGM file as text to the stream
-    void write_to_text(std::ostream& s, const IVGMToolCallback& callback) const;
+    void write_to_text(std::ostream& s, const IStatusCallback& callback) const;
 
 private:
-    static void write_command(
-        std::ostream& s, 
-        size_t& offset, 
-        int& time, 
-        SN76489State& psgState, 
+    static void write_command_as_text(
+        std::ostream& s,
+        size_t& offset,
+        int& time,
+        SN76489State& psgState,
         YM2413State& ym2413State,
-        const VgmCommands::ICommand* pCommand);
+        const std::shared_ptr<const VgmCommands::ICommand>& pCommand);
 };

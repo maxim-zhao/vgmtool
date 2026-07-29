@@ -5,13 +5,16 @@
 
 #include <string>
 #include <vector>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <Windows.h>
+#include <shellapi.h>
 
-#include "libvgmtool/IVGMToolCallback.h"
+#include "libvgmtool/IStatusCallback.h"
 #include "libvgmtool/VgmFile.h"
 
 
-class Gui : IVGMToolCallback
+class Gui : IStatusCallback
 {
 public:
     Gui(HINSTANCE hInstance, LPSTR lpCmdLine, int nShowCmd);
@@ -38,7 +41,6 @@ private:
     void change_check_boxes(const std::vector<int>& ids, const std::vector<int>& counts, ChangeCheckboxesMode mode) const;
 
     void load_file(const std::string& filename);
-    void convert_dropped_files(HDROP hDrop) const;
     void update_header();
     auto optimize(const std::string& filename) const -> void;
     void update_gd3() const;
@@ -59,10 +61,9 @@ private:
     [[nodiscard]] int show_question_message_box(const std::string& s) const;
 
 public:
-    void show_message(const std::string& message) const override;
-    void show_error(const std::string& message) const override;
-    void show_status(const std::string& message) const override;
-    void show_conversion_progress(const std::string& message) const override;
+    void message(const std::string& message) const override;
+    void error(const std::string& message) const override;
+    void verbose_message(const std::string& message) const override;
 
 private:
     HINSTANCE _hInstance;
@@ -76,7 +77,6 @@ private:
     HWND _gd3Wnd{};
     HWND _trimWnd{};
     HWND _stripWnd{};
-    HWND _convertWnd{};
 
     // The current filename
     std::string _currentFilename;

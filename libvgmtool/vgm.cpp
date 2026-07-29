@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 #include "utils.h"
 #include "VgmFile.h"
 
@@ -45,7 +45,7 @@ const int YM2612ValidBits[YM2612NumRegs] = {
     //                    Timer A--      Timers, 3/6 mode
     //                                             Unused
     0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x00, 0xc0, 0xf7, 0x00, 0xff, 0x80, 0x00, 0x00, 0x00, 0x00, // 0x02x
-    //Detune/mutiple      --------------      --------------      --------------
+    //Detune/multiple      --------------      --------------      --------------
     0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, // 0x03x
     //Total level         --------------      --------------      --------------
     0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, // 0x04x
@@ -72,7 +72,7 @@ const int YM2612ValidBits[YM2612NumRegs] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 0x10x
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 0x11x
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 0x12x
-    //Detune/mutiple      --------------      --------------      --------------
+    //Detune/multiple      --------------      --------------      --------------
     0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, // 0x13x
     //Total level         --------------      --------------      --------------
     0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, 0x7f, 0x7f, 0x7f, 0x00, // 0x14x
@@ -152,7 +152,7 @@ void write_pause(gzFile out, long int pauselength)
 // Assumes you are writing the original header with minor modifications, so it
 // doesn't check anything (like the GD3 offset, EOF offset).
 //----------------------------------------------------------------------------------------------
-void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const IVGMToolCallback& callback)
+void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const IStatusCallback& callback)
 {
     char copybuffer[BUFFER_SIZE];
     int AmtRead;
@@ -162,7 +162,7 @@ void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const
         return;
     }
 
-    callback.show_status("Updating VGM header...");
+    callback.verbose_message("Updating VGM header...");
 
     const auto outfilename = Utils::make_temp_filename(filename);
 
@@ -178,7 +178,7 @@ void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const
         if (gzwrite(out, copybuffer, AmtRead) != AmtRead)
         {
             // Error copying file
-            callback.show_error(std::format("Error copying data to temporary file {}!", outfilename));
+            callback.error(std::format("Error copying data to temporary file {}!", outfilename));
             gzclose(in);
             gzclose(out);
             std::filesystem::remove(outfilename);
@@ -192,125 +192,7 @@ void write_vgm_header(const std::string& filename, OldVGMHeader VGMHeader, const
 
     Utils::replace_file(filename, outfilename);
 
-    callback.show_status("VGM header update complete");
-}
-
-//----------------------------------------------------------------------------------------------
-// Parse *in for chip data, setting BOOLs accordingly
-// *in is an open gzFile
-//----------------------------------------------------------------------------------------------
-void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612, bool* UsesYM2151, bool* UsesReserved)
-{
-    if (UsesPSG)
-    {
-        *UsesPSG = false;
-    }
-    if (UsesYM2413)
-    {
-        *UsesYM2413 = false;
-    }
-    if (UsesYM2612)
-    {
-        *UsesYM2612 = false;
-    }
-    if (UsesYM2151)
-    {
-        *UsesYM2151 = false;
-    }
-    if (UsesReserved)
-    {
-        *UsesReserved = false;
-    }
-
-    gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
-    for (bool atEnd = false; !atEnd;)
-    {
-        auto b0 = gzgetc(in);
-        switch (b0)
-        {
-        case VGM_GGST:
-        case VGM_PSG:
-            gzgetc(in);
-            if (UsesPSG)
-            {
-                *UsesPSG = true;
-            }
-            break;
-        case VGM_YM2413:
-            gzgetc(in);
-            gzgetc(in);
-            if (UsesYM2413)
-            {
-                *UsesYM2413 = true;
-            }
-            break;
-        case VGM_YM2612_0:
-        case VGM_YM2612_1:
-            gzgetc(in);
-            gzgetc(in);
-            if (UsesYM2612)
-            {
-                *UsesYM2612 = true;
-            }
-            break;
-        case VGM_YM2151:
-            gzgetc(in);
-            gzgetc(in);
-            if (UsesYM2151)
-            {
-                *UsesYM2151 = true;
-            }
-            break;
-        case 0x55: // Reserved up to 0x5f
-        case 0x56:
-        case 0x57:
-        case 0x58:
-        case 0x59:
-        case 0x5a:
-        case 0x5b:
-        case 0x5c:
-        case 0x5d:
-        case 0x5e:
-        case 0x5f:
-            gzgetc(in);
-            gzgetc(in);
-            if (UsesReserved)
-            {
-                *UsesReserved = true;
-            }
-            break;
-        case VGM_PAUSE_WORD:
-            gzgetc(in);
-            gzgetc(in);
-            break;
-        case VGM_PAUSE_60TH:
-        case VGM_PAUSE_50TH:
-            break;
-        //    case VGM_PAUSE_BYTE:
-        //      gzgetc(in);
-        //      break;
-        case 0x70:
-        case 0x71:
-        case 0x72:
-        case 0x73:
-        case 0x74:
-        case 0x75:
-        case 0x76:
-        case 0x77:
-        case 0x78:
-        case 0x79:
-        case 0x7a:
-        case 0x7b:
-        case 0x7c:
-        case 0x7d:
-        case 0x7e:
-        case 0x7f: // Wait 1-16 samples
-            break;
-        case VGM_END:
-            atEnd = true;
-            break;
-        }
-    }
+    callback.verbose_message("VGM header update complete");
 }
 
 
@@ -319,14 +201,14 @@ void get_used_chips(gzFile in, bool* UsesPSG, bool* UsesYM2413, bool* UsesYM2612
 // Corrects header if necessary
 // TODO: rewrite as a CheckHeader() function to check everything at once
 //----------------------------------------------------------------------------------------------
-void check_lengths(const std::string& filename, bool showResults, const IVGMToolCallback& callback)
+void check_lengths(const std::string& filename, bool showResults, const IStatusCallback& callback)
 {
     if (!Utils::file_exists(filename))
     {
         return;
     }
 
-    callback.show_status("Counting samples...");
+    callback.verbose_message("Counting samples...");
 
     gzFile in = gzopen(filename.c_str(), "rb");
 
@@ -337,7 +219,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
     if (!vgmHeader.is_valid())
     {
         // no VGM marker
-        callback.show_error("File is not a VGM file! (no \"Vgm \")");
+        callback.error("File is not a VGM file! (no \"Vgm \")");
         gzclose(in);
         return;
     }
@@ -416,7 +298,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
 
             if (showResults)
             {
-                callback.show_message(std::format(
+                callback.message(std::format(
                     "Lengths:\n"
                     "In file:\n"
                     "Total: {} samples = {:.2f} seconds\n"
@@ -441,7 +323,7 @@ void check_lengths(const std::string& filename, bool showResults, const IVGMTool
             )
             {
                 // Need to repair header
-                callback.show_status("Correcting header...");
+                callback.verbose_message("Correcting header...");
                 vgmHeader.TotalLength = sampleCount;
                 vgmHeader.LoopLength = loopSampleCount;
                 if (loopSampleCount == 0)
@@ -535,13 +417,13 @@ int detect_rate(const VgmFile& /*file*/)
 // Reads in header from file
 // Shows an error if it's not a VGM file
 // returns success/failure
-bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IVGMToolCallback& callback)
+bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IStatusCallback& callback)
 {
     gzread(f, header, sizeof(OldVGMHeader));
     if (!header->is_valid())
     {
         // no VGM marker
-        callback.show_error("File is not a VGM file! (no \"Vgm \")");
+        callback.error("File is not a VGM file! (no \"Vgm \")");
         return false;
     }
     return true;
@@ -552,7 +434,7 @@ bool ReadVGMHeader(gzFile f, OldVGMHeader* header, const IVGMToolCallback& callb
 // ought to be equally capable
 void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, std::vector<int>& YM2413writes,
                     std::vector<int>& YM2612writes, std::vector<int>& YM2151writes,
-                    std::vector<int>& reservedwrites, const IVGMToolCallback& callback)
+                    std::vector<int>& reservedwrites, const IStatusCallback& callback)
 {
     int b0, b1, b2;
     int i;
@@ -586,7 +468,7 @@ void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, st
         return;
     }
 
-    callback.show_status("Scanning for chip data...");
+    callback.verbose_message("Scanning for chip data...");
 
     gzseek(in, VGM_DATA_OFFSET, SEEK_SET);
 
@@ -737,231 +619,5 @@ void GetWriteCounts(const std::string& filename, std::vector<int>& PSGwrites, st
 
     gzclose(in);
 
-    callback.show_status("Scan for chip data complete");
-}
-
-
-//----------------------------------------------------------------------------------------------
-// Fills a TSystemState with default values
-//----------------------------------------------------------------------------------------------
-void ResetState(TSystemState* State)
-{
-    State->samplecount = 0;
-
-    State->PSGState.GGStereo = 0xff;
-    for (int i = 0; i < 4; i++)
-    {
-        State->PSGState.Registers[2 * i] = 0;
-        State->PSGState.Registers[2 * i + 1] = 0xf;
-    }
-    State->PSGState.LatchedRegister = 0;
-
-    memset(State->YM2413State.Registers, 0, YM2413NumRegs);
-
-    memset(State->YM2612State.Registers, 0, YM2612NumRegs);
-
-    // TODO: YM2151
-}
-
-// handles a chip write by updating the state in memory
-// also keeps track of time passed
-// unused parameters are zero where necessary
-void WriteToState(TSystemState* state, int b0, int b1, int b2)
-{
-    int i;
-    switch (b0)
-    {
-    case VGM_GGST: // GG stereo
-        state->PSGState.GGStereo = b1;
-        break;
-    case VGM_PSG: // PSG write
-        if (b1 & 0x80)
-        {
-            // latch byte
-            state->PSGState.LatchedRegister = i = ((b1 >> 4) & 0x07); // 1 cc t dddd - get cct as register number
-            state->PSGState.Registers[i] = (state->PSGState.Registers[i] & 0x3f0) | (b1 & 0xf);
-            // update low 4 bits of register
-        }
-        else
-        {
-            // data byte
-            i = state->PSGState.LatchedRegister;
-            if ((i > -1) && (i < 8))
-            {
-                if (!(i % 2) && (i < 5))
-                {
-                    // if latched register is a tone channel
-                    state->PSGState.Registers[i] = (state->PSGState.Registers[i] & 0x00f) | ((b1 & 0x3f) << 4);
-                    // update the high 6 bits
-                }
-                else
-                {
-                    // otherwise it's noise/vol
-                    state->PSGState.Registers[i] = b1 & 0x0f; // so update the low 4 bits
-                }
-            }
-        }
-        break;
-    case VGM_YM2413: // YM2413
-        if (b1 < YM2413NumRegs)
-        {
-            state->YM2413State.Registers[b1] = b2;
-        }
-        break;
-    case VGM_YM2612_0: // YM2612 port 0
-    case VGM_YM2612_1: // YM2612 port 1
-        i = (b0 == VGM_YM2612_0 ? 0 : 0x100) + b1;
-        if (i < YM2612NumRegs)
-        {
-            state->YM2612State.Registers[i] = b2;
-        }
-        break;
-    case VGM_YM2151: // YM2151
-        // TODO: this
-        break;
-
-    // I include these to acknowledge that I am deliberately not handling them here (I don't need to)
-    // all do nothing
-    case 0x55: // Reserved
-    case 0x56:
-    case 0x57:
-    case 0x58:
-    case 0x59:
-    case 0x5a:
-    case 0x5b:
-    case 0x5c:
-    case 0x5d:
-    case 0x5e:
-    case 0x5f:
-        break;
-
-    case VGM_PAUSE_WORD: // Wait n samples
-        state->samplecount += Utils::make_word(b1, b2);
-        break;
-    //  case VGM_PAUSE_BYTE:  // Wait n samples
-    //    state->samplecount+=b1;
-    //    break;
-    case 0x70:
-    case 0x71:
-    case 0x72:
-    case 0x73:
-    case 0x74:
-    case 0x75:
-    case 0x76:
-    case 0x77:
-    case 0x78:
-    case 0x79:
-    case 0x7a:
-    case 0x7b:
-    case 0x7c:
-    case 0x7d:
-    case 0x7e:
-    case 0x7f: // Wait 1-16 samples
-        state->samplecount += (b0 & 0xf) + 1;
-        break;
-    case VGM_PAUSE_60TH: // Wait 1/60 s
-        state->samplecount += LEN60TH;
-        break;
-    case VGM_PAUSE_50TH: // Wait 1/50 s
-        state->samplecount += LEN50TH;
-        break;
-    case VGM_END: // End of sound data
-        break;
-    default:
-        break;
-    } // end switch
-}
-
-//----------------------------------------------------------------------------------------------
-// Writes a TSystemState to *out, with key data if WriteKeys
-//----------------------------------------------------------------------------------------------
-void WriteStateToFile(gzFile out, TSystemState* State, bool WriteKeys)
-{
-    // Write a full system state
-    int i;
-
-    // First PSG
-    if (State->UsesPSG)
-    {
-        // Write in groups, not register order
-        // 1. Tone channel frequencies (regs 0, 2, 4)
-        for (i = 0; i < 5; i += 2)
-        {
-            gzputc(out, VGM_PSG);
-            gzputc(out, // 1st byte
-                0x80 | // Marker  %1-------
-                (i << 4) | // Channel %-cct----
-                State->PSGState.Registers[i] & 0x0f // Data    %----dddd
-            );
-            gzputc(out, VGM_PSG);
-            gzputc(out, // 2nd byte
-                (State->PSGState.Registers[i] >> 4) & 0x3f // Data    %0-dddddd
-            );
-        }
-        // 2. Noise
-        gzputc(out, VGM_PSG);
-        gzputc(out,
-            0xe0 | // %1110----
-            (State->PSGState.Registers[6] & 0x07) // %----dddd
-        );
-        // 3. Volumes (regs 1, 3, 5, 7)
-        for (i = 1; i < 8; i += 2)
-        {
-            gzputc(out, VGM_PSG);
-            gzputc(out,
-                0x80 | // Marker  %1-------
-                (i << 4) | // Channel %-cct----
-                (State->PSGState.Registers[i] & 0x0f) // Data    %----dddd
-            );
-        }
-        // 4. GG stereo
-        gzputc(out, VGM_GGST);
-        gzputc(out, State->PSGState.GGStereo);
-    }
-
-    // Then YM2413
-    if (State->UsesYM2413)
-    {
-        for (i = 0; i < YM2413NumRegs; ++i)
-        {
-            if (YM2413ValidBits[i])
-            {
-                gzputc(out, VGM_YM2413);
-                gzputc(out, i);
-                gzputc(out,
-                    State->YM2413State.Registers[i] & YM2413ValidBits[i] & (WriteKeys ? 0xff : (~YM2413KeyBits[i])));
-                // Output, but zero key bits if it's not the starting point
-            }
-        }
-    }
-
-    // Then YM2612
-    if (State->UsesYM2612)
-    {
-        for (i = 0; i < YM2612NumRegs; ++i)
-        {
-            if (YM2612ValidBits[i])
-            {
-                if (i < 0x100)
-                {
-                    gzputc(out, VGM_YM2612_0);
-                }
-                else
-                {
-                    gzputc(out, VGM_YM2612_1);
-                }
-                gzputc(out, (i & 0xff));
-                // key bit handling
-                if (
-                    ((i & 0xff) != 0x28) // if it's not the keys register
-                    || WriteKeys // OR, we want keys
-                )
-                {
-                    gzputc(out, State->YM2612State.Registers[i] & YM2612ValidBits[i]);
-                }
-            }
-        }
-    }
-
-    // TODO: YM2151 states
+    callback.verbose_message("Scan for chip data complete");
 }

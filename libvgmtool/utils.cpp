@@ -4,12 +4,13 @@
 #include "utils.h"
 
 #include <fstream>
+#include <numbers>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 #include <zopfli.h>
 
-#include "IVGMToolCallback.h"
+#include "IStatusCallback.h"
 
 bool Utils::file_exists(const std::string& filename)
 {
@@ -22,7 +23,7 @@ int Utils::file_size(const std::string& filename)
     return static_cast<int>(std::filesystem::file_size(filename));
 }
 
-void Utils::compress(const std::string& filename, const IVGMToolCallback& callback, const int iterations)
+void Utils::compress(const std::string& filename, const IStatusCallback& callback, const int iterations)
 {
     auto sizeBefore = file_size(filename);
 
@@ -30,12 +31,12 @@ void Utils::compress(const std::string& filename, const IVGMToolCallback& callba
     std::vector<uint8_t> data;
     load_file(data, filename);
 
-    callback.show_status(std::format(
+    callback.verbose_message(std::format(
         "{} before: {} bytes ({} bytes uncompressed, {:.4}% compression)", 
         filename, 
         sizeBefore, 
         data.size(), 
-        percentReduction(static_cast<int>(data.size()), sizeBefore)));
+        percent_reduction(static_cast<int>(data.size()), sizeBefore)));
 
     // Now compress
     ZopfliOptions options{};
@@ -52,7 +53,7 @@ void Utils::compress(const std::string& filename, const IVGMToolCallback& callba
     // If it is not smaller, do not save
     if (std::cmp_greater_equal(outSize, sizeBefore))
     {
-        callback.show_status(std::format(
+        callback.verbose_message(std::format(
             "Compressed to {} bytes, not overwriting...",
             outSize));
         return;
@@ -68,12 +69,12 @@ void Utils::compress(const std::string& filename, const IVGMToolCallback& callba
     free(out);
 
     const auto sizeAfter = file_size(filename);
-    callback.show_status(std::format(
+    callback.verbose_message(std::format(
         "{} after: {} bytes ({:.2}% smaller, {:.4}% compression)", 
         filename, 
         sizeAfter, 
-        percentReduction(sizeBefore, sizeAfter), 
-        percentReduction(static_cast<int>(data.size()), sizeAfter)));
+        percent_reduction(sizeBefore, sizeAfter), 
+        percent_reduction(static_cast<int>(data.size()), sizeAfter)));
 }
 
 void Utils::decompress(const std::string& filename)
@@ -154,19 +155,6 @@ void Utils::replace_file(const std::string& destination, const std::string& sour
     std::filesystem::rename(source, destination);
 }
 
-std::string Utils::to_lower(const std::string& s)
-{
-    std::string result;
-    std::ranges::transform(
-        s,
-        result.begin(),
-        [](const std::string::value_type c)
-        {
-            return static_cast<std::string::value_type>(std::tolower(c));
-        });
-    return result;
-}
-
 int Utils::make_word(const int b1, const int b2)
 {
     return ((b1 & 0xff) << 0) |
@@ -198,7 +186,7 @@ std::string Utils::note_name(const double frequencyHz)
         return "notanote";
     }
 
-    const double midiNote = (log(frequencyHz) - log(440)) / log(2) * 12 + 69;
+    const double midiNote = (log(frequencyHz) - log(440)) / std::numbers::ln2 * 12 + 69;
     const int nearestNote = static_cast<int>(std::round(midiNote));
     const char* noteNames[] = {"A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"};
     return std::format(
@@ -228,12 +216,28 @@ bool Utils::bit_set(const uint8_t value, const int bitIndex)
     return bit_value(value, bitIndex) == 1;
 }
 
-double Utils::db_to_percent(const double attenuation)
+double Utils::attenuation_db_to_percent(const int attenuationDb)
 {
-    return std::pow(10, -0.1 * attenuation) * 100;
+    // Level is 10^(-n/20) for attenuation n in dB.
+    return std::pow(10, -0.05 * attenuationDb) * 100;
 }
 
-double Utils::percentReduction(int before, int after)
+double Utils::attenuation_db_to_percent(const double attenuationDb)
+{
+    // Level is 10^(-n/20) for attenuation n in dB.
+    return std::pow(10, -0.05 * attenuationDb) * 100;
+}
+
+double Utils::volume_db_to_percent(const int volumeDb, const int maxDb)
+{
+    if (volumeDb == 0)
+    {
+        return 0.0;
+    }
+    return attenuation_db_to_percent(maxDb - volumeDb);
+}
+
+double Utils::percent_reduction(const unsigned long long before, const unsigned long long after)
 {
     return static_cast<double>(before - after) / static_cast<double>(before) * 100;
 }
