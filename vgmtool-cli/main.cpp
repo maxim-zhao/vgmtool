@@ -34,7 +34,7 @@ namespace
         }
     } callback;
 
-    void write_to_text(const VgmFile& f, const std::string& outputFilename, bool gd3Only, bool forTextFile)
+    void write_to_text(const VgmFile& f, const std::string& outputFilename, const bool gd3Only, const bool forTextFile)
     {
         // Write to stdout if no filename is given
         auto* s = outputFilename.empty()
@@ -56,7 +56,7 @@ namespace
         {
             const auto& length = Utils::samples_to_display_text(f.header().sample_count(), false);
             *s << std::format(
-                "{: <{}} {}   {}",
+                "{: <{}} {}   {}\n",
                 u8narrow(f.gd3().get_text(Gd3Tag::Key::TitleEn)),
                 39 - length.length(),
                 length,
@@ -214,7 +214,15 @@ int main_utf8(int argc, char** argv)
                 f.save_file(saveArgs.saveFilename, callback, callback.is_verbose, saveArgs.compression);
             });
         saveVerb->add_option("--as", saveArgs.saveFilename)
-            ->description("The output file. If not set, the original file will be overwritten.");
+            ->description("The output file. If not set, the original file will be overwritten.")
+            ->check([](const std::string& s)
+            {
+                if (s.empty())
+                {
+                    return "Target cannot be empty";
+                }
+                return "";
+            });
         saveVerb->add_option("--compression", saveArgs.compression)
             ->description("Compress the output file. Higher values result in smaller files but take longer to compress. Use 0 for no compression. A value of 15 is a good middle ground.")
             ->default_val(saveArgs.compression)
