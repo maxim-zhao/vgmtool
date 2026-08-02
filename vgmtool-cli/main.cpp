@@ -105,33 +105,34 @@ int main_utf8(int argc, char** argv)
         // which means they clutter the scope, so we put them in local structs.
         struct
         {
-            std::wstring titleEn;
-            std::wstring titleJa;
-            std::wstring gameEn;
-            std::wstring gameJa;
-            std::wstring systemEn;
-            std::wstring systemJa;
-            std::wstring authorEn;
-            std::wstring authorJa;
-            std::wstring releaseDate;
-            std::wstring creator;
-            std::wstring notes;
+            std::wstring unset = L"❌";
+            std::wstring titleEn = unset;
+            std::wstring titleJa = unset;
+            std::wstring gameEn = unset;
+            std::wstring gameJa = unset;
+            std::wstring systemEn = unset;
+            std::wstring systemJa = unset;
+            std::wstring authorEn = unset;
+            std::wstring authorJa = unset;
+            std::wstring releaseDate = unset;
+            std::wstring creator = unset;
+            std::wstring notes = unset;
         } gd3Args;
         auto* pGd3Verb = app.add_subcommand("gd3")
             ->description("Set GD3 tag fields on a VGM file")
             ->callback([&]
             {
-                f.gd3().set_text(Gd3Tag::Key::TitleEn, gd3Args.titleEn);
-                f.gd3().set_text(Gd3Tag::Key::TitleJa, gd3Args.titleJa);
-                f.gd3().set_text(Gd3Tag::Key::GameEn, gd3Args.gameEn);
-                f.gd3().set_text(Gd3Tag::Key::GameJa, gd3Args.gameJa);
-                f.gd3().set_text(Gd3Tag::Key::SystemEn, gd3Args.systemEn);
-                f.gd3().set_text(Gd3Tag::Key::SystemJa, gd3Args.systemJa);
-                f.gd3().set_text(Gd3Tag::Key::AuthorEn, gd3Args.authorEn);
-                f.gd3().set_text(Gd3Tag::Key::AuthorJa, gd3Args.authorJa);
-                f.gd3().set_text(Gd3Tag::Key::ReleaseDate, gd3Args.releaseDate);
-                f.gd3().set_text(Gd3Tag::Key::Creator, gd3Args.creator);
-                f.gd3().set_text(Gd3Tag::Key::Notes, gd3Args.notes);
+                if (gd3Args.titleEn != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::TitleEn, gd3Args.titleEn);
+                if (gd3Args.titleJa != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::TitleJa, gd3Args.titleJa);
+                if (gd3Args.gameEn != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::GameEn, gd3Args.gameEn);
+                if (gd3Args.gameJa != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::GameJa, gd3Args.gameJa);
+                if (gd3Args.systemEn != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::SystemEn, gd3Args.systemEn);
+                if (gd3Args.systemJa != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::SystemJa, gd3Args.systemJa);
+                if (gd3Args.authorEn != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::AuthorEn, gd3Args.authorEn);
+                if (gd3Args.authorJa != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::AuthorJa, gd3Args.authorJa);
+                if (gd3Args.releaseDate != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::ReleaseDate, gd3Args.releaseDate);
+                if (gd3Args.creator != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::Creator, gd3Args.creator);
+                if (gd3Args.notes != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::Notes, gd3Args.notes);
             });
         pGd3Verb->add_option("--title-en", gd3Args.titleEn)->description("Title (EN)");
         pGd3Verb->add_option("--title-ja", gd3Args.titleJa)->description("Title (JA)");
