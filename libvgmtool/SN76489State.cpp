@@ -200,8 +200,7 @@ void SN76489State::add(const std::shared_ptr<const VgmCommands::ICommand>& comma
                 _registers[_latchedRegisterIndex] = value & 0b1111;
             }
         }
-        // TODO: noise restart on write! Can't believe I missed that
-        _noiseChanged = _latchedRegisterIndex == 6;
+        _noiseChanged = _noiseChanged || (_latchedRegisterIndex == 6);
     }
     else
     {
