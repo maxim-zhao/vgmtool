@@ -132,7 +132,18 @@ int main_utf8(int argc, char** argv)
                 if (gd3Args.authorJa != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::AuthorJa, gd3Args.authorJa);
                 if (gd3Args.releaseDate != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::ReleaseDate, gd3Args.releaseDate);
                 if (gd3Args.creator != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::Creator, gd3Args.creator);
-                if (gd3Args.notes != gd3Args.unset) f.gd3().set_text(Gd3Tag::Key::Notes, gd3Args.notes);
+                if (gd3Args.notes != gd3Args.unset)
+                {
+                    // We substitute \n here
+                    size_t position = 0;
+                    while ((position = gd3Args.notes.find(L"\\n"), position) != std::wstring::npos)
+                    {
+                        gd3Args.notes = gd3Args.notes.replace(position, 2, L"\n");
+                        ++position;
+                    }
+
+                    f.gd3().set_text(Gd3Tag::Key::Notes, gd3Args.notes);
+                }
             });
         pGd3Verb->add_option("--title-en", gd3Args.titleEn)->description("Title (EN)");
         pGd3Verb->add_option("--title-ja", gd3Args.titleJa)->description("Title (JA)");
