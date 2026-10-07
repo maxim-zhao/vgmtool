@@ -109,11 +109,13 @@ void VgmFile::save_file(const std::string& filename, const IStatusCallback& call
 
     if (compression > 0)
     {
+        callback.verbose_message(std::format("Compressing data: {} bytes", data.size()));
         data.compress(compression, callback, verboseZopfli);
     }
 
     // Finally, save to disk.
     data.save(filename);
+    callback.verbose_message(std::format("File saved to \"{}\": {} bytes", filename, data.size()));
 }
 
 void VgmFile::check_header(const bool fix, const IStatusCallback& callback)
